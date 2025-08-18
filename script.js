@@ -6,6 +6,10 @@ class Pickleboard {
         this.clearTracersBtn = document.getElementById('clearTracersBtn');
         this.themeToggle = document.getElementById('themeToggle');
         this.gameMode = document.querySelectorAll('input[name="gameMode"]');
+        this.drawToggle = document.getElementById('drawToggle');
+        this.undoBtn = document.getElementById('undoBtn');
+        this.clearDrawingsBtn = document.getElementById('clearDrawingsBtn');
+        this.drawingLayer = document.getElementById('drawingLayer');
         
         // Court boundaries (SVG coordinates in feet) - expanded to allow movement outside court
         this.courtBounds = {
@@ -50,6 +54,17 @@ class Pickleboard {
             fadeTime: 10000, // 10 seconds
             maxTracers: 500, // Prevent memory issues
             minDistance: 0.5 // Minimum distance between tracer dots
+        };
+        
+        // Drawing system
+        this.drawingMode = false;
+        this.isDrawing = false;
+        this.currentPath = null;
+        this.drawingPaths = [];
+        this.drawingState = {
+            startX: 0,
+            startY: 0,
+            pathData: []
         };
         
         this.init();
@@ -143,6 +158,14 @@ class Pickleboard {
         Object.values(this.tokens).forEach(token => {
             token.element.addEventListener('contextmenu', (e) => e.preventDefault());
         });
+        
+        // Drawing mode controls
+        this.drawToggle.addEventListener('click', () => this.toggleDrawingMode());
+        this.undoBtn.addEventListener('click', () => this.undoLastStroke());
+        this.clearDrawingsBtn.addEventListener('click', () => this.clearAllDrawings());
+        
+        // Set up drawing event listeners
+        this.setupDrawingEvents();
     }
     
     setupTokenDragEvents(token) {
@@ -197,6 +220,9 @@ class Pickleboard {
     }
     
     startDrag(event, token) {
+        // Don't start dragging in drawing mode
+        if (this.drawingMode) return;
+        
         event.preventDefault();
         
         this.dragState.isDragging = true;
@@ -543,6 +569,123 @@ class Pickleboard {
         this.tracerDots = [];
         
         console.log('All tracer dots cleared');
+    }
+    
+    // Drawing mode methods
+    setupDrawingEvents() {
+        // Mouse events for drawing
+        this.court.addEventListener('mousedown', (e) => this.startDrawing(e));
+        this.court.addEventListener('mousemove', (e) => this.draw(e));
+        this.court.addEventListener('mouseup', (e) => this.endDrawing(e));
+        this.court.addEventListener('mouseleave', (e) => this.endDrawing(e));
+        
+        // Touch events for drawing
+        this.court.addEventListener('touchstart', (e) => {
+            if (this.drawingMode) {
+                e.preventDefault();
+                this.startDrawing(e);
+            }
+        }, { passive: false });
+        
+        this.court.addEventListener('touchmove', (e) => {
+            if (this.drawingMode) {
+                e.preventDefault();
+                this.draw(e);
+            }
+        }, { passive: false });
+        
+        this.court.addEventListener('touchend', (e) => {
+            if (this.drawingMode) {
+                e.preventDefault();
+                this.endDrawing(e);
+            }
+        }, { passive: false });
+    }
+    
+    toggleDrawingMode() {
+        this.drawingMode = !this.drawingMode;
+        
+        // Update UI
+        this.drawToggle.classList.toggle('active', this.drawingMode);
+        this.court.classList.toggle('drawing-mode', this.drawingMode);
+        
+        // Show/hide drawing controls
+        this.undoBtn.style.display = this.drawingMode ? 'inline-block' : 'none';
+        this.clearDrawingsBtn.style.display = this.drawingMode ? 'inline-block' : 'none';
+        
+        console.log(`Drawing mode: ${this.drawingMode ? 'ON' : 'OFF'}`);
+    }
+    
+    startDrawing(event) {
+        if (!this.drawingMode) return;
+        
+        event.preventDefault();
+        this.isDrawing = true;
+        
+        const coords = this.getEventCoords(event);
+        const svgCoords = this.screenToSVG(coords.x, coords.y);
+        
+        // Create new path element
+        this.currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        this.currentPath.classList.add('drawing-stroke');
+        
+        // Start path data
+        this.drawingState.pathData = [`M ${svgCoords.x} ${svgCoords.y}`];
+        this.currentPath.setAttribute('d', this.drawingState.pathData.join(' '));
+        
+        // Add to drawing layer
+        this.drawingLayer.appendChild(this.currentPath);
+    }
+    
+    draw(event) {
+        if (!this.isDrawing || !this.drawingMode || !this.currentPath) return;
+        
+        event.preventDefault();
+        
+        const coords = this.getEventCoords(event);
+        const svgCoords = this.screenToSVG(coords.x, coords.y);
+        
+        // Add line to current point
+        this.drawingState.pathData.push(`L ${svgCoords.x} ${svgCoords.y}`);
+        this.currentPath.setAttribute('d', this.drawingState.pathData.join(' '));
+    }
+    
+    endDrawing(event) {
+        if (!this.isDrawing) return;
+        
+        this.isDrawing = false;
+        
+        // Save the completed path
+        if (this.currentPath && this.drawingState.pathData.length > 1) {
+            this.drawingPaths.push(this.currentPath);
+        } else if (this.currentPath) {
+            // Remove if it's just a point
+            this.currentPath.remove();
+        }
+        
+        this.currentPath = null;
+        this.drawingState.pathData = [];
+    }
+    
+    undoLastStroke() {
+        if (this.drawingPaths.length > 0) {
+            const lastPath = this.drawingPaths.pop();
+            lastPath.remove();
+            console.log('Undid last drawing stroke');
+        }
+    }
+    
+    clearAllDrawings() {
+        // Remove all drawing paths
+        this.drawingPaths.forEach(path => path.remove());
+        this.drawingPaths = [];
+        
+        // Also clear the drawing layer
+        while (this.drawingLayer.firstChild) {
+            this.drawingLayer.removeChild(this.drawingLayer.firstChild);
+        }
+        
+        console.log('All drawings cleared');
     }
 }
 
