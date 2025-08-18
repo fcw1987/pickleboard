@@ -49,7 +49,7 @@ class Pickleboard {
     init() {
         this.setupEventListeners();
         this.loadTheme();
-        this.setGameMode('singles'); // Start with singles
+        this.setGameMode('doubles'); // Start with doubles
     }
     
     initializeTokens() {
@@ -83,6 +83,24 @@ class Pickleboard {
                 x: parseFloat(ballVisual.getAttribute('cx')),
                 y: parseFloat(ballVisual.getAttribute('cy'))
             };
+        }
+        
+        // Set initial player colors for doubles mode (default)
+        if (tokens.player1) {
+            tokens.player1.element.classList.remove('team2-player');
+            tokens.player1.element.classList.add('team1-player');
+        }
+        if (tokens.player2) {
+            tokens.player2.element.classList.remove('team2-player');
+            tokens.player2.element.classList.add('team1-player');
+        }
+        if (tokens.player3) {
+            tokens.player3.element.classList.remove('team1-player');
+            tokens.player3.element.classList.add('team2-player');
+        }
+        if (tokens.player4) {
+            tokens.player4.element.classList.remove('team1-player');
+            tokens.player4.element.classList.add('team2-player');
         }
         
         return tokens;
@@ -120,8 +138,9 @@ class Pickleboard {
         const touchElement = token.touchElement || token.element;
         const visualElement = token.element;
         
-        // Mouse events on touch element
+        // Mouse events on both touch element and visual element
         touchElement.addEventListener('mousedown', (e) => this.startDrag(e, token));
+        visualElement.addEventListener('mousedown', (e) => this.startDrag(e, token));
         
         // Touch events on touch element with pointer capture
         touchElement.addEventListener('touchstart', (e) => {
@@ -130,6 +149,20 @@ class Pickleboard {
                 // Use pointer capture for smoother touch dragging
                 try {
                     touchElement.setPointerCapture(e.touches[0].identifier);
+                } catch (err) {
+                    // Fallback if pointer capture not supported
+                }
+            }
+            this.startDrag(e, token);
+        }, { passive: false });
+        
+        // Touch events on visual element (for direct touches)
+        visualElement.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (visualElement.setPointerCapture && e.touches[0]) {
+                // Use pointer capture for smoother touch dragging
+                try {
+                    visualElement.setPointerCapture(e.touches[0].identifier);
                 } catch (err) {
                     // Fallback if pointer capture not supported
                 }
@@ -260,6 +293,9 @@ class Pickleboard {
             }
         });
         
+        // Update player colors based on game mode
+        this.updatePlayerColors(mode);
+        
         // Show/hide players based on game mode
         if (this.tokens.player3 && this.tokens.player4) {
             this.tokens.player3.element.style.display = isDoubles ? 'block' : 'none';
@@ -275,6 +311,46 @@ class Pickleboard {
         }
         
         console.log(`Game mode set to: ${mode}`);
+    }
+    
+    updatePlayerColors(mode) {
+        // In doubles mode: 
+        // - players 1 & 2 (back court) are team1 (red)
+        // - players 3 & 4 (front court) are team2 (blue)
+        //
+        // In singles mode:
+        // - player 1 (back court) is team1 (red)
+        // - player 2 (front court) is team1 (red) - same team in singles
+        // - players 3 & 4 are hidden
+        
+        if (mode === 'doubles') {
+            if (this.tokens.player1) {
+                this.tokens.player1.element.classList.remove('team2-player');
+                this.tokens.player1.element.classList.add('team1-player');
+            }
+            if (this.tokens.player2) {
+                this.tokens.player2.element.classList.remove('team2-player');
+                this.tokens.player2.element.classList.add('team1-player');
+            }
+            if (this.tokens.player3) {
+                this.tokens.player3.element.classList.remove('team1-player');
+                this.tokens.player3.element.classList.add('team2-player');
+            }
+            if (this.tokens.player4) {
+                this.tokens.player4.element.classList.remove('team1-player');
+                this.tokens.player4.element.classList.add('team2-player');
+            }
+        } else {
+            // Singles mode - both visible players on same team (team1)
+            if (this.tokens.player1) {
+                this.tokens.player1.element.classList.remove('team2-player');
+                this.tokens.player1.element.classList.add('team1-player');
+            }
+            if (this.tokens.player2) {
+                this.tokens.player2.element.classList.remove('team2-player');
+                this.tokens.player2.element.classList.add('team1-player');
+            }
+        }
     }
     
     resetPositions() {
