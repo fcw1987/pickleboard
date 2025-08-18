@@ -23,6 +23,12 @@
                     </label>
                 </div>
                 <button id="resetBtn" class="reset-btn">Reset</button>
+                <button id="clearTracersBtn" class="clear-tracers-btn">Clear Tracers</button>
+                <div class="draw-controls">
+                    <button id="drawToggle" class="draw-toggle">✏️</button>
+                    <button id="undoBtn" class="undo-btn" style="display: none;">↶</button>
+                    <button id="clearDrawingsBtn" class="clear-drawings-btn" style="display: none;">Clear</button>
+                </div>
                 <button id="themeToggle" class="theme-toggle">🌙</button>
             </div>
         </header>
@@ -74,7 +80,8 @@
                     <circle class="net-post" cx="-1" cy="22" r="0.15"/>
                     <circle class="net-post" cx="21" cy="22" r="0.15"/>
                     
-
+                    <!-- Drawing Layer - for whiteboard annotations -->
+                    <g id="drawingLayer"></g>
                     
                     <!-- Touch targets - larger invisible circles for better touch interaction -->
                     <circle id="player1-touch" class="touch-target" cx="5" cy="-1" r="2.0" data-type="player" data-target="player1"/>
@@ -100,6 +107,7 @@
                     <h3>Help</h3>
                     <ul>
                         <li><strong>Drag</strong> player dots and ball around the court</li>
+                        <li><strong>Draw</strong> - Toggle drawing mode with ✏️ button</li>
                         <li><strong>Singles/Doubles</strong> - Switch game modes</li>
                         <li><strong>Reset</strong> - Return tokens to default positions</li>
                         <li><strong>Theme</strong> - Toggle light/dark mode</li>

@@ -102,7 +102,7 @@ body {
   margin: 0;
 }
 
-.reset-btn, .theme-toggle {
+.reset-btn, .clear-tracers-btn, .theme-toggle, .draw-toggle, .undo-btn, .clear-drawings-btn {
   background-color: var(--button-bg);
   color: white;
   border: none;
@@ -114,13 +114,45 @@ body {
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
-.reset-btn:hover, .theme-toggle:hover {
+.reset-btn:hover, .clear-tracers-btn:hover, .theme-toggle:hover, .draw-toggle:hover, .undo-btn:hover, .clear-drawings-btn:hover {
   background-color: var(--button-hover);
   transform: translateY(-1px);
 }
 
-.reset-btn:active, .theme-toggle:active {
+.reset-btn:active, .clear-tracers-btn:active, .theme-toggle:active, .draw-toggle:active, .undo-btn:active, .clear-drawings-btn:active {
   transform: translateY(0);
+}
+
+/* Draw controls container */
+.draw-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Draw toggle button */
+.draw-toggle {
+  font-size: 1.2rem;
+  padding: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.draw-toggle.active {
+  background-color: var(--team1-color);
+}
+
+.draw-toggle.active:hover {
+  background-color: #d73527;
+}
+
+/* Undo and Clear buttons for drawing */
+.undo-btn, .clear-drawings-btn {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
 }
 
 .theme-toggle {
@@ -251,6 +283,40 @@ body {
   cursor: grabbing;
 }
 
+/* Tracer Ghost Dots */
+.tracer-dot {
+  stroke: none;
+  pointer-events: none;
+  opacity: 0.4;
+  animation: tracerFadeOut 10s linear forwards;
+}
+
+.tracer-dot.player {
+  r: 0.3;
+}
+
+.tracer-dot.ball {
+  r: 0.2;
+}
+
+.tracer-dot.team1-player {
+  fill: var(--team1-color);
+}
+
+.tracer-dot.team2-player {
+  fill: var(--team2-color);
+}
+
+.tracer-dot.ball-token {
+  fill: var(--ball-color);
+}
+
+@keyframes tracerFadeOut {
+  0% { opacity: 0.4; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+
 .ball-token {
   fill: var(--ball-color);
   stroke: var(--court-line);
@@ -270,6 +336,28 @@ body {
   cursor: grabbing;
   r: 0.7;
   stroke-width: 0.15;
+}
+
+/* Drawing mode styles */
+.court-svg.drawing-mode {
+  cursor: crosshair;
+}
+
+.court-svg.drawing-mode .player-token,
+.court-svg.drawing-mode .ball-token,
+.court-svg.drawing-mode .touch-target {
+  pointer-events: none;
+  cursor: crosshair;
+}
+
+/* Drawing strokes */
+.drawing-stroke {
+  fill: none;
+  stroke: #000000;
+  stroke-width: 0.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 /* Side Panel */
@@ -384,15 +472,19 @@ body {
     min-height: 300px;
   }
   
-  .reset-btn, .theme-toggle {
+  .reset-btn, .clear-tracers-btn, .theme-toggle, .draw-toggle, .undo-btn, .clear-drawings-btn {
     font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
   }
   
-  .theme-toggle {
+  .theme-toggle, .draw-toggle {
     width: 2rem;
     height: 2rem;
     font-size: 1rem;
+  }
+  
+  .draw-controls {
+    gap: 0.25rem;
   }
 }
 
