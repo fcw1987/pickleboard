@@ -3,6 +3,7 @@ class Pickleboard {
     constructor() {
         this.court = document.getElementById('court');
         this.resetBtn = document.getElementById('resetBtn');
+        this.clearTracersBtn = document.getElementById('clearTracersBtn');
         this.themeToggle = document.getElementById('themeToggle');
         this.gameMode = document.querySelectorAll('input[name="gameMode"]');
         
@@ -41,6 +42,14 @@ class Pickleboard {
             startY: 0,
             elementStartX: 0,
             elementStartY: 0
+        };
+        
+        // Tracer system
+        this.tracerDots = [];
+        this.tracerSettings = {
+            fadeTime: 10000, // 10 seconds
+            maxTracers: 500, // Prevent memory issues
+            minDistance: 0.5 // Minimum distance between tracer dots
         };
         
         this.init();
@@ -114,6 +123,9 @@ class Pickleboard {
         
         // Reset button
         this.resetBtn.addEventListener('click', () => this.resetPositions());
+        
+        // Clear tracers button
+        this.clearTracersBtn.addEventListener('click', () => this.clearAllTracers());
         
         // Theme toggle
         this.themeToggle.addEventListener('click', () => this.toggleTheme());
@@ -269,6 +281,11 @@ class Pickleboard {
     }
     
     updateTokenPosition(token, x, y) {
+        // Check if this is a significant movement to create tracer dot
+        if (this.shouldCreateTracer(token, x, y)) {
+            this.createTracerDot(token, token.x, token.y);
+        }
+        
         token.x = x;
         token.y = y;
         token.element.setAttribute('cx', x);
@@ -407,6 +424,125 @@ class Pickleboard {
             
             this.updateTokenPosition(token, x, y);
         }
+    }
+    
+    // Tracer system methods
+    shouldCreateTracer(token, newX, newY) {
+        // Don't create tracers during initialization or reset
+        if (!this.dragState.isDragging) {
+            console.log('No tracer: not dragging');
+            return false;
+        }
+        
+        // Calculate distance moved
+        const dx = newX - token.x;
+        const dy = newY - token.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        console.log(`Distance moved: ${distance}, min required: ${this.tracerSettings.minDistance}`);
+        return distance >= this.tracerSettings.minDistance;
+    }
+    
+    createTracerDot(token, x, y) {
+        console.log('Creating tracer dot at:', x, y, 'for token:', token.type);
+        
+        // Limit number of tracer dots for performance
+        if (this.tracerDots.length >= this.tracerSettings.maxTracers) {
+            // Remove oldest tracer dots
+            const toRemove = this.tracerDots.splice(0, 50);
+            toRemove.forEach(tracer => {
+                if (tracer.element && tracer.element.parentNode) {
+                    tracer.element.parentNode.removeChild(tracer.element);
+                }
+                if (tracer.timeout) {
+                    clearTimeout(tracer.timeout);
+                }
+            });
+        }
+        
+        // Create SVG circle element for the tracer dot
+        const tracerElement = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        tracerElement.setAttribute('cx', x);
+        tracerElement.setAttribute('cy', y);
+        tracerElement.classList.add('tracer-dot');
+        
+        // Set size based on token type - MUST set radius as attribute, not CSS
+        if (token.type === 'ball') {
+            tracerElement.setAttribute('r', '0.2'); // Set radius as attribute
+            tracerElement.classList.add('ball');
+            tracerElement.classList.add('ball-token');
+        } else {
+            tracerElement.setAttribute('r', '0.3'); // Set radius as attribute
+            tracerElement.classList.add('player');
+            // Copy the player team colors
+            if (token.element.classList.contains('team1-player')) {
+                tracerElement.classList.add('team1-player');
+            } else if (token.element.classList.contains('team2-player')) {
+                tracerElement.classList.add('team2-player');
+            }
+        }
+        
+        console.log('Tracer element classes:', tracerElement.classList.toString());
+        
+        // Add to SVG (insert before the touch targets so tracers appear behind interactive elements)
+        const touchTarget = this.court.querySelector('.touch-target');
+        if (touchTarget) {
+            this.court.insertBefore(tracerElement, touchTarget);
+        } else {
+            this.court.appendChild(tracerElement);
+        }
+        
+        console.log('Tracer element added to DOM');
+        
+        // Create tracer object
+        const tracer = {
+            element: tracerElement,
+            createdTime: Date.now(),
+            timeout: null
+        };
+        
+        // Set up automatic removal
+        tracer.timeout = setTimeout(() => {
+            this.removeTracerDot(tracer);
+        }, this.tracerSettings.fadeTime);
+        
+        // Add to tracking array
+        this.tracerDots.push(tracer);
+    }
+    
+    removeTracerDot(tracer) {
+        // Remove from DOM
+        if (tracer.element && tracer.element.parentNode) {
+            tracer.element.parentNode.removeChild(tracer.element);
+        }
+        
+        // Clear timeout
+        if (tracer.timeout) {
+            clearTimeout(tracer.timeout);
+        }
+        
+        // Remove from tracking array
+        const index = this.tracerDots.indexOf(tracer);
+        if (index > -1) {
+            this.tracerDots.splice(index, 1);
+        }
+    }
+    
+    clearAllTracers() {
+        // Remove all tracer dots
+        this.tracerDots.forEach(tracer => {
+            if (tracer.element && tracer.element.parentNode) {
+                tracer.element.parentNode.removeChild(tracer.element);
+            }
+            if (tracer.timeout) {
+                clearTimeout(tracer.timeout);
+            }
+        });
+        
+        // Clear the array
+        this.tracerDots = [];
+        
+        console.log('All tracer dots cleared');
     }
 }
 
