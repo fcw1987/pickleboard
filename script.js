@@ -27,8 +27,8 @@ class Pickleboard {
                 player1: { cx: 5, cy: 0 },     // Top team (red) - left baseline (matching left service box)
                 player2: { cx: 15, cy: 14 },   // Top team (red) - slightly behind NVZ line (legal position)
                 player3: { cx: 5, cy: 44 },    // Bottom team (blue) - left baseline
-                player4: { cx: 15, cy: 44 },   // Bottom team (blue) - right baseline
-                ball: { cx: 15, cy: 37 }       // Ball in right-hand service court on bottom side
+                player4: { cx: 15, cy: 44 },   // Bottom team (blue) - right baseline (server)
+                ball: { cx: 16, cy: 44 }       // Ball with server in lower right service box
             }
         };
         
