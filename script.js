@@ -24,8 +24,8 @@ class Pickleboard {
                 ball: { cx: 16, cy: 44 }       // Ball next to bottom player (in server's hand)
             },
             doubles: {
-                player1: { cx: 10, cy: 0 },    // Top team (red) - center baseline
-                player2: { cx: 15, cy: 12 },   // Top team (red) - behind right kitchen line (y=15-3=12)
+                player1: { cx: 5, cy: 0 },     // Top team (red) - left baseline (matching left service box)
+                player2: { cx: 15, cy: 12 },   // Top team (red) - behind right kitchen line
                 player3: { cx: 5, cy: 44 },    // Bottom team (blue) - left baseline
                 player4: { cx: 15, cy: 44 },   // Bottom team (blue) - right baseline
                 ball: { cx: 15, cy: 37 }       // Ball in right-hand service court on bottom side
