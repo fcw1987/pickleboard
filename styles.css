@@ -191,11 +191,13 @@ body {
 .kitchen {
   fill: #808080 !important;
   fill-opacity: 0.6;
+  stroke: none;
 }
 
 .service-box {
   fill: #000080;
   fill-opacity: 0.3;
+  stroke: none;
 }
 
 .net-post {
