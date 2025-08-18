@@ -17,7 +17,7 @@ class Pickleboard {
         // Default positions for different game modes
         this.positions = {
             singles: {
-                player1: { cx: 10, cy: 0 },    // Top player (red) - center baseline
+                player1: { cx: 5, cy: 0 },     // Top player (red) - left service box center baseline
                 player2: { cx: 15, cy: 44 },   // Bottom player (blue) - right-hand baseline
                 player3: { cx: 5, cy: 36 },    // Left court, front (hidden in singles)
                 player4: { cx: 15, cy: 36 },   // Right court, front (hidden in singles)
