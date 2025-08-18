@@ -319,8 +319,8 @@ class Pickleboard {
         // - players 3 & 4 (front court) are team2 (blue)
         //
         // In singles mode:
-        // - player 1 (back court) is team1 (red)
-        // - player 2 (front court) is team1 (red) - same team in singles
+        // - player 1 (back court) is team1 (red) - opposing players
+        // - player 2 (front court) is team2 (blue) - should be different color
         // - players 3 & 4 are hidden
         
         if (mode === 'doubles') {
@@ -341,14 +341,14 @@ class Pickleboard {
                 this.tokens.player4.element.classList.add('team2-player');
             }
         } else {
-            // Singles mode - both visible players on same team (team1)
+            // Singles mode - players are opponents (different teams)
             if (this.tokens.player1) {
                 this.tokens.player1.element.classList.remove('team2-player');
                 this.tokens.player1.element.classList.add('team1-player');
             }
             if (this.tokens.player2) {
-                this.tokens.player2.element.classList.remove('team2-player');
-                this.tokens.player2.element.classList.add('team1-player');
+                this.tokens.player2.element.classList.remove('team1-player');
+                this.tokens.player2.element.classList.add('team2-player');
             }
         }
     }
