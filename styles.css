@@ -190,14 +190,15 @@ body {
 
 .kitchen {
   fill: #808080 !important;
-  fill-opacity: 0.6;
   stroke: none;
+  stroke-width: 0;
 }
 
 .service-box {
-  fill: #000080;
-  fill-opacity: 0.3;
+  fill: #000080 !important;
+  fill-opacity: 0.4;
   stroke: none;
+  stroke-width: 0;
 }
 
 .net-post {
