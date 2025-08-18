@@ -17,18 +17,18 @@ class Pickleboard {
         // Default positions for different game modes
         this.positions = {
             singles: {
-                player1: { cx: 5, cy: 0 },     // Top player (red) - left service box center baseline
-                player2: { cx: 15, cy: 44 },   // Bottom player (blue) - right-hand baseline
+                player1: { cx: 5, cy: -1 },    // Top player (red) - left service box, behind baseline
+                player2: { cx: 15, cy: 45 },   // Bottom player (blue) - right service box, behind baseline
                 player3: { cx: 5, cy: 36 },    // Left court, front (hidden in singles)
                 player4: { cx: 15, cy: 36 },   // Right court, front (hidden in singles)
-                ball: { cx: 16, cy: 44 }       // Ball next to bottom player (in server's hand)
+                ball: { cx: 16, cy: 45 }       // Ball next to bottom player (behind baseline)
             },
             doubles: {
-                player1: { cx: 5, cy: 0 },     // Top team (red) - left baseline (matching left service box)
+                player1: { cx: 5, cy: -1 },    // Top team (red) - left service box, behind baseline
                 player2: { cx: 15, cy: 14 },   // Top team (red) - slightly behind NVZ line (legal position)
-                player3: { cx: 5, cy: 44 },    // Bottom team (blue) - left baseline
-                player4: { cx: 15, cy: 44 },   // Bottom team (blue) - right baseline (server)
-                ball: { cx: 16, cy: 44 }       // Ball with server in lower right service box
+                player3: { cx: 5, cy: 45 },    // Bottom team (blue) - left service box, behind baseline
+                player4: { cx: 15, cy: 45 },   // Bottom team (blue) - right service box, behind baseline (server)
+                ball: { cx: 16, cy: 45 }       // Ball with server in lower right service box, behind baseline
             }
         };
         
