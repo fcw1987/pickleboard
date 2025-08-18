@@ -38,6 +38,15 @@
                     <!-- Court Surface -->
                     <rect class="court-surface" x="0" y="0" width="20" height="44"/>
                     
+                    <!-- Non-volley zones (kitchen) - must be drawn after court surface -->
+                    <rect class="kitchen" x="0" y="15" width="20" height="14"/>
+                    
+                    <!-- Service boxes -->
+                    <rect class="service-box" x="0" y="0" width="10" height="15"/>
+                    <rect class="service-box" x="10" y="0" width="10" height="15"/>
+                    <rect class="service-box" x="0" y="29" width="10" height="15"/>
+                    <rect class="service-box" x="10" y="29" width="10" height="15"/>
+                    
                     <!-- Court Lines -->
                     <!-- Outer boundary (court rectangle) -->
                     <rect class="court-line" x="0" y="0" width="20" height="44" fill="none" stroke-width="0.2"/>
@@ -65,14 +74,7 @@
                     <circle class="net-post" cx="-1" cy="22" r="0.15"/>
                     <circle class="net-post" cx="21" cy="22" r="0.15"/>
                     
-                    <!-- Non-volley zones (kitchen) - must be drawn first -->
-                    <rect class="kitchen" x="0" y="15" width="20" height="14"/>
-                    
-                    <!-- Service boxes -->
-                    <rect class="service-box" x="0" y="0" width="10" height="15"/>
-                    <rect class="service-box" x="10" y="0" width="10" height="15"/>
-                    <rect class="service-box" x="0" y="29" width="10" height="15"/>
-                    <rect class="service-box" x="10" y="29" width="10" height="15"/>
+
                     
                     <!-- Touch targets - larger invisible circles for better touch interaction -->
                     <circle id="player1-touch" class="touch-target" cx="5" cy="-1" r="2.0" data-type="player" data-target="player1"/>
