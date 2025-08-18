@@ -196,7 +196,6 @@ body {
 
 .service-box {
   fill: #000080 !important;
-  fill-opacity: 0.4;
   stroke: none;
   stroke-width: 0;
 }
