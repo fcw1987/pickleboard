@@ -7,9 +7,9 @@
   --border-color: #e0e0e0;
   --court-bg: #4a7c59;
   --court-line: #ffffff;
-  --court-kitchen: #3498db;
+  --court-kitchen: #808080;
   --outside-area: #2d4a33;
-  --service-box: #8e44ad;
+  --service-box: #000080;
   --court-net: #2c3e50;
   --player-color: #e74c3c;
   --team1-color: #e74c3c;
@@ -28,9 +28,9 @@
   --border-color: #444444;
   --court-bg: #2d4a35;
   --court-line: #ffffff;
-  --court-kitchen: #2980b9;
+  --court-kitchen: #606060;
   --outside-area: #1a2b1f;
-  --service-box: #6c3483;
+  --service-box: #000060;
   --court-net: #34495e;
   --player-color: #e74c3c;
   --team1-color: #e74c3c;
@@ -341,6 +341,14 @@ body {
 
 .legend-dot.ball {
   background-color: var(--ball-color);
+}
+
+.legend-dot.kitchen {
+  background-color: var(--court-kitchen);
+}
+
+.legend-dot.service-box {
+  background-color: var(--service-box);
 }
 
 /* Responsive Design */
