@@ -55,29 +55,33 @@ class Pickleboard {
     initializeTokens() {
         const tokens = {};
         
-        // Initialize player tokens
+        // Initialize player tokens with both touch targets and visual elements
         for (let i = 1; i <= 4; i++) {
-            const element = document.getElementById(`player${i}`);
-            if (element) {
+            const visualElement = document.getElementById(`player${i}`);
+            const touchElement = document.getElementById(`player${i}-touch`);
+            if (visualElement && touchElement) {
                 tokens[`player${i}`] = {
                     id: `player${i}`,
                     type: 'player',
-                    element: element,
-                    x: parseFloat(element.getAttribute('cx')),
-                    y: parseFloat(element.getAttribute('cy'))
+                    element: visualElement,
+                    touchElement: touchElement,
+                    x: parseFloat(visualElement.getAttribute('cx')),
+                    y: parseFloat(visualElement.getAttribute('cy'))
                 };
             }
         }
         
-        // Initialize ball token
-        const ballElement = document.getElementById('ball');
-        if (ballElement) {
+        // Initialize ball token with both touch target and visual element
+        const ballVisual = document.getElementById('ball');
+        const ballTouch = document.getElementById('ball-touch');
+        if (ballVisual && ballTouch) {
             tokens.ball = {
                 id: 'ball',
                 type: 'ball',
-                element: ballElement,
-                x: parseFloat(ballElement.getAttribute('cx')),
-                y: parseFloat(ballElement.getAttribute('cy'))
+                element: ballVisual,
+                touchElement: ballTouch,
+                x: parseFloat(ballVisual.getAttribute('cx')),
+                y: parseFloat(ballVisual.getAttribute('cy'))
             };
         }
         
@@ -112,19 +116,39 @@ class Pickleboard {
     }
     
     setupTokenDragEvents(token) {
-        const element = token.element;
+        // Use touch target for better touch interaction, fallback to visual element
+        const touchElement = token.touchElement || token.element;
+        const visualElement = token.element;
         
-        // Mouse events
-        element.addEventListener('mousedown', (e) => this.startDrag(e, token));
+        // Mouse events on touch element
+        touchElement.addEventListener('mousedown', (e) => this.startDrag(e, token));
         
-        // Touch events  
-        element.addEventListener('touchstart', (e) => this.startDrag(e, token), { passive: false });
+        // Touch events on touch element with pointer capture
+        touchElement.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (touchElement.setPointerCapture && e.touches[0]) {
+                // Use pointer capture for smoother touch dragging
+                try {
+                    touchElement.setPointerCapture(e.touches[0].identifier);
+                } catch (err) {
+                    // Fallback if pointer capture not supported
+                }
+            }
+            this.startDrag(e, token);
+        }, { passive: false });
         
-        // Global events (attached to document)
-        document.addEventListener('mousemove', (e) => this.drag(e));
-        document.addEventListener('mouseup', (e) => this.endDrag(e));
-        document.addEventListener('touchmove', (e) => this.drag(e), { passive: false });
-        document.addEventListener('touchend', (e) => this.endDrag(e));
+        // Prevent context menu on both elements
+        touchElement.addEventListener('contextmenu', (e) => e.preventDefault());
+        visualElement.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        // Global events (attached to document) - only set up once
+        if (!this.globalEventsSetup) {
+            document.addEventListener('mousemove', (e) => this.drag(e));
+            document.addEventListener('mouseup', (e) => this.endDrag(e));
+            document.addEventListener('touchmove', (e) => this.drag(e), { passive: false });
+            document.addEventListener('touchend', (e) => this.endDrag(e));
+            this.globalEventsSetup = true;
+        }
     }
     
     startDrag(event, token) {
@@ -216,6 +240,12 @@ class Pickleboard {
         token.y = y;
         token.element.setAttribute('cx', x);
         token.element.setAttribute('cy', y);
+        
+        // Also update touch target position if it exists
+        if (token.touchElement) {
+            token.touchElement.setAttribute('cx', x);
+            token.touchElement.setAttribute('cy', y);
+        }
     }
     
     setGameMode(mode) {
@@ -234,6 +264,14 @@ class Pickleboard {
         if (this.tokens.player3 && this.tokens.player4) {
             this.tokens.player3.element.style.display = isDoubles ? 'block' : 'none';
             this.tokens.player4.element.style.display = isDoubles ? 'block' : 'none';
+            
+            // Also show/hide touch targets
+            if (this.tokens.player3.touchElement) {
+                this.tokens.player3.touchElement.style.display = isDoubles ? 'block' : 'none';
+            }
+            if (this.tokens.player4.touchElement) {
+                this.tokens.player4.touchElement.style.display = isDoubles ? 'block' : 'none';
+            }
         }
         
         console.log(`Game mode set to: ${mode}`);
