@@ -1,0 +1,333 @@
+// Pickleboard - Interactive Pickleball Court Planner
+class Pickleboard {
+    constructor() {
+        this.court = document.getElementById('court');
+        this.resetBtn = document.getElementById('resetBtn');
+        this.themeToggle = document.getElementById('themeToggle');
+        this.gameMode = document.querySelectorAll('input[name="gameMode"]');
+        
+        // Court boundaries (SVG coordinates in feet) - expanded to allow movement outside court
+        this.courtBounds = {
+            left: -8,
+            right: 28,
+            top: -8,
+            bottom: 52
+        };
+        
+        // Default positions for different game modes
+        this.positions = {
+            singles: {
+                player1: { cx: 10, cy: 8 },    // Center court, back
+                player2: { cx: 10, cy: 36 },   // Center court, front
+                player3: { cx: 5, cy: 36 },    // Left court, front (hidden in singles)
+                player4: { cx: 15, cy: 36 },   // Right court, front (hidden in singles)
+                ball: { cx: 10, cy: 22 }       // Center court at net
+            },
+            doubles: {
+                player1: { cx: 5, cy: 8 },     // Left court, back
+                player2: { cx: 15, cy: 8 },    // Right court, back
+                player3: { cx: 5, cy: 36 },    // Left court, front
+                player4: { cx: 15, cy: 36 },   // Right court, front
+                ball: { cx: 10, cy: 22 }       // Center court at net
+            }
+        };
+        
+        // Token state
+        this.tokens = this.initializeTokens();
+        this.dragState = {
+            isDragging: false,
+            dragElement: null,
+            startX: 0,
+            startY: 0,
+            elementStartX: 0,
+            elementStartY: 0
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        this.setupEventListeners();
+        this.loadTheme();
+        this.setGameMode('singles'); // Start with singles
+    }
+    
+    initializeTokens() {
+        const tokens = {};
+        
+        // Initialize player tokens
+        for (let i = 1; i <= 4; i++) {
+            const element = document.getElementById(`player${i}`);
+            if (element) {
+                tokens[`player${i}`] = {
+                    id: `player${i}`,
+                    type: 'player',
+                    element: element,
+                    x: parseFloat(element.getAttribute('cx')),
+                    y: parseFloat(element.getAttribute('cy'))
+                };
+            }
+        }
+        
+        // Initialize ball token
+        const ballElement = document.getElementById('ball');
+        if (ballElement) {
+            tokens.ball = {
+                id: 'ball',
+                type: 'ball',
+                element: ballElement,
+                x: parseFloat(ballElement.getAttribute('cx')),
+                y: parseFloat(ballElement.getAttribute('cy'))
+            };
+        }
+        
+        return tokens;
+    }
+    
+    setupEventListeners() {
+        // Drag events for tokens
+        Object.values(this.tokens).forEach(token => {
+            this.setupTokenDragEvents(token);
+        });
+        
+        // Reset button
+        this.resetBtn.addEventListener('click', () => this.resetPositions());
+        
+        // Theme toggle
+        this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        
+        // Game mode selection
+        this.gameMode.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.setGameMode(e.target.value);
+                }
+            });
+        });
+        
+        // Prevent context menu on tokens
+        Object.values(this.tokens).forEach(token => {
+            token.element.addEventListener('contextmenu', (e) => e.preventDefault());
+        });
+    }
+    
+    setupTokenDragEvents(token) {
+        const element = token.element;
+        
+        // Mouse events
+        element.addEventListener('mousedown', (e) => this.startDrag(e, token));
+        
+        // Touch events  
+        element.addEventListener('touchstart', (e) => this.startDrag(e, token), { passive: false });
+        
+        // Global events (attached to document)
+        document.addEventListener('mousemove', (e) => this.drag(e));
+        document.addEventListener('mouseup', (e) => this.endDrag(e));
+        document.addEventListener('touchmove', (e) => this.drag(e), { passive: false });
+        document.addEventListener('touchend', (e) => this.endDrag(e));
+    }
+    
+    startDrag(event, token) {
+        event.preventDefault();
+        
+        this.dragState.isDragging = true;
+        this.dragState.dragElement = token;
+        
+        // Get the correct coordinates based on event type
+        const coords = this.getEventCoords(event);
+        const svgCoords = this.screenToSVG(coords.x, coords.y);
+        
+        this.dragState.startX = svgCoords.x;
+        this.dragState.startY = svgCoords.y;
+        this.dragState.elementStartX = token.x;
+        this.dragState.elementStartY = token.y;
+        
+        // Add visual feedback
+        token.element.classList.add('dragging');
+        
+        // Prevent text selection during drag
+        document.body.style.userSelect = 'none';
+    }
+    
+    drag(event) {
+        if (!this.dragState.isDragging || !this.dragState.dragElement) return;
+        
+        event.preventDefault();
+        
+        const coords = this.getEventCoords(event);
+        const svgCoords = this.screenToSVG(coords.x, coords.y);
+        
+        // Calculate new position
+        const deltaX = svgCoords.x - this.dragState.startX;
+        const deltaY = svgCoords.y - this.dragState.startY;
+        
+        let newX = this.dragState.elementStartX + deltaX;
+        let newY = this.dragState.elementStartY + deltaY;
+        
+        // Constrain to court boundaries
+        const token = this.dragState.dragElement;
+        const radius = token.type === 'ball' ? 0.5 : 0.8;
+        
+        newX = Math.max(this.courtBounds.left + radius, Math.min(this.courtBounds.right - radius, newX));
+        newY = Math.max(this.courtBounds.top + radius, Math.min(this.courtBounds.bottom - radius, newY));
+        
+        // Update position
+        this.updateTokenPosition(token, newX, newY);
+    }
+    
+    endDrag(event) {
+        if (!this.dragState.isDragging) return;
+        
+        // Remove visual feedback
+        if (this.dragState.dragElement) {
+            this.dragState.dragElement.element.classList.remove('dragging');
+        }
+        
+        // Reset drag state
+        this.dragState.isDragging = false;
+        this.dragState.dragElement = null;
+        
+        // Restore text selection
+        document.body.style.userSelect = '';
+    }
+    
+    getEventCoords(event) {
+        if (event.touches && event.touches[0]) {
+            return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        } else {
+            return { x: event.clientX, y: event.clientY };
+        }
+    }
+    
+    screenToSVG(screenX, screenY) {
+        const svg = this.court;
+        const rect = svg.getBoundingClientRect();
+        const viewBox = svg.viewBox.baseVal;
+        
+        // Convert screen coordinates to SVG coordinates
+        const x = ((screenX - rect.left) / rect.width) * viewBox.width + viewBox.x;
+        const y = ((screenY - rect.top) / rect.height) * viewBox.height + viewBox.y;
+        
+        return { x, y };
+    }
+    
+    updateTokenPosition(token, x, y) {
+        token.x = x;
+        token.y = y;
+        token.element.setAttribute('cx', x);
+        token.element.setAttribute('cy', y);
+    }
+    
+    setGameMode(mode) {
+        const positions = this.positions[mode];
+        const isDoubles = mode === 'doubles';
+        
+        // Update positions for all tokens
+        Object.keys(positions).forEach(tokenId => {
+            if (this.tokens[tokenId]) {
+                const pos = positions[tokenId];
+                this.updateTokenPosition(this.tokens[tokenId], pos.cx, pos.cy);
+            }
+        });
+        
+        // Show/hide players based on game mode
+        if (this.tokens.player3 && this.tokens.player4) {
+            this.tokens.player3.element.style.display = isDoubles ? 'block' : 'none';
+            this.tokens.player4.element.style.display = isDoubles ? 'block' : 'none';
+        }
+        
+        console.log(`Game mode set to: ${mode}`);
+    }
+    
+    resetPositions() {
+        // Get current game mode
+        const currentMode = document.querySelector('input[name="gameMode"]:checked').value;
+        this.setGameMode(currentMode);
+        console.log('Positions reset');
+    }
+    
+    toggleTheme() {
+        const body = document.body;
+        const currentTheme = body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        body.setAttribute('data-theme', newTheme);
+        
+        // Update theme toggle button
+        this.themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        
+        // Save theme preference
+        localStorage.setItem('pickleboard-theme', newTheme);
+        
+        console.log(`Theme switched to: ${newTheme}`);
+    }
+    
+    loadTheme() {
+        const savedTheme = localStorage.getItem('pickleboard-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+        
+        document.body.setAttribute('data-theme', theme);
+        this.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        
+        console.log(`Theme loaded: ${theme}`);
+    }
+    
+    // Public API for external interaction
+    getTokenPositions() {
+        const positions = {};
+        Object.entries(this.tokens).forEach(([id, token]) => {
+            positions[id] = { x: token.x, y: token.y };
+        });
+        return positions;
+    }
+    
+    setTokenPosition(tokenId, x, y) {
+        if (this.tokens[tokenId]) {
+            // Constrain to court boundaries
+            const token = this.tokens[tokenId];
+            const radius = token.type === 'ball' ? 0.5 : 0.8;
+            
+            x = Math.max(this.courtBounds.left + radius, Math.min(this.courtBounds.right - radius, x));
+            y = Math.max(this.courtBounds.top + radius, Math.min(this.courtBounds.bottom - radius, y));
+            
+            this.updateTokenPosition(token, x, y);
+        }
+    }
+}
+
+// Initialize the application when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Create global instance
+    window.pickleboard = new Pickleboard();
+    
+    console.log('Pickleboard initialized successfully');
+    
+    // Optional: Add some debug info
+    if (process?.env?.NODE_ENV === 'development') {
+        console.log('Debug: Token positions available via window.pickleboard.getTokenPositions()');
+    }
+});
+
+// Handle browser back/forward navigation
+window.addEventListener('popstate', () => {
+    if (window.pickleboard) {
+        window.pickleboard.resetPositions();
+    }
+});
+
+// Handle page visibility changes (pause/resume)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Page is hidden - could pause animations if any
+        console.log('Page hidden');
+    } else {
+        // Page is visible - could resume animations if any
+        console.log('Page visible');
+    }
+});
+
+// Export for potential module use
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Pickleboard;
+}

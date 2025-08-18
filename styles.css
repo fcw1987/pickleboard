@@ -1,0 +1,373 @@
+/* CSS Variables for Theming */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #e0e0e0;
+  --court-bg: #4a7c59;
+  --court-line: #ffffff;
+  --court-kitchen: #3498db;
+  --outside-area: #2d4a33;
+  --service-box: #8e44ad;
+  --court-net: #2c3e50;
+  --player-color: #e74c3c;
+  --ball-color: #f39c12;
+  --button-bg: #007bff;
+  --button-hover: #0056b3;
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --border-color: #444444;
+  --court-bg: #2d4a35;
+  --court-line: #ffffff;
+  --court-kitchen: #2980b9;
+  --outside-area: #1a2b1f;
+  --service-box: #6c3483;
+  --court-net: #34495e;
+  --player-color: #e74c3c;
+  --ball-color: #f39c12;
+  --button-bg: #0056b3;
+  --button-hover: #007bff;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Top Bar */
+.top-bar {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+.top-bar h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.game-mode {
+  display: flex;
+  gap: 1rem;
+}
+
+.game-mode label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.game-mode input[type="radio"] {
+  margin: 0;
+}
+
+.reset-btn, .theme-toggle {
+  background-color: var(--button-bg);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.reset-btn:hover, .theme-toggle:hover {
+  background-color: var(--button-hover);
+  transform: translateY(-1px);
+}
+
+.reset-btn:active, .theme-toggle:active {
+  transform: translateY(0);
+}
+
+.theme-toggle {
+  font-size: 1.2rem;
+  padding: 0.5rem;
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  display: flex;
+  padding: 1rem;
+  gap: 1rem;
+  background-color: var(--bg-primary);
+}
+
+/* Court Container */
+.court-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 4px 6px var(--shadow);
+}
+
+.court-svg {
+  width: 100%;
+  height: auto;
+  max-width: 880px;
+  border-radius: 4px;
+  cursor: default;
+}
+
+/* Court Elements */
+.outside-area {
+  fill: var(--outside-area);
+}
+
+.court-surface {
+  fill: var(--court-bg);
+}
+
+.court-line {
+  stroke: var(--court-line);
+  fill: none;
+}
+
+.net {
+  stroke: var(--court-net);
+  stroke-linecap: round;
+}
+
+.kitchen {
+  fill: var(--court-kitchen);
+}
+
+.service-box {
+  fill: var(--service-box);
+}
+
+.net-post {
+  fill: var(--court-net);
+  stroke: var(--court-line);
+  stroke-width: 0.05;
+}
+
+/* Tokens */
+.player-token {
+  fill: var(--player-color);
+  stroke: var(--court-line);
+  stroke-width: 0.1;
+  cursor: grab;
+  transition: r 0.2s ease, stroke-width 0.2s ease;
+}
+
+.player-token:hover {
+  r: 0.9;
+  stroke-width: 0.15;
+}
+
+.player-token:active,
+.player-token.dragging {
+  cursor: grabbing;
+  r: 1.0;
+  stroke-width: 0.2;
+}
+
+.ball-token {
+  fill: var(--ball-color);
+  stroke: var(--court-line);
+  stroke-width: 0.08;
+  cursor: grab;
+  transition: r 0.2s ease, stroke-width 0.2s ease;
+}
+
+.ball-token:hover {
+  r: 0.6;
+  stroke-width: 0.12;
+}
+
+.ball-token:active,
+.ball-token.dragging {
+  cursor: grabbing;
+  r: 0.7;
+  stroke-width: 0.15;
+}
+
+/* Side Panel */
+.side-panel {
+  width: 280px;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px var(--shadow);
+}
+
+.help-content h3 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.help-content h4 {
+  color: var(--text-primary);
+  margin: 1.5rem 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.help-content ul {
+  list-style: none;
+  margin-bottom: 1rem;
+}
+
+.help-content li {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.help-content strong {
+  color: var(--text-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .top-bar {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .top-bar h1 {
+    font-size: 1.25rem;
+  }
+  
+  .controls {
+    gap: 1rem;
+  }
+  
+  .main-content {
+    flex-direction: column;
+    padding: 0.5rem;
+  }
+  
+  .side-panel {
+    width: 100%;
+  }
+  
+  .court-container {
+    min-height: 300px;
+  }
+  
+  .reset-btn, .theme-toggle {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+  }
+  
+  .theme-toggle {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-bar {
+    padding: 0.5rem;
+  }
+  
+  .controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .game-mode {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  
+  .court-container {
+    padding: 0.5rem;
+  }
+  
+  .side-panel {
+    padding: 1rem;
+  }
+  
+  .help-content li {
+    font-size: 0.85rem;
+  }
+}
+
+/* Touch Support */
+@media (hover: none) {
+  .player-token:hover,
+  .ball-token:hover {
+    r: inherit;
+    stroke-width: inherit;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* High contrast support */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: #000000;
+    --court-line: #ffffff;
+    --shadow: rgba(0, 0, 0, 0.5);
+  }
+  
+  [data-theme="dark"] {
+    --border-color: #ffffff;
+    --shadow: rgba(255, 255, 255, 0.3);
+  }
+}

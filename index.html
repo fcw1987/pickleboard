@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pickleboard - Pickleball Court Planner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <h1>Pickleboard</h1>
+            <div class="controls">
+                <div class="game-mode">
+                    <label>
+                        <input type="radio" name="gameMode" value="singles" checked>
+                        Singles
+                    </label>
+                    <label>
+                        <input type="radio" name="gameMode" value="doubles">
+                        Doubles
+                    </label>
+                </div>
+                <button id="resetBtn" class="reset-btn">Reset</button>
+                <button id="themeToggle" class="theme-toggle">🌙</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Court Area -->
+            <div class="court-container">
+                <svg id="court" class="court-svg" viewBox="-8 -8 36 60" preserveAspectRatio="xMidYMid meet">
+                    <!-- Outside Court Area -->
+                    <rect class="outside-area" x="-8" y="-8" width="36" height="60"/>
+                    
+                    <!-- Court Surface -->
+                    <rect class="court-surface" x="0" y="0" width="20" height="44"/>
+                    
+                    <!-- Court Lines -->
+                    <!-- Outer boundary (court rectangle) -->
+                    <rect class="court-line" x="0" y="0" width="20" height="44" fill="none" stroke-width="0.2"/>
+                    
+                    <!-- Baselines -->
+                    <line class="court-line" x1="0" y1="0" x2="20" y2="0" stroke-width="0.2"/>
+                    <line class="court-line" x1="0" y1="44" x2="20" y2="44" stroke-width="0.2"/>
+                    
+                    <!-- Sidelines -->
+                    <line class="court-line" x1="0" y1="0" x2="0" y2="44" stroke-width="0.2"/>
+                    <line class="court-line" x1="20" y1="0" x2="20" y2="44" stroke-width="0.2"/>
+                    
+                    <!-- Kitchen lines (7 feet from net) -->
+                    <line class="court-line" x1="0" y1="15" x2="20" y2="15" stroke-width="0.15"/>
+                    <line class="court-line" x1="0" y1="29" x2="20" y2="29" stroke-width="0.15"/>
+                    
+                    <!-- Service centerline -->
+                    <line class="court-line" x1="10" y1="0" x2="10" y2="15" stroke-width="0.15"/>
+                    <line class="court-line" x1="10" y1="29" x2="10" y2="44" stroke-width="0.15"/>
+                    
+                    <!-- Net -->
+                    <line class="net" x1="-1" y1="22" x2="21" y2="22" stroke-width="0.3"/>
+                    
+                    <!-- Net posts -->
+                    <circle class="net-post" cx="-1" cy="22" r="0.15"/>
+                    <circle class="net-post" cx="21" cy="22" r="0.15"/>
+                    
+                    <!-- Service boxes -->
+                    <rect class="service-box" x="0" y="0" width="10" height="15" fill-opacity="0.15"/>
+                    <rect class="service-box" x="10" y="0" width="10" height="15" fill-opacity="0.15"/>
+                    <rect class="service-box" x="0" y="29" width="10" height="15" fill-opacity="0.15"/>
+                    <rect class="service-box" x="10" y="29" width="10" height="15" fill-opacity="0.15"/>
+                    
+                    <!-- Non-volley zones (kitchen) -->
+                    <rect class="kitchen" x="0" y="15" width="20" height="7" fill-opacity="0.2"/>
+                    <rect class="kitchen" x="0" y="22" width="20" height="7" fill-opacity="0.2"/>
+                    
+                    <!-- Players -->
+                    <circle id="player1" class="player-token" cx="5" cy="8" r="0.8" data-type="player"/>
+                    <circle id="player2" class="player-token" cx="15" cy="8" r="0.8" data-type="player"/>
+                    <circle id="player3" class="player-token" cx="5" cy="36" r="0.8" data-type="player"/>
+                    <circle id="player4" class="player-token" cx="15" cy="36" r="0.8" data-type="player"/>
+                    
+                    <!-- Ball -->
+                    <circle id="ball" class="ball-token" cx="10" cy="22" r="0.5" data-type="ball"/>
+                </svg>
+            </div>
+
+            <!-- Side Panel -->
+            <aside class="side-panel">
+                <div class="help-content">
+                    <h3>Help</h3>
+                    <ul>
+                        <li><strong>Drag</strong> player dots and ball around the court</li>
+                        <li><strong>Singles/Doubles</strong> - Switch game modes</li>
+                        <li><strong>Reset</strong> - Return tokens to default positions</li>
+                        <li><strong>Theme</strong> - Toggle light/dark mode</li>
+                    </ul>
+                    
+                    <h4>Court Layout</h4>
+                    <ul>
+                        <li>Blue area: Non-volley zone (Kitchen)</li>
+                        <li>Purple area: Service boxes</li>
+                        <li>Net runs through the center</li>
+                        <li>Court is 44' x 20' regulation size</li>
+                        <li>Players/ball can move outside court boundaries</li>
+                    </ul>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
