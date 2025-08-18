@@ -12,6 +12,8 @@
   --service-box: #8e44ad;
   --court-net: #2c3e50;
   --player-color: #e74c3c;
+  --team1-color: #e74c3c;
+  --team2-color: #3498db;
   --ball-color: #f39c12;
   --button-bg: #007bff;
   --button-hover: #0056b3;
@@ -31,6 +33,8 @@
   --service-box: #6c3483;
   --court-net: #34495e;
   --player-color: #e74c3c;
+  --team1-color: #e74c3c;
+  --team2-color: #3498db;
   --ball-color: #f39c12;
   --button-bg: #0056b3;
   --button-hover: #007bff;
@@ -157,6 +161,12 @@ body {
   max-width: 880px;
   border-radius: 4px;
   cursor: default;
+  /* Prevent page panning during touch interactions */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 /* Court Elements */
@@ -199,6 +209,8 @@ body {
   stroke-width: 0.1;
   cursor: grab;
   transition: r 0.2s ease, stroke-width 0.2s ease;
+  /* Improved touch target */
+  touch-action: none;
 }
 
 .player-token:hover {
@@ -213,12 +225,35 @@ body {
   stroke-width: 0.2;
 }
 
+/* Team colors */
+.team1-player {
+  fill: var(--team1-color);
+}
+
+.team2-player {
+  fill: var(--team2-color);
+}
+
+/* Touch hit areas - invisible larger circles for better touch targeting */
+.touch-target {
+  fill: transparent;
+  stroke: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+.touch-target:active,
+.touch-target.dragging {
+  cursor: grabbing;
+}
+
 .ball-token {
   fill: var(--ball-color);
   stroke: var(--court-line);
   stroke-width: 0.08;
   cursor: grab;
   transition: r 0.2s ease, stroke-width 0.2s ease;
+  touch-action: none;
 }
 
 .ball-token:hover {
@@ -270,6 +305,42 @@ body {
 
 .help-content strong {
   color: var(--text-primary);
+}
+
+/* Legend */
+.legend {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--court-line);
+  flex-shrink: 0;
+}
+
+.legend-dot.team1 {
+  background-color: var(--team1-color);
+}
+
+.legend-dot.team2 {
+  background-color: var(--team2-color);
+}
+
+.legend-dot.ball {
+  background-color: var(--ball-color);
 }
 
 /* Responsive Design */
