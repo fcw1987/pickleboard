@@ -28,9 +28,9 @@
   --border-color: #444444;
   --court-bg: #2d4a35;
   --court-line: #ffffff;
-  --court-kitchen: #606060;
-  --outside-area: #1a2b1f;
-  --service-box: #000060;
+  --court-kitchen: #808080;
+  --outside-area: #2d4a33;
+  --service-box: #000080;
   --court-net: #34495e;
   --player-color: #e74c3c;
   --team1-color: #e74c3c;
@@ -189,7 +189,7 @@ body {
 }
 
 .kitchen {
-  fill: var(--court-kitchen);
+  fill: #808080 !important;
 }
 
 .service-box {
@@ -344,7 +344,7 @@ body {
 }
 
 .legend-dot.kitchen {
-  background-color: var(--court-kitchen);
+  background-color: #808080;
 }
 
 .legend-dot.service-box {
