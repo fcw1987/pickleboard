@@ -1,3 +1,9 @@
 # github pickleboard whiteboard pull-request
 Successfully pushed the whiteboard-drawing-tool branch to GitHub. Changes included adding drawing functionality to the Pickleboard app. A pull request can be created at: https://github.com/fcw1987/pickleboard/pull/new/whiteboard-drawing-tool
 
+# ui-redesign completed github clean-interface
+Completed major UI redesign of Pickleboard app. Transformed from cluttered header/sidebar layout to clean court-focused design with floating action buttons. Hamburger menu (☰) contains all controls, info button (ⓘ) has help content. Court now takes full screen. Branch 'ui-redesign-clean-court' pushed to GitHub. Ready for PR at: https://github.com/fcw1987/pickleboard/pull/new/ui-redesign-clean-court
+
+# custom-icons pwa completed github
+Updated Pickleboard app with custom high-quality icons. Replaced auto-generated icons with professional designs: icon-192.png (20KB), icon-512.png (186KB), and apple-icon-180.png (18KB) for iOS. Generated all PWA icon sizes from high-quality sources. Branch 'update-app-icons' pushed to GitHub. Ready for PR at: https://github.com/fcw1987/pickleboard/pull/new/update-app-icons
+

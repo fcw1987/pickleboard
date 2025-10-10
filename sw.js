@@ -12,7 +12,11 @@ const ASSETS = [
   './icons/icon-152x152.png',
   './icons/icon-192x192.png',
   './icons/icon-384x384.png',
-  './icons/icon-512x512.png'
+  './icons/icon-512x512.png',
+  './assets/players/orange_left_upright.png',
+  './assets/players/orange_right_upright.png',
+  './assets/players/green_left_flipped.png',
+  './assets/players/green_right_flipped.png'
 ];
 
 // Install Service Worker and cache all assets

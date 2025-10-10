@@ -82,15 +82,19 @@
                 <circle id="player4-touch" class="touch-target" cx="15" cy="45" r="2.0" data-type="player" data-target="player4"/>
                 <circle id="ball-touch" class="touch-target" cx="16" cy="45" r="1.5" data-type="ball" data-target="ball"/>
                 
-                <!-- Players - visual elements -->
-                <circle id="player1" class="player-token team1-player" cx="5" cy="-1" r="0.8" data-type="player"/>
-                <circle id="player2" class="player-token team1-player" cx="15" cy="14" r="0.8" data-type="player"/>
-                <circle id="player3" class="player-token team2-player" cx="5" cy="45" r="0.8" data-type="player"/>
-                <circle id="player4" class="player-token team2-player" cx="15" cy="45" r="0.8" data-type="player"/>
-                
-                <!-- Ball - visual element -->
+                <!-- Ball - visual element (keeping as SVG circle) -->
                 <circle id="ball" class="ball-token" cx="16" cy="45" r="0.5" data-type="ball"/>
             </svg>
+            
+            <!-- Player Images - positioned absolutely over the SVG -->
+            <img id="player1" class="player-image team1-player" src="assets/players/orange_right_upright.png" 
+                 data-team="team1" data-orientation="right" data-position="top" data-type="player" />
+            <img id="player2" class="player-image team1-player" src="assets/players/orange_left_upright.png" 
+                 data-team="team1" data-orientation="left" data-position="top" data-type="player" />
+            <img id="player3" class="player-image team2-player" src="assets/players/green_right_flipped.png" 
+                 data-team="team2" data-orientation="right" data-position="bottom" data-type="player" />
+            <img id="player4" class="player-image team2-player" src="assets/players/green_left_flipped.png" 
+                 data-team="team2" data-orientation="left" data-position="bottom" data-type="player" />
         </main>
 
         <!-- Menu Overlay (Hidden by default) -->
@@ -154,7 +158,9 @@
                     <section class="info-section">
                         <h3>How to Use</h3>
                         <ul>
-                            <li><strong>Drag</strong> player dots and ball around the court</li>
+                            <li><strong>Drag</strong> player icons and ball around the court</li>
+                            <li><strong>Double-tap</strong> player icons to switch orientation (left/right)</li>
+                            <li><strong>Cross the net</strong> - Players change teams automatically</li>
                             <li><strong>Draw</strong> - Toggle drawing mode with ✏️ button</li>
                             <li><strong>Singles/Doubles</strong> - Switch game modes in menu</li>
                             <li><strong>Reset</strong> - Return tokens to default positions</li>
@@ -180,11 +186,11 @@
                         <div class="legend">
                             <div class="legend-item">
                                 <div class="legend-dot team1"></div>
-                                <span>Team 1 Players (Red)</span>
+                                <span>Team 1 Players (Orange - Top)</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-dot team2"></div>
-                                <span>Team 2 Players (Blue)</span>
+                                <span>Team 2 Players (Green - Bottom)</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-dot ball"></div>

@@ -101,18 +101,29 @@ class Pickleboard {
     initializeTokens() {
         const tokens = {};
         
-        // Initialize player tokens with both touch targets and visual elements
+        // Initialize player tokens with both touch targets and visual elements (images)
         for (let i = 1; i <= 4; i++) {
             const visualElement = document.getElementById(`player${i}`);
             const touchElement = document.getElementById(`player${i}-touch`);
             if (visualElement && touchElement) {
+                // For images, we get initial position from touch element or default positions
+                const initialX = parseFloat(touchElement.getAttribute('cx'));
+                const initialY = parseFloat(touchElement.getAttribute('cy'));
+                
                 tokens[`player${i}`] = {
                     id: `player${i}`,
                     type: 'player',
                     element: visualElement,
                     touchElement: touchElement,
-                    x: parseFloat(visualElement.getAttribute('cx')),
-                    y: parseFloat(visualElement.getAttribute('cy'))
+                    x: initialX,
+                    y: initialY,
+                    // Double-tap detection properties
+                    lastTapTime: 0,
+                    tapTimeout: null,
+                    // Image orientation properties
+                    currentOrientation: visualElement.dataset.orientation || 'right',
+                    team: visualElement.dataset.team || 'team1',
+                    position: visualElement.dataset.position || 'top'
                 };
             }
         }
@@ -131,23 +142,9 @@ class Pickleboard {
             };
         }
         
-        // Set initial player colors for doubles mode (default)
-        if (tokens.player1) {
-            tokens.player1.element.classList.remove('team2-player');
-            tokens.player1.element.classList.add('team1-player');
-        }
-        if (tokens.player2) {
-            tokens.player2.element.classList.remove('team2-player');
-            tokens.player2.element.classList.add('team1-player');
-        }
-        if (tokens.player3) {
-            tokens.player3.element.classList.remove('team1-player');
-            tokens.player3.element.classList.add('team2-player');
-        }
-        if (tokens.player4) {
-            tokens.player4.element.classList.remove('team1-player');
-            tokens.player4.element.classList.add('team2-player');
-        }
+        // Set initial player images and positions based on data attributes
+        this.updateAllPlayerImages();
+        this.positionAllPlayerImages();
         
         return tokens;
     }
@@ -250,6 +247,11 @@ class Pickleboard {
         
         event.preventDefault();
         
+        // Handle double-tap detection for players
+        if (token.type === 'player' && (event.type === 'touchstart' || event.type === 'mousedown')) {
+            this.handlePlayerDoubleTap(token);
+        }
+        
         this.dragState.isDragging = true;
         this.dragState.dragElement = token;
         
@@ -339,8 +341,43 @@ class Pickleboard {
         
         token.x = x;
         token.y = y;
-        token.element.setAttribute('cx', x);
-        token.element.setAttribute('cy', y);
+        
+        // Update player team/position dynamically based on court position
+        if (token.type === 'player') {
+            const wasTeam1 = token.team === 'team1';
+            const isTopHalf = y < 22; // Net is at Y=22
+            
+            if (isTopHalf) {
+                // Top players are team1 (orange)
+                token.element.classList.remove('team2-player');
+                token.element.classList.add('team1-player');
+                token.team = 'team1';
+                token.position = 'top';
+            } else {
+                // Bottom players are team2 (green)
+                token.element.classList.remove('team1-player');
+                token.element.classList.add('team2-player');
+                token.team = 'team2';
+                token.position = 'bottom';
+            }
+            
+            // Update data attributes
+            token.element.dataset.team = token.team;
+            token.element.dataset.position = token.position;
+            
+            // If team changed, update the image
+            const nowTeam1 = token.team === 'team1';
+            if (wasTeam1 !== nowTeam1) {
+                this.updatePlayerImageSrc(token);
+            }
+            
+            // For player images, update the position using screen coordinates
+            this.positionPlayerImage(token);
+        } else {
+            // For ball (SVG), update cx/cy attributes
+            token.element.setAttribute('cx', x);
+            token.element.setAttribute('cy', y);
+        }
         
         // Also update touch target position if it exists
         if (token.touchElement) {
@@ -382,43 +419,52 @@ class Pickleboard {
     }
     
     updatePlayerColors(mode) {
-        // In doubles mode: 
-        // - players 1 & 2 (back court) are team1 (red)
-        // - players 3 & 4 (front court) are team2 (blue)
-        //
-        // In singles mode:
-        // - player 1 (back court) is team1 (red) - opposing players
-        // - player 2 (front court) is team2 (blue) - should be different color
-        // - players 3 & 4 are hidden
+        // Update team assignments based on current court positions
+        // Top players (Y < 22): team1 (orange upright)
+        // Bottom players (Y >= 22): team2 (green flipped)
         
-        if (mode === 'doubles') {
-            if (this.tokens.player1) {
-                this.tokens.player1.element.classList.remove('team2-player');
-                this.tokens.player1.element.classList.add('team1-player');
+        Object.values(this.tokens).forEach(token => {
+            if (token.type === 'player') {
+                const isTopHalf = token.y < 22; // Net is at Y=22
+                
+                if (isTopHalf) {
+                    // Top players are team1 (orange)
+                    token.element.classList.remove('team2-player');
+                    token.element.classList.add('team1-player');
+                    token.team = 'team1';
+                    token.position = 'top';
+                } else {
+                    // Bottom players are team2 (green)
+                    token.element.classList.remove('team1-player');
+                    token.element.classList.add('team2-player');
+                    token.team = 'team2';
+                    token.position = 'bottom';
+                }
+                
+                // Update data attributes
+                token.element.dataset.team = token.team;
+                token.element.dataset.position = token.position;
             }
-            if (this.tokens.player2) {
-                this.tokens.player2.element.classList.remove('team2-player');
-                this.tokens.player2.element.classList.add('team1-player');
-            }
+        });
+        
+        // In singles mode, hide players 3 & 4
+        if (mode === 'singles') {
             if (this.tokens.player3) {
-                this.tokens.player3.element.classList.remove('team1-player');
-                this.tokens.player3.element.classList.add('team2-player');
+                this.tokens.player3.element.style.display = 'none';
+                if (this.tokens.player3.touchElement) {
+                    this.tokens.player3.touchElement.style.display = 'none';
+                }
             }
             if (this.tokens.player4) {
-                this.tokens.player4.element.classList.remove('team1-player');
-                this.tokens.player4.element.classList.add('team2-player');
-            }
-        } else {
-            // Singles mode - players are opponents (different teams)
-            if (this.tokens.player1) {
-                this.tokens.player1.element.classList.remove('team2-player');
-                this.tokens.player1.element.classList.add('team1-player');
-            }
-            if (this.tokens.player2) {
-                this.tokens.player2.element.classList.remove('team1-player');
-                this.tokens.player2.element.classList.add('team2-player');
+                this.tokens.player4.element.style.display = 'none';
+                if (this.tokens.player4.touchElement) {
+                    this.tokens.player4.touchElement.style.display = 'none';
+                }
             }
         }
+        
+        // Update all player images after team changes
+        this.updateAllPlayerImages();
     }
     
     resetPositions() {
@@ -784,6 +830,124 @@ class Pickleboard {
         this.infoModal.classList.remove('active');
         document.body.style.overflow = ''; // Restore scrolling
     }
+    
+    // Player image positioning methods
+    svgToScreen(svgX, svgY) {
+        const svg = this.court;
+        const rect = svg.getBoundingClientRect();
+        const viewBox = svg.viewBox.baseVal;
+        
+        // Convert SVG coordinates to screen coordinates
+        const x = ((svgX - viewBox.x) / viewBox.width) * rect.width + rect.left;
+        const y = ((svgY - viewBox.y) / viewBox.height) * rect.height + rect.top;
+        
+        return { x, y };
+    }
+    
+    positionPlayerImage(token) {
+        const screenCoords = this.svgToScreen(token.x, token.y);
+        const courtContainer = this.court.parentElement;
+        const containerRect = courtContainer.getBoundingClientRect();
+        
+        // Calculate relative position within the container
+        const relativeX = screenCoords.x - containerRect.left;
+        const relativeY = screenCoords.y - containerRect.top;
+        
+        // Position the image relative to its container
+        token.element.style.position = 'absolute';
+        token.element.style.left = `${relativeX}px`;
+        token.element.style.top = `${relativeY}px`;
+        token.element.style.transform = 'translate(-50%, -50%)';
+    }
+    
+    positionAllPlayerImages() {
+        Object.values(this.tokens).forEach(token => {
+            if (token.type === 'player') {
+                this.positionPlayerImage(token);
+            }
+        });
+    }
+    
+    updateAllPlayerImages() {
+        Object.values(this.tokens).forEach(token => {
+            if (token.type === 'player') {
+                this.updatePlayerImageSrc(token);
+            }
+        });
+    }
+    
+    updatePlayerImageSrc(token) {
+        const team = token.element.classList.contains('team1-player') ? 'team1' : 'team2';
+        const teamColor = team === 'team1' ? 'orange' : 'green';
+        const orientation = token.currentOrientation;
+        const position = token.position;
+        
+        // Determine if image should be flipped based on position
+        const shouldFlip = position === 'bottom';
+        const flipSuffix = shouldFlip ? '_flipped' : '_upright';
+        
+        const imageSrc = `assets/players/${teamColor}_${orientation}${flipSuffix}.png`;
+        token.element.src = imageSrc;
+        
+        // Update data attributes
+        token.element.dataset.team = team;
+        token.element.dataset.orientation = orientation;
+        token.element.dataset.position = position;
+        
+        console.log(`Updated ${token.id} image: ${imageSrc}`);
+    }
+    
+    // Double-tap detection for orientation switching
+    handlePlayerDoubleTap(token) {
+        const currentTime = Date.now();
+        const timeSinceLastTap = currentTime - token.lastTapTime;
+        
+        if (timeSinceLastTap < 300) { // 300ms double-tap threshold
+            // Clear any existing timeout
+            if (token.tapTimeout) {
+                clearTimeout(token.tapTimeout);
+                token.tapTimeout = null;
+            }
+            
+            // Double tap detected - switch orientation
+            this.switchPlayerOrientation(token);
+            token.lastTapTime = 0; // Reset to prevent triple-tap issues
+        } else {
+            // Single tap - set timeout to handle single tap action if needed
+            token.lastTapTime = currentTime;
+            
+            // Clear any existing timeout
+            if (token.tapTimeout) {
+                clearTimeout(token.tapTimeout);
+            }
+            
+            // Set timeout for single tap action (if any)
+            token.tapTimeout = setTimeout(() => {
+                // Handle single tap if needed (currently none)
+                token.tapTimeout = null;
+            }, 300);
+        }
+    }
+    
+    switchPlayerOrientation(token) {
+        // Add visual feedback animation
+        token.element.classList.add('orientation-switching');
+        
+        // Toggle between left and right orientations
+        token.currentOrientation = token.currentOrientation === 'left' ? 'right' : 'left';
+        
+        // Update the image source after a short delay for the animation
+        setTimeout(() => {
+            this.updatePlayerImageSrc(token);
+        }, 150); // Halfway through the 0.3s animation
+        
+        // Remove animation class after animation completes
+        setTimeout(() => {
+            token.element.classList.remove('orientation-switching');
+        }, 300);
+        
+        console.log(`${token.id} orientation switched to: ${token.currentOrientation}`);
+    }
 }
 
 // Initialize the application when DOM is loaded
@@ -814,6 +978,17 @@ document.addEventListener('visibilitychange', () => {
     } else {
         // Page is visible - could resume animations if any
         console.log('Page visible');
+    }
+});
+
+// Handle window resize to reposition player images
+window.addEventListener('resize', () => {
+    if (window.pickleboard) {
+        // Debounce resize events
+        clearTimeout(window.pickleboard.resizeTimeout);
+        window.pickleboard.resizeTimeout = setTimeout(() => {
+            window.pickleboard.positionAllPlayerImages();
+        }, 100);
     }
 });
 

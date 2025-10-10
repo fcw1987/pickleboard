@@ -152,6 +152,7 @@ body {
   background-color: var(--bg-primary);
   padding: 1rem;
   min-height: 100vh;
+  position: relative; /* Required for absolute positioning of player images */
 }
 
 .reset-btn, .clear-tracers-btn, .theme-toggle, .draw-toggle, .undo-btn, .clear-drawings-btn {
@@ -410,6 +411,65 @@ body {
   stroke-linecap: round;
   stroke-linejoin: round;
   pointer-events: none;
+}
+
+/* Player Images */
+.player-image {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  cursor: grab;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.player-image:hover {
+  transform: scale(1.1);
+}
+
+.player-image:active,
+.player-image.dragging {
+  cursor: grabbing;
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+/* Player image states */
+.player-image.orientation-switching {
+  animation: orientationFlip 0.3s ease-in-out;
+}
+
+@keyframes orientationFlip {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2) rotateY(90deg); }
+  100% { transform: scale(1); }
+}
+
+/* Drawing mode - disable player interaction */
+.court-svg.drawing-mode + .player-image {
+  pointer-events: none;
+  cursor: crosshair;
+}
+
+/* Responsive player image sizing */
+@media (max-width: 768px) {
+  .player-image {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+@media (max-width: 480px) {
+  .player-image {
+    width: 45px;
+    height: 45px;
+  }
 }
 
 /* Side Panel */
