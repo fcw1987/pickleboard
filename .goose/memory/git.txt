@@ -1,0 +1,6 @@
+# git push whiteboard
+Currently working on the whiteboard-drawing-tool branch with staged changes to index.html, script.js, and styles.css.
+
+# git branch merge
+The repository uses 'main' as the default branch (not 'master'). The whiteboard-drawing-tool branch has been merged into main branch, with 249 insertions and 6 deletions across index.html, script.js, and styles.css.
+
