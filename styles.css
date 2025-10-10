@@ -60,46 +60,98 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  position: relative;
 }
 
-/* Top Bar */
-.top-bar {
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 4px var(--shadow);
-}
-
-.top-bar h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.game-mode {
-  display: flex;
-  gap: 1rem;
-}
-
-.game-mode label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+/* Floating Action Buttons */
+.fab {
+  position: fixed;
+  z-index: 1000;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--button-bg);
+  color: white;
+  border: none;
   cursor: pointer;
+  font-size: 1.2rem;
   font-weight: 500;
+  box-shadow: 0 4px 12px var(--shadow);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.game-mode input[type="radio"] {
-  margin: 0;
+.fab:hover {
+  background-color: var(--button-hover);
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px var(--shadow);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* Hamburger Menu FAB */
+.fab-menu {
+  top: 24px;
+  left: 24px;
+  background-color: #2c3e50;
+}
+
+.fab-menu:hover {
+  background-color: #34495e;
+}
+
+/* Hamburger Icon Animation */
+.hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hamburger-icon span {
+  width: 18px;
+  height: 2px;
+  background-color: white;
+  transition: all 0.3s ease;
+}
+
+.fab-menu.active .hamburger-icon span:nth-child(1) {
+  transform: rotate(45deg) translate(4px, 4px);
+}
+
+.fab-menu.active .hamburger-icon span:nth-child(2) {
+  opacity: 0;
+}
+
+.fab-menu.active .hamburger-icon span:nth-child(3) {
+  transform: rotate(-45deg) translate(4px, -4px);
+}
+
+/* Info FAB */
+.fab-info {
+  bottom: 24px;
+  right: 24px;
+  background-color: #17a2b8;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.fab-info:hover {
+  background-color: #138496;
+}
+
+/* Full-Screen Court Container */
+.court-container-fullscreen {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--bg-primary);
+  padding: 1rem;
+  min-height: 100vh;
 }
 
 .reset-btn, .clear-tracers-btn, .theme-toggle, .draw-toggle, .undo-btn, .clear-drawings-btn {
@@ -530,6 +582,321 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+}
+
+/* Menu Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.menu-panel {
+  position: fixed;
+  top: 0;
+  left: -320px;
+  width: 320px;
+  height: 100%;
+  background-color: var(--bg-secondary);
+  box-shadow: 4px 0 12px var(--shadow);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+  z-index: 2100;
+}
+
+.overlay.active .menu-panel {
+  transform: translateX(320px);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+}
+
+.menu-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.menu-content {
+  padding: 1rem;
+}
+
+.menu-section {
+  margin-bottom: 2rem;
+}
+
+.menu-section h3 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.menu-btn {
+  width: 100%;
+  text-align: left;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.menu-btn:hover {
+  background-color: var(--button-bg);
+  color: white;
+  transform: translateX(4px);
+}
+
+.menu-btn.secondary {
+  background-color: var(--border-color);
+  color: var(--text-secondary);
+  margin-left: 1rem;
+  font-size: 0.8rem;
+}
+
+.menu-btn.secondary:hover {
+  background-color: var(--text-secondary);
+  color: var(--bg-primary);
+}
+
+.menu-btn.toggle-btn.active {
+  background-color: var(--team1-color);
+  color: white;
+  border-color: var(--team1-color);
+}
+
+/* Game mode in menu */
+.menu-section .game-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.menu-section .game-mode label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.menu-section .game-mode label:hover {
+  background-color: var(--button-bg);
+  color: white;
+}
+
+.menu-section .game-mode input[type="radio"] {
+  margin: 0;
+}
+
+.menu-section .game-mode span {
+  font-weight: 500;
+}
+
+/* Info Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  padding: 1rem;
+}
+
+.modal.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  max-width: 500px;
+  max-height: 80vh;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 12px 24px var(--shadow);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.modal.active .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(80vh - 100px);
+}
+
+.info-section {
+  margin-bottom: 2rem;
+}
+
+.info-section:last-child {
+  margin-bottom: 0;
+}
+
+.info-section h3 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.info-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.info-section li {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.info-section strong {
+  color: var(--text-primary);
+}
+
+/* Responsive adjustments for overlays */
+@media (max-width: 768px) {
+  .fab {
+    width: 48px;
+    height: 48px;
+    font-size: 1rem;
+  }
+  
+  .fab-menu {
+    top: 16px;
+    left: 16px;
+  }
+  
+  .fab-info {
+    bottom: 16px;
+    right: 16px;
+  }
+  
+  .menu-panel {
+    width: 280px;
+    left: -280px;
+  }
+  
+  .overlay.active .menu-panel {
+    transform: translateX(280px);
+  }
+  
+  .court-container-fullscreen {
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .menu-panel {
+    width: 100vw;
+    left: -100vw;
+  }
+  
+  .overlay.active .menu-panel {
+    transform: translateX(100vw);
+  }
+  
+  .modal {
+    padding: 0.5rem;
+  }
+  
+  .modal-content {
+    max-height: 90vh;
+  }
+  
+  .modal-header,
+  .modal-body {
+    padding: 1rem;
   }
 }
 

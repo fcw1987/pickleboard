@@ -15,147 +15,194 @@
 </head>
 <body>
     <div class="app">
-        <!-- Top Bar -->
-        <header class="top-bar">
-            <h1>Pickleboard</h1>
-            <div class="controls">
-                <div class="game-mode">
-                    <label>
-                        <input type="radio" name="gameMode" value="singles">
-                        Singles
-                    </label>
-                    <label>
-                        <input type="radio" name="gameMode" value="doubles" checked>
-                        Doubles
-                    </label>
-                </div>
-                <button id="resetBtn" class="reset-btn">Reset</button>
-                <button id="clearTracersBtn" class="clear-tracers-btn">Clear Tracers</button>
-                <div class="draw-controls">
-                    <button id="drawToggle" class="draw-toggle">✏️</button>
-                    <button id="undoBtn" class="undo-btn" style="display: none;">↶</button>
-                    <button id="clearDrawingsBtn" class="clear-drawings-btn" style="display: none;">Clear</button>
-                </div>
-                <button id="themeToggle" class="theme-toggle">🌙</button>
-            </div>
-        </header>
+        <!-- Floating Action Button: Hamburger Menu -->
+        <button id="menuToggle" class="fab fab-menu">
+            <span class="hamburger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </span>
+        </button>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Court Area -->
-            <div class="court-container">
-                <svg id="court" class="court-svg" viewBox="-8 -8 36 60" preserveAspectRatio="xMidYMid meet">
-                    <!-- Outside Court Area -->
-                    <rect class="outside-area" x="-8" y="-8" width="36" height="60"/>
-                    
-                    <!-- Court Surface -->
-                    <rect class="court-surface" x="0" y="0" width="20" height="44"/>
-                    
-                    <!-- Non-volley zones (kitchen) - must be drawn after court surface -->
-                    <rect class="kitchen" x="0" y="15" width="20" height="14"/>
-                    
-                    <!-- Service boxes -->
-                    <rect class="service-box" x="0" y="0" width="10" height="15"/>
-                    <rect class="service-box" x="10" y="0" width="10" height="15"/>
-                    <rect class="service-box" x="0" y="29" width="10" height="15"/>
-                    <rect class="service-box" x="10" y="29" width="10" height="15"/>
-                    
-                    <!-- Court Lines -->
-                    <!-- Outer boundary (court rectangle) -->
-                    <rect class="court-line" x="0" y="0" width="20" height="44" fill="none" stroke-width="0.2"/>
-                    
-                    <!-- Baselines -->
-                    <line class="court-line" x1="0" y1="0" x2="20" y2="0" stroke-width="0.2"/>
-                    <line class="court-line" x1="0" y1="44" x2="20" y2="44" stroke-width="0.2"/>
-                    
-                    <!-- Sidelines -->
-                    <line class="court-line" x1="0" y1="0" x2="0" y2="44" stroke-width="0.2"/>
-                    <line class="court-line" x1="20" y1="0" x2="20" y2="44" stroke-width="0.2"/>
-                    
-                    <!-- Kitchen lines (7 feet from net) -->
-                    <line class="court-line" x1="0" y1="15" x2="20" y2="15" stroke-width="0.15"/>
-                    <line class="court-line" x1="0" y1="29" x2="20" y2="29" stroke-width="0.15"/>
-                    
-                    <!-- Service centerline -->
-                    <line class="court-line" x1="10" y1="0" x2="10" y2="15" stroke-width="0.15"/>
-                    <line class="court-line" x1="10" y1="29" x2="10" y2="44" stroke-width="0.15"/>
-                    
-                    <!-- Net -->
-                    <line class="net" x1="-1" y1="22" x2="21" y2="22" stroke-width="0.3"/>
-                    
-                    <!-- Net posts -->
-                    <circle class="net-post" cx="-1" cy="22" r="0.15"/>
-                    <circle class="net-post" cx="21" cy="22" r="0.15"/>
-                    
-                    <!-- Drawing Layer - for whiteboard annotations -->
-                    <g id="drawingLayer"></g>
-                    
-                    <!-- Touch targets - larger invisible circles for better touch interaction -->
-                    <circle id="player1-touch" class="touch-target" cx="5" cy="-1" r="2.0" data-type="player" data-target="player1"/>
-                    <circle id="player2-touch" class="touch-target" cx="15" cy="14" r="2.0" data-type="player" data-target="player2"/>
-                    <circle id="player3-touch" class="touch-target" cx="5" cy="45" r="2.0" data-type="player" data-target="player3"/>
-                    <circle id="player4-touch" class="touch-target" cx="15" cy="45" r="2.0" data-type="player" data-target="player4"/>
-                    <circle id="ball-touch" class="touch-target" cx="16" cy="45" r="1.5" data-type="ball" data-target="ball"/>
-                    
-                    <!-- Players - visual elements -->
-                    <circle id="player1" class="player-token team1-player" cx="5" cy="-1" r="0.8" data-type="player"/>
-                    <circle id="player2" class="player-token team1-player" cx="15" cy="14" r="0.8" data-type="player"/>
-                    <circle id="player3" class="player-token team2-player" cx="5" cy="45" r="0.8" data-type="player"/>
-                    <circle id="player4" class="player-token team2-player" cx="15" cy="45" r="0.8" data-type="player"/>
-                    
-                    <!-- Ball - visual element -->
-                    <circle id="ball" class="ball-token" cx="16" cy="45" r="0.5" data-type="ball"/>
-                </svg>
-            </div>
+        <!-- Floating Action Button: Info -->
+        <button id="infoToggle" class="fab fab-info">ⓘ</button>
 
-            <!-- Side Panel -->
-            <aside class="side-panel">
-                <div class="help-content">
-                    <h3>Help</h3>
-                    <ul>
-                        <li><strong>Drag</strong> player dots and ball around the court</li>
-                        <li><strong>Draw</strong> - Toggle drawing mode with ✏️ button</li>
-                        <li><strong>Singles/Doubles</strong> - Switch game modes</li>
-                        <li><strong>Reset</strong> - Return tokens to default positions</li>
-                        <li><strong>Theme</strong> - Toggle light/dark mode</li>
-                    </ul>
-                    
-                    <h4>Court Layout</h4>
-                    <ul>
-                        <li>Grey area: Non-volley zone (Kitchen)</li>
-                        <li>Navy blue area: Service boxes</li>
-                        <li>Net runs through the center</li>
-                        <li>Court is 44' x 20' regulation size</li>
-                        <li>Players/ball can move outside court boundaries</li>
-                    </ul>
-                    
-                    <!-- Legend -->
-                    <div class="legend">
-                        <h4>Legend</h4>
-                        <div class="legend-item">
-                            <div class="legend-dot team1"></div>
-                            <span>Team 1 Players (Red)</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-dot team2"></div>
-                            <span>Team 2 Players (Blue)</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-dot ball"></div>
-                            <span>Ball (Neon Green)</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-dot kitchen"></div>
-                            <span>Non-Volley Zone (Grey)</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-dot service-box"></div>
-                            <span>Service Boxes (Navy Blue)</span>
+        <!-- Full-Screen Court Container -->
+        <main class="court-container-fullscreen">
+            <svg id="court" class="court-svg" viewBox="-8 -8 36 60" preserveAspectRatio="xMidYMid meet">
+                <!-- Outside Court Area -->
+                <rect class="outside-area" x="-8" y="-8" width="36" height="60"/>
+                
+                <!-- Court Surface -->
+                <rect class="court-surface" x="0" y="0" width="20" height="44"/>
+                
+                <!-- Non-volley zones (kitchen) - must be drawn after court surface -->
+                <rect class="kitchen" x="0" y="15" width="20" height="14"/>
+                
+                <!-- Service boxes -->
+                <rect class="service-box" x="0" y="0" width="10" height="15"/>
+                <rect class="service-box" x="10" y="0" width="10" height="15"/>
+                <rect class="service-box" x="0" y="29" width="10" height="15"/>
+                <rect class="service-box" x="10" y="29" width="10" height="15"/>
+                
+                <!-- Court Lines -->
+                <!-- Outer boundary (court rectangle) -->
+                <rect class="court-line" x="0" y="0" width="20" height="44" fill="none" stroke-width="0.2"/>
+                
+                <!-- Baselines -->
+                <line class="court-line" x1="0" y1="0" x2="20" y2="0" stroke-width="0.2"/>
+                <line class="court-line" x1="0" y1="44" x2="20" y2="44" stroke-width="0.2"/>
+                
+                <!-- Sidelines -->
+                <line class="court-line" x1="0" y1="0" x2="0" y2="44" stroke-width="0.2"/>
+                <line class="court-line" x1="20" y1="0" x2="20" y2="44" stroke-width="0.2"/>
+                
+                <!-- Kitchen lines (7 feet from net) -->
+                <line class="court-line" x1="0" y1="15" x2="20" y2="15" stroke-width="0.15"/>
+                <line class="court-line" x1="0" y1="29" x2="20" y2="29" stroke-width="0.15"/>
+                
+                <!-- Service centerline -->
+                <line class="court-line" x1="10" y1="0" x2="10" y2="15" stroke-width="0.15"/>
+                <line class="court-line" x1="10" y1="29" x2="10" y2="44" stroke-width="0.15"/>
+                
+                <!-- Net -->
+                <line class="net" x1="-1" y1="22" x2="21" y2="22" stroke-width="0.3"/>
+                
+                <!-- Net posts -->
+                <circle class="net-post" cx="-1" cy="22" r="0.15"/>
+                <circle class="net-post" cx="21" cy="22" r="0.15"/>
+                
+                <!-- Drawing Layer - for whiteboard annotations -->
+                <g id="drawingLayer"></g>
+                
+                <!-- Touch targets - larger invisible circles for better touch interaction -->
+                <circle id="player1-touch" class="touch-target" cx="5" cy="-1" r="2.0" data-type="player" data-target="player1"/>
+                <circle id="player2-touch" class="touch-target" cx="15" cy="14" r="2.0" data-type="player" data-target="player2"/>
+                <circle id="player3-touch" class="touch-target" cx="5" cy="45" r="2.0" data-type="player" data-target="player3"/>
+                <circle id="player4-touch" class="touch-target" cx="15" cy="45" r="2.0" data-type="player" data-target="player4"/>
+                <circle id="ball-touch" class="touch-target" cx="16" cy="45" r="1.5" data-type="ball" data-target="ball"/>
+                
+                <!-- Players - visual elements -->
+                <circle id="player1" class="player-token team1-player" cx="5" cy="-1" r="0.8" data-type="player"/>
+                <circle id="player2" class="player-token team1-player" cx="15" cy="14" r="0.8" data-type="player"/>
+                <circle id="player3" class="player-token team2-player" cx="5" cy="45" r="0.8" data-type="player"/>
+                <circle id="player4" class="player-token team2-player" cx="15" cy="45" r="0.8" data-type="player"/>
+                
+                <!-- Ball - visual element -->
+                <circle id="ball" class="ball-token" cx="16" cy="45" r="0.5" data-type="ball"/>
+            </svg>
+        </main>
+
+        <!-- Menu Overlay (Hidden by default) -->
+        <div id="menuOverlay" class="overlay">
+            <nav class="menu-panel">
+                <div class="menu-header">
+                    <h2>Pickleboard</h2>
+                    <button id="menuClose" class="close-btn">×</button>
+                </div>
+                <div class="menu-content">
+                    <!-- Game Mode -->
+                    <div class="menu-section">
+                        <h3>Game Mode</h3>
+                        <div class="game-mode">
+                            <label>
+                                <input type="radio" name="gameMode" value="singles">
+                                <span>Singles</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="gameMode" value="doubles" checked>
+                                <span>Doubles</span>
+                            </label>
                         </div>
                     </div>
+
+                    <!-- Actions -->
+                    <div class="menu-section">
+                        <h3>Actions</h3>
+                        <button id="resetBtn" class="menu-btn">🔄 Reset Positions</button>
+                        <button id="clearTracersBtn" class="menu-btn">🧹 Clear Tracers</button>
+                    </div>
+
+                    <!-- Drawing Tools -->
+                    <div class="menu-section">
+                        <h3>Drawing Tools</h3>
+                        <button id="drawToggle" class="menu-btn toggle-btn">✏️ Drawing Mode</button>
+                        <div class="draw-controls" id="drawControls" style="display: none;">
+                            <button id="undoBtn" class="menu-btn secondary">↶ Undo</button>
+                            <button id="clearDrawingsBtn" class="menu-btn secondary">🗑️ Clear Drawings</button>
+                        </div>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="menu-section">
+                        <h3>Settings</h3>
+                        <button id="themeToggle" class="menu-btn">🌙 Toggle Theme</button>
+                    </div>
                 </div>
-            </aside>
-        </main>
+            </nav>
+        </div>
+
+        <!-- Info Modal (Hidden by default) -->
+        <div id="infoModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Help & Information</h2>
+                    <button id="infoClose" class="close-btn">×</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Instructions -->
+                    <section class="info-section">
+                        <h3>How to Use</h3>
+                        <ul>
+                            <li><strong>Drag</strong> player dots and ball around the court</li>
+                            <li><strong>Draw</strong> - Toggle drawing mode with ✏️ button</li>
+                            <li><strong>Singles/Doubles</strong> - Switch game modes in menu</li>
+                            <li><strong>Reset</strong> - Return tokens to default positions</li>
+                            <li><strong>Theme</strong> - Toggle light/dark mode</li>
+                        </ul>
+                    </section>
+                    
+                    <!-- Court Information -->
+                    <section class="info-section">
+                        <h3>Court Layout</h3>
+                        <ul>
+                            <li>Grey area: Non-volley zone (Kitchen)</li>
+                            <li>Navy blue area: Service boxes</li>
+                            <li>Net runs through the center</li>
+                            <li>Court is 44' x 20' regulation size</li>
+                            <li>Players/ball can move outside court boundaries</li>
+                        </ul>
+                    </section>
+                    
+                    <!-- Legend -->
+                    <section class="info-section">
+                        <h3>Legend</h3>
+                        <div class="legend">
+                            <div class="legend-item">
+                                <div class="legend-dot team1"></div>
+                                <span>Team 1 Players (Red)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-dot team2"></div>
+                                <span>Team 2 Players (Blue)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-dot ball"></div>
+                                <span>Ball (Neon Green)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-dot kitchen"></div>
+                                <span>Non-Volley Zone (Grey)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-dot service-box"></div>
+                                <span>Service Boxes (Navy Blue)</span>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
