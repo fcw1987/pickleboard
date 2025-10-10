@@ -24,6 +24,15 @@ class Pickleboard {
         this.clearDrawingsBtn = document.getElementById('clearDrawingsBtn');
         this.drawingLayer = document.getElementById('drawingLayer');
         
+        // New UI elements
+        this.menuToggle = document.getElementById('menuToggle');
+        this.menuOverlay = document.getElementById('menuOverlay');
+        this.menuClose = document.getElementById('menuClose');
+        this.infoToggle = document.getElementById('infoToggle');
+        this.infoModal = document.getElementById('infoModal');
+        this.infoClose = document.getElementById('infoClose');
+        this.drawControls = document.getElementById('drawControls');
+        
         // Court boundaries (SVG coordinates in feet) - expanded to allow movement outside court
         this.courtBounds = {
             left: -8,
@@ -179,6 +188,9 @@ class Pickleboard {
         
         // Set up drawing event listeners
         this.setupDrawingEvents();
+        
+        // New UI event listeners
+        this.setupUIEventListeners();
     }
     
     setupTokenDragEvents(token) {
@@ -699,6 +711,78 @@ class Pickleboard {
         }
         
         console.log('All drawings cleared');
+    }
+    
+    // New UI methods
+    setupUIEventListeners() {
+        // Menu toggle
+        this.menuToggle.addEventListener('click', () => this.toggleMenu());
+        this.menuClose.addEventListener('click', () => this.closeMenu());
+        
+        // Info modal
+        this.infoToggle.addEventListener('click', () => this.openInfoModal());
+        this.infoClose.addEventListener('click', () => this.closeInfoModal());
+        
+        // Close overlays on backdrop click
+        this.menuOverlay.addEventListener('click', (e) => {
+            if (e.target === this.menuOverlay) {
+                this.closeMenu();
+            }
+        });
+        
+        this.infoModal.addEventListener('click', (e) => {
+            if (e.target === this.infoModal) {
+                this.closeInfoModal();
+            }
+        });
+        
+        // Close with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeMenu();
+                this.closeInfoModal();
+            }
+        });
+        
+        // Update drawing controls visibility in menu
+        this.drawToggle.addEventListener('click', () => {
+            this.toggleDrawingMode();
+            // Show/hide draw controls in menu
+            if (this.drawControls) {
+                this.drawControls.style.display = this.drawingMode ? 'block' : 'none';
+            }
+        });
+    }
+    
+    toggleMenu() {
+        const isActive = this.menuOverlay.classList.contains('active');
+        if (isActive) {
+            this.closeMenu();
+        } else {
+            this.openMenu();
+        }
+    }
+    
+    openMenu() {
+        this.menuOverlay.classList.add('active');
+        this.menuToggle.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    closeMenu() {
+        this.menuOverlay.classList.remove('active');
+        this.menuToggle.classList.remove('active');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+    
+    openInfoModal() {
+        this.infoModal.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    closeInfoModal() {
+        this.infoModal.classList.remove('active');
+        document.body.style.overflow = ''; // Restore scrolling
     }
 }
 
