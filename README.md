@@ -65,13 +65,13 @@ styles.css       Themes, court presentation, overlays, and responsive sizing
 script.js        Pickleboard state, interactions, SVG updates, and public API
 manifest.json    PWA installation metadata
 sw.js            Versioned static-shell cache and offline navigation behavior
-assets/players/  Four transparent PNG player visuals (green/orange, left/right)
+assets/players/  Four transparent PNG player visuals (green/orange, left/right-handed)
 icons/           PWA and Apple launcher icons
 tests/           Playwright browser tests and local test helpers
 .github/         CI quality gate
 ```
 
-A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Artwork is selected centrally from the player’s current team color and explicit left/right handedness; all four players default to right-handed. Double-clicking on desktop or double tapping the same player on a touch device toggles that individual handedness without changing its position. Handedness is session-only and survives mode changes and Reset, while singles/doubles may change the artwork’s team color. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
+A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Green artwork is front-facing on the far/top side and orange artwork is back-facing on the near/bottom side, so the teams face each other across the court; this viewing orientation is inherent to the team artwork, not separate application state. Artwork is selected centrally from the player’s current team color and explicit physical left/right handedness; all four players default to right-handed. Double-clicking on desktop or double tapping the same player on a touch device toggles that individual handedness without changing its position or front/back orientation. Handedness is session-only and survives mode changes and Reset, while singles/doubles may change the artwork’s team color. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
 
 ## Court coordinate model
 

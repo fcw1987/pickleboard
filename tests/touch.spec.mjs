@@ -51,7 +51,7 @@ test('touch double tap toggles handedness twice while single tap does nothing', 
 
   await tap(page, player);
   await expect(player).toHaveAttribute('data-handedness', 'left');
-  await expect(player).toHaveAttribute('href', 'assets/players/green-left.png');
+  await expect(player).toHaveAttribute('href', 'assets/players/green-left-handed.png');
   await page.waitForTimeout(400);
   await expect(player).toHaveAttribute('data-handedness', 'left');
 
@@ -59,7 +59,7 @@ test('touch double tap toggles handedness twice while single tap does nothing', 
   await tap(page, player);
   await tap(page, player);
   await expect(player).toHaveAttribute('data-handedness', 'right');
-  await expect(player).toHaveAttribute('href', 'assets/players/green-right.png');
+  await expect(player).toHaveAttribute('href', 'assets/players/green-right-handed.png');
 });
 
 test('touch taps on different players do not combine', async ({ page }) => {

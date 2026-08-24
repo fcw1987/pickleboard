@@ -454,7 +454,7 @@ class Pickleboard {
 
     renderPlayerArtwork(token) {
         const teamColor = this.getPlayerTeamColor(token);
-        token.element.setAttribute('href', `assets/players/${teamColor}-${token.handedness}.png`);
+        token.element.setAttribute('href', `assets/players/${teamColor}-${token.handedness}-handed.png`);
         token.element.dataset.handedness = token.handedness;
         token.element.setAttribute('aria-label', `${token.id}, ${teamColor} team, ${token.handedness}-handed`);
     }
