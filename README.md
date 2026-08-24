@@ -7,7 +7,7 @@ The production application is dependency free: HTML, CSS, vanilla browser JavaSc
 ## Features
 
 - Four draggable branded player tokens: Team 1 uses green artwork and Team 2 uses orange artwork
-- Per-player left/right handedness, toggled with a double click and retained for the browser session
+- Per-player left/right handedness: all players start right-handed; double click on desktop or double tap on touch devices to toggle
 - A draggable neon-green ball
 - Singles and doubles starting arrangements
 - Movement tracers with automatic expiry and manual clearing
@@ -18,7 +18,7 @@ The production application is dependency free: HTML, CSS, vanilla browser JavaSc
 - Installable PWA shell with repeat-visit offline support
 - No backend, account, analytics, or remote persistence
 
-Player positions and drawings are currently session-only and are lost when the page reloads. Theme preference is the only application setting stored in `localStorage`.
+Player positions, drawings, and handedness are session-only and are lost when the page reloads. Reset restores positions but preserves handedness for the current session. Theme preference is the only application setting stored in `localStorage`.
 
 ## Run locally
 
@@ -55,7 +55,7 @@ npm run test:browser
 npm run test:headed
 ```
 
-The browser suite covers clean initialization, drawing mode and strokes, token drag synchronization, singles/doubles behavior, the public mode API and Reset, theme restoration, service-worker installation/offline/upgrade behavior, cache isolation and freshness, and representative portrait, landscape, and desktop viewports.
+The browser suite covers clean initialization, player artwork and handedness, desktop double click and touch double tap behavior, touch/mouse drag synchronization, drawing mode and strokes, singles/doubles behavior, the public mode API and Reset, theme restoration, service-worker installation/offline/upgrade behavior, cache isolation and freshness, and representative portrait, landscape, and desktop viewports.
 
 ## Architecture
 
@@ -71,7 +71,7 @@ tests/           Playwright browser tests and local test helpers
 .github/         CI quality gate
 ```
 
-A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Artwork is selected centrally from the player’s current team color and explicit left/right handedness. Double-clicking a player toggles that individual handedness without changing its position; handedness is session-only and survives mode changes and Reset. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
+A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Artwork is selected centrally from the player’s current team color and explicit left/right handedness; all four players default to right-handed. Double-clicking on desktop or double tapping the same player on a touch device toggles that individual handedness without changing its position. Handedness is session-only and survives mode changes and Reset, while singles/doubles may change the artwork’s team color. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
 
 ## Court coordinate model
 

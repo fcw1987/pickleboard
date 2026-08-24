@@ -68,7 +68,17 @@ class Pickleboard {
             startX: 0,
             startY: 0,
             elementStartX: 0,
-            elementStartY: 0
+            elementStartY: 0,
+            touchStartClientX: 0,
+            touchStartClientY: 0,
+            touchMoved: false
+        };
+        this.touchTapState = {
+            lastTokenId: null,
+            lastTapTime: 0,
+            lastTouchToggleTime: 0,
+            maxDelay: 350,
+            maxMovement: 12
         };
         
         // Tracer system
@@ -222,6 +232,8 @@ class Pickleboard {
             }
             this.startDrag(e, token);
         }, { passive: false });
+        touchElement.addEventListener('touchend', (event) => this.handlePlayerTouchEnd(event, token));
+        touchElement.addEventListener('touchcancel', () => this.cancelPlayerTouch());
         
         // Touch events on visual element (for direct touches)
         visualElement.addEventListener('touchstart', (e) => {
@@ -236,13 +248,18 @@ class Pickleboard {
             }
             this.startDrag(e, token);
         }, { passive: false });
+        visualElement.addEventListener('touchend', (event) => this.handlePlayerTouchEnd(event, token));
+        visualElement.addEventListener('touchcancel', () => this.cancelPlayerTouch());
         
         // A double click toggles handedness without changing the logical position.
         if (token.type === 'player') {
             const toggleHandedness = (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                this.togglePlayerHandedness(token);
+                if (!this.touchTapState.lastTouchToggleTime ||
+                    performance.now() - this.touchTapState.lastTouchToggleTime > this.touchTapState.maxDelay) {
+                    this.togglePlayerHandedness(token);
+                }
             };
             touchElement.addEventListener('dblclick', toggleHandedness);
             visualElement.addEventListener('dblclick', toggleHandedness);
@@ -258,6 +275,7 @@ class Pickleboard {
             document.addEventListener('mouseup', (e) => this.endDrag(e));
             document.addEventListener('touchmove', (e) => this.drag(e), { passive: false });
             document.addEventListener('touchend', (e) => this.endDrag(e));
+            document.addEventListener('touchcancel', (e) => this.endDrag(e));
             this.globalEventsSetup = true;
         }
     }
@@ -279,6 +297,11 @@ class Pickleboard {
         this.dragState.startY = svgCoords.y;
         this.dragState.elementStartX = token.x;
         this.dragState.elementStartY = token.y;
+        this.dragState.touchMoved = false;
+        if (event.touches) {
+            this.dragState.touchStartClientX = coords.x;
+            this.dragState.touchStartClientY = coords.y;
+        }
         
         // Add visual feedback
         token.element.classList.add('dragging');
@@ -294,6 +317,16 @@ class Pickleboard {
         
         const coords = this.getEventCoords(event);
         const svgCoords = this.screenToSVG(coords.x, coords.y);
+        if (event.touches) {
+            const movement = Math.hypot(
+                coords.x - this.dragState.touchStartClientX,
+                coords.y - this.dragState.touchStartClientY
+            );
+            if (movement > this.touchTapState.maxMovement) {
+                this.dragState.touchMoved = true;
+                this.clearPendingTouchTap();
+            }
+        }
         
         // Calculate new position
         const deltaX = svgCoords.x - this.dragState.startX;
@@ -327,6 +360,38 @@ class Pickleboard {
         
         // Restore text selection
         document.body.style.userSelect = '';
+    }
+
+    handlePlayerTouchEnd(event, token) {
+        if (this.drawingMode || this.dragState.dragElement !== token || this.dragState.touchMoved) {
+            this.clearPendingTouchTap();
+            return;
+        }
+
+        const now = performance.now();
+        const isDoubleTap = this.touchTapState.lastTokenId === token.id &&
+            now - this.touchTapState.lastTapTime <= this.touchTapState.maxDelay;
+
+        if (isDoubleTap) {
+            event.preventDefault();
+            this.togglePlayerHandedness(token);
+            this.touchTapState.lastTouchToggleTime = now;
+            this.clearPendingTouchTap();
+            return;
+        }
+
+        this.touchTapState.lastTokenId = token.id;
+        this.touchTapState.lastTapTime = now;
+    }
+
+    clearPendingTouchTap() {
+        this.touchTapState.lastTokenId = null;
+        this.touchTapState.lastTapTime = 0;
+    }
+
+    cancelPlayerTouch() {
+        this.dragState.touchMoved = true;
+        this.clearPendingTouchTap();
     }
     
     getEventCoords(event) {

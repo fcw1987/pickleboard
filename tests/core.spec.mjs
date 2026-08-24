@@ -18,9 +18,9 @@ async function openMenu(page) {
 
 const playerArtwork = {
   player1: { href: 'assets/players/green-right.png', handedness: 'right' },
-  player2: { href: 'assets/players/green-left.png', handedness: 'left' },
+  player2: { href: 'assets/players/green-right.png', handedness: 'right' },
   player3: { href: 'assets/players/orange-right.png', handedness: 'right' },
-  player4: { href: 'assets/players/orange-left.png', handedness: 'left' }
+  player4: { href: 'assets/players/orange-right.png', handedness: 'right' }
 };
 
 async function appState(page) {
@@ -49,7 +49,7 @@ test('initializes without uncaught JavaScript errors', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('loads the expected player artwork and preserves its aspect ratio', async ({ page }) => {
+test('all four players initialize right handed with expected team artwork', async ({ page }) => {
   const failedPlayerRequests = [];
   page.on('requestfailed', request => {
     if (request.url().includes('/assets/players/')) failedPlayerRequests.push(request.url());
@@ -103,18 +103,18 @@ test('double clicking toggles each player handedness and a second double click r
 test('handedness survives game mode changes and Reset while team artwork follows mode', async ({ page }) => {
   await openApp(page);
   await page.locator('#player2').dblclick();
-  await expect(page.locator('#player2')).toHaveAttribute('data-handedness', 'right');
-  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/green-right.png');
+  await expect(page.locator('#player2')).toHaveAttribute('data-handedness', 'left');
+  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/green-left.png');
 
   await page.evaluate(() => window.pickleboard.setGameMode('singles'));
-  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/orange-right.png');
+  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/orange-left.png');
   await page.evaluate(() => window.pickleboard.resetPositions());
-  await expect(page.locator('#player2')).toHaveAttribute('data-handedness', 'right');
-  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/orange-right.png');
+  await expect(page.locator('#player2')).toHaveAttribute('data-handedness', 'left');
+  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/orange-left.png');
 
   await page.evaluate(() => window.pickleboard.setGameMode('doubles'));
-  await expect(page.locator('#player2')).toHaveAttribute('data-handedness', 'right');
-  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/green-right.png');
+  await expect(page.locator('#player2')).toHaveAttribute('data-handedness', 'left');
+  await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/green-left.png');
 });
 
 test('drawing mode remains enabled, creates a stroke, and can be disabled', async ({ page }) => {

@@ -89,13 +89,13 @@
                        data-cx="5" data-cy="-1" data-handedness="right" data-type="player" role="img"/>
                 <image id="player2" class="player-token player-artwork team1-player"
                        x="13" y="12.5" width="4" height="3" preserveAspectRatio="xMidYMid meet"
-                       data-cx="15" data-cy="14" data-handedness="left" data-type="player" role="img"/>
+                       data-cx="15" data-cy="14" data-handedness="right" data-type="player" role="img"/>
                 <image id="player3" class="player-token player-artwork team2-player"
                        x="3" y="43.5" width="4" height="3" preserveAspectRatio="xMidYMid meet"
                        data-cx="5" data-cy="45" data-handedness="right" data-type="player" role="img"/>
                 <image id="player4" class="player-token player-artwork team2-player"
                        x="13" y="43.5" width="4" height="3" preserveAspectRatio="xMidYMid meet"
-                       data-cx="15" data-cy="45" data-handedness="left" data-type="player" role="img"/>
+                       data-cx="15" data-cy="45" data-handedness="right" data-type="player" role="img"/>
                 
                 <!-- Ball - visual element -->
                 <circle id="ball" class="ball-token" cx="16" cy="45" r="0.5" data-type="ball"/>
@@ -163,10 +163,11 @@
                     <section class="info-section">
                         <h3>How to Use</h3>
                         <ul>
-                            <li><strong>Drag</strong> player dots and ball around the court</li>
-                            <li><strong>Draw</strong> - Toggle drawing mode with ✏️ button</li>
-                            <li><strong>Singles/Doubles</strong> - Switch game modes in menu</li>
-                            <li><strong>Reset</strong> - Return tokens to default positions</li>
+                            <li><strong>Drag</strong> branded green/orange players and the ball around the court</li>
+                            <li><strong>Handedness</strong> - Double click a player on desktop or double tap on touch devices</li>
+                            <li><strong>Draw</strong> - Toggle drawing mode with the ✏️ button</li>
+                            <li><strong>Singles/Doubles</strong> - Modes may change team color while preserving handedness</li>
+                            <li><strong>Reset</strong> - Return players and ball to default positions without changing handedness</li>
                             <li><strong>Theme</strong> - Toggle light/dark mode</li>
                         </ul>
                     </section>
@@ -189,11 +190,11 @@
                         <div class="legend">
                             <div class="legend-item">
                                 <div class="legend-dot team1"></div>
-                                <span>Team 1 Players (Red)</span>
+                                <span>Team 1 Players (Green Artwork)</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-dot team2"></div>
-                                <span>Team 2 Players (Blue)</span>
+                                <span>Team 2 Players (Orange Artwork)</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-dot ball"></div>

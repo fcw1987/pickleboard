@@ -471,11 +471,11 @@ body {
 }
 
 .legend-dot.team1 {
-  background-color: var(--team1-color);
+  background-color: #66cc33;
 }
 
 .legend-dot.team2 {
-  background-color: var(--team2-color);
+  background-color: #ff7a00;
 }
 
 .legend-dot.ball {
