@@ -27,11 +27,14 @@ test.describe('service worker lifecycle', () => {
     await page.goto('/index.html?install=1');
     await waitForWorker(page);
 
-    const cacheState = await page.evaluate(async () => ({
-      names: await caches.keys(),
-      hasShell: Boolean(await caches.match('./index.html')),
-      hasScript: Boolean(await caches.match('./script.js'))
-    }));
+    const cacheState = await page.evaluate(async () => {
+      const cache = await caches.open('pickleboard-static-v2');
+      return {
+        names: await caches.keys(),
+        hasShell: Boolean(await cache.match('./index.html')),
+        hasScript: Boolean(await cache.match('./script.js'))
+      };
+    });
     expect(cacheState.names).toContain('pickleboard-static-v2');
     expect(cacheState.hasShell).toBe(true);
     expect(cacheState.hasScript).toBe(true);
@@ -64,12 +67,16 @@ test.describe('service worker lifecycle', () => {
     })).toBe('keep me');
   });
 
-  test('offline navigation falls back to the shell without caching unknown online pages as the shell', async ({ page, context }) => {
+  test('offline navigation uses only the owned shell cache and does not cache unknown pages as the shell', async ({ page, context }) => {
     await page.goto('/index.html?navigation-setup=1');
     await waitForWorker(page);
 
     await page.goto('/tests/fixtures/cache-setup.html?online=1');
     await expect(page).toHaveTitle('Cache setup');
+    await page.evaluate(async () => {
+      const unrelatedCache = await caches.open('unrelated-application-cache');
+      await unrelatedCache.put('/index.html', new Response('<title>Poisoned unrelated shell</title>'));
+    });
 
     await context.setOffline(true);
     await page.goto('/unknown/offline-route');
@@ -93,8 +100,28 @@ test.describe('service worker lifecycle', () => {
     await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard))).toBe(true);
     expect(await page.evaluate(() => window.__STALE_PICKLEBOARD_ASSET__)).toBeUndefined();
 
-    const cachedScript = await page.evaluate(async () => (await caches.match('./script.js')).text());
+    const cachedScript = await page.evaluate(async () => {
+      const cache = await caches.open('pickleboard-static-v2');
+      return (await cache.match('./script.js')).text();
+    });
     expect(cachedScript).toContain('class Pickleboard');
     expect(cachedScript).not.toContain('__STALE_PICKLEBOARD_ASSET__');
+  });
+
+  test('returns a successful network asset even when refreshing its cache fails', async ({ page }) => {
+    await page.goto('/index.html?cache-write-setup=1');
+    await waitForWorker(page);
+
+    await page.context().addCookies([{
+      name: 'test-cache-write-failure', value: '1', url: 'http://127.0.0.1:4173/'
+    }]);
+    const result = await page.evaluate(async () => {
+      const response = await fetch('/script.js');
+      return { ok: response.ok, text: await response.text() };
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.text).toContain('class Pickleboard');
+    expect(result.text).toContain('playwright-vary-response');
   });
 });

@@ -12,6 +12,7 @@ const contentTypes = {
   '.json': 'application/manifest+json; charset=utf-8',
   '.png': 'image/png'
 };
+const varyResponseMarker = '// playwright-vary-response';
 
 const server = createServer((request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
@@ -27,6 +28,11 @@ const server = createServer((request, response) => {
     if (!statSync(filePath).isFile()) throw new Error('Not a file');
     response.setHeader('Content-Type', contentTypes[extname(filePath)] || 'application/octet-stream');
     response.setHeader('Cache-Control', pathname === '/sw.js' ? 'no-cache' : 'no-store');
+    if (pathname === '/script.js' && request.headers.cookie?.includes('test-cache-write-failure=1')) {
+      response.setHeader('Vary', '*');
+      createReadStream(filePath).on('end', () => response.end(`\n${varyResponseMarker}\n`)).pipe(response, { end: false });
+      return;
+    }
     createReadStream(filePath).pipe(response);
   } catch {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not found');

@@ -40,16 +40,29 @@ self.addEventListener('activate', event => {
   })());
 });
 
+async function updateStaticCache(request, response) {
+  try {
+    const cache = await caches.open(STATIC_CACHE);
+    await cache.put(request, response);
+  } catch (error) {
+    console.warn('Unable to refresh the Pickleboard static cache:', error);
+  }
+}
+
+async function matchStaticCache(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  return cache.match(request);
+}
+
 async function fetchAndRefresh(request) {
   try {
     const response = await fetch(request);
     if (response.ok && response.type === 'basic') {
-      const cache = await caches.open(STATIC_CACHE);
-      await cache.put(request, response.clone());
+      await updateStaticCache(request, response.clone());
     }
     return response;
   } catch (error) {
-    const cached = await caches.match(request);
+    const cached = await matchStaticCache(request);
     if (cached) return cached;
     throw error;
   }
@@ -64,12 +77,11 @@ async function handleNavigation(request) {
     const isAppShell = requestUrl.pathname === shellUrl.pathname || requestUrl.pathname === scopePath;
 
     if (isAppShell && response.ok && response.type === 'basic') {
-      const cache = await caches.open(STATIC_CACHE);
-      await cache.put(APP_SHELL_URL, response.clone());
+      await updateStaticCache(APP_SHELL_URL, response.clone());
     }
     return response;
   } catch (error) {
-    const cachedShell = await caches.match(APP_SHELL_URL);
+    const cachedShell = await matchStaticCache(APP_SHELL_URL);
     if (!cachedShell) throw error;
 
     const requestPath = new URL(request.url).pathname;
