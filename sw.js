@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'pickleboard-';
-const STATIC_CACHE = `${CACHE_PREFIX}static-v2`;
+const STATIC_CACHE = `${CACHE_PREFIX}static-v3`;
 const LEGACY_CACHES = new Set(['pickleboard-cache-v1']);
 const APP_SHELL_URL = new URL('./index.html', self.location).href;
 const STATIC_ASSETS = [
@@ -8,6 +8,10 @@ const STATIC_ASSETS = [
   './script.js',
   './styles.css',
   './manifest.json',
+  './assets/players/green-left.png',
+  './assets/players/green-right.png',
+  './assets/players/orange-left.png',
+  './assets/players/orange-right.png',
   './icons/apple-icon-180.png',
   './icons/icon-72x72.png',
   './icons/icon-96x96.png',

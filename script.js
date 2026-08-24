@@ -79,6 +79,10 @@ class Pickleboard {
             minDistance: 0.5 // Minimum distance between tracer dots
         };
         
+        // Player artwork uses the logical token position as a body-center anchor.
+        this.playerArtworkSize = { width: 4, height: 3 };
+        this.playerArtworkColors = { team1: 'green', team2: 'orange' };
+
         // Drawing system
         this.drawingMode = false;
         this.isDrawing = false;
@@ -113,8 +117,9 @@ class Pickleboard {
                     type: 'player',
                     element: visualElement,
                     touchElement: touchElement,
-                    x: parseFloat(visualElement.getAttribute('cx')),
-                    y: parseFloat(visualElement.getAttribute('cy'))
+                    x: parseFloat(visualElement.dataset.cx),
+                    y: parseFloat(visualElement.dataset.cy),
+                    handedness: visualElement.dataset.handedness === 'left' ? 'left' : 'right'
                 };
             }
         }
@@ -232,6 +237,17 @@ class Pickleboard {
             this.startDrag(e, token);
         }, { passive: false });
         
+        // A double click toggles handedness without changing the logical position.
+        if (token.type === 'player') {
+            const toggleHandedness = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.togglePlayerHandedness(token);
+            };
+            touchElement.addEventListener('dblclick', toggleHandedness);
+            visualElement.addEventListener('dblclick', toggleHandedness);
+        }
+
         // Prevent context menu on both elements
         touchElement.addEventListener('contextmenu', (e) => e.preventDefault());
         visualElement.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -341,14 +357,46 @@ class Pickleboard {
         
         token.x = x;
         token.y = y;
-        token.element.setAttribute('cx', x);
-        token.element.setAttribute('cy', y);
+        this.renderTokenPosition(token);
         
         // Also update touch target position if it exists
         if (token.touchElement) {
             token.touchElement.setAttribute('cx', x);
             token.touchElement.setAttribute('cy', y);
         }
+    }
+
+    renderTokenPosition(token) {
+        if (token.type === 'player') {
+            const { width, height } = this.playerArtworkSize;
+            token.element.setAttribute('x', token.x - width / 2);
+            token.element.setAttribute('y', token.y - height / 2);
+            token.element.dataset.cx = token.x;
+            token.element.dataset.cy = token.y;
+            this.renderPlayerArtwork(token);
+            return;
+        }
+
+        token.element.setAttribute('cx', token.x);
+        token.element.setAttribute('cy', token.y);
+    }
+
+    getPlayerTeamColor(token) {
+        return token.element.classList.contains('team2-player')
+            ? this.playerArtworkColors.team2
+            : this.playerArtworkColors.team1;
+    }
+
+    renderPlayerArtwork(token) {
+        const teamColor = this.getPlayerTeamColor(token);
+        token.element.setAttribute('href', `assets/players/${teamColor}-${token.handedness}.png`);
+        token.element.dataset.handedness = token.handedness;
+        token.element.setAttribute('aria-label', `${token.id}, ${teamColor} team, ${token.handedness}-handed`);
+    }
+
+    togglePlayerHandedness(token) {
+        token.handedness = token.handedness === 'left' ? 'right' : 'left';
+        this.renderPlayerArtwork(token);
     }
     
     setGameMode(mode) {
@@ -395,13 +443,13 @@ class Pickleboard {
     }
     
     updatePlayerColors(mode) {
-        // In doubles mode: 
-        // - players 1 & 2 (back court) are team1 (red)
-        // - players 3 & 4 (front court) are team2 (blue)
+        // In doubles mode:
+        // - players 1 & 2 are team1 (green artwork)
+        // - players 3 & 4 are team2 (orange artwork)
         //
         // In singles mode:
-        // - player 1 (back court) is team1 (red) - opposing players
-        // - player 2 (front court) is team2 (blue) - should be different color
+        // - player 1 remains team1 (green artwork)
+        // - player 2 becomes team2 (orange artwork)
         // - players 3 & 4 are hidden
         
         if (mode === 'doubles') {
@@ -432,6 +480,10 @@ class Pickleboard {
                 this.tokens.player2.element.classList.add('team2-player');
             }
         }
+
+        Object.values(this.tokens)
+            .filter(token => token.type === 'player')
+            .forEach(token => this.renderPlayerArtwork(token));
     }
     
     resetPositions() {
