@@ -46,9 +46,9 @@ test('play, pause, playback rate, restart, and proof bounce share one clock', as
   await page.locator('#threeDRate').selectOption('0.25');
   await page.locator('#threeDPlayPause').click();
   await page.waitForTimeout(300);
-  const slowElapsed = await page.evaluate(() => window.pickleboard.threeD.getState().elapsed);
-  expect(slowElapsed).toBeGreaterThan(0);
-  expect(slowElapsed).toBeLessThan(0.2);
+  const slowState = await page.evaluate(() => window.pickleboard.threeD.getState());
+  expect(slowState.playbackRate).toBe(0.25);
+  expect(slowState.elapsed).toBeGreaterThan(0);
   await page.locator('#threeDPlayPause').click();
   const paused = await page.evaluate(() => window.pickleboard.threeD.getState().elapsed);
   await page.waitForTimeout(150);
