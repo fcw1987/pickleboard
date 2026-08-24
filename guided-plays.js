@@ -26,7 +26,7 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 5, y: 38 }
         },
-        shot: { from: { x: 18, y: -1 }, to: { x: 5, y: 38 } }
+        shot: { from: { x: 18, y: -1 }, to: { x: 5, y: 38 }, type: 'serve' }
     },
     return: {
         id: 'return',
@@ -40,7 +40,7 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 15, y: 6 }
         },
-        shot: { from: { x: 5, y: 38 }, to: { x: 15, y: 6 } }
+        shot: { from: { x: 5, y: 38 }, to: { x: 15, y: 6 }, type: 'return' }
     },
     thirdDrop: {
         id: 'third-drop',
@@ -54,7 +54,19 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 7, y: 27 }
         },
-        shot: { from: { x: 15, y: 6 }, to: { x: 7, y: 27 } }
+        shot: {
+            from: { x: 15, y: 6 },
+            to: { x: 7, y: 27 },
+            type: 'drop',
+            trajectory3d: {
+                speedMph: 18,
+                apexFeet: 7.5,
+                netClearanceInches: 16,
+                contactHeightFeet: 2.2,
+                spin: { type: 'backspin', rpm: 550 },
+                bounce: { enabled: true, heightFeet: 1.25 }
+            }
+        }
     },
     dropTransition: {
         id: 'drop-transition',
@@ -81,7 +93,7 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 14.5, y: 29.5 }
         },
-        shot: { from: { x: 15, y: 6 }, to: { x: 14.5, y: 29.5 } }
+        shot: { from: { x: 15, y: 6 }, to: { x: 14.5, y: 29.5 }, type: 'drive' }
     },
     block: {
         id: 'fourth-block',
@@ -95,7 +107,7 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 13.5, y: 12 }
         },
-        shot: { from: { x: 14.5, y: 29.5 }, to: { x: 13.5, y: 12 } }
+        shot: { from: { x: 14.5, y: 29.5 }, to: { x: 13.5, y: 12 }, type: 'block' }
     },
     fifthDrop: {
         id: 'fifth-drop',
@@ -109,7 +121,7 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 14, y: 27 }
         },
-        shot: { from: { x: 13.5, y: 12 }, to: { x: 14, y: 27 } }
+        shot: { from: { x: 13.5, y: 12 }, to: { x: 14, y: 27 }, type: 'drop' }
     },
     fifthTransition: {
         id: 'fifth-transition',
