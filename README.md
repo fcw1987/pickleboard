@@ -2,7 +2,7 @@
 
 Pickleboard is a lightweight, local-first pickleball strategy board. It displays a regulation-proportioned 44′ × 20′ court plus an expanded planning area, and lets coaches and players position teams, move the ball, trace movement, and draw annotations.
 
-The production application is dependency free: HTML, CSS, vanilla browser JavaScript, inline SVG, and a service worker. Development tooling uses Node.js and Playwright for reproducible browser tests.
+Pickleboard remains a lightweight static application built with HTML, CSS, vanilla browser JavaScript, inline SVG, and a service worker. Three.js is isolated to the optional 3D playback mode; development tooling uses Node.js and Playwright for reproducible tests.
 
 ## Features
 
@@ -32,7 +32,7 @@ npm start
 
 Then open <http://127.0.0.1:4173/>.
 
-The page itself has no production package dependencies or build step. It can be hosted by any static HTTPS server. Opening `index.html` directly may display the basic application, but it is not a supported way to test installation, updates, or offline behavior.
+The application has no build step and can be hosted by any static HTTPS server. The checked-in `vendor/` modules provide the sole production dependency, Three.js, for offline 3D playback. Opening `index.html` directly may display the basic application, but it is not a supported way to test modules, installation, updates, or offline behavior.
 
 ## Test
 
@@ -84,6 +84,47 @@ Each step declares a label, explanation, duration, absolute SVG-coordinate posit
 Entering a Play captures the current mode, token positions, player handedness, drawings, tracers, and drawing-mode state. Play mode locks manual board editing. **Exit** restores the captured arrangement; **Restart** returns only to the selected Play's first step. Handedness is never encoded in play data and remains unchanged. User drawings are preserved, while play paths are transient and removed on restart or exit. Reduced-motion preference makes step transitions immediate without removing manual or automatic navigation.
 
 The play catalog and engine are part of the versioned service-worker shell, so the library works on offline repeat visits. Browser tests cover the exact catalog, manual and automatic playback, pause/final-step behavior, restoration, locking, reduced motion, required viewports, and offline execution.
+
+## 3D playback foundation
+
+An active 2D Play now offers **3D View**, an isolated Three.js replay layer. The 2D board and `guided-plays.js` remain authoritative: the 3D adapter consumes the selected Play's existing step order, player/ball positions, labels, and shot endpoints rather than maintaining a second catalog.
+
+Three.js `0.185.1` is the only production dependency. Its ES-module builds are copied into `vendor/` so the static PWA remains fully offline and does not depend on a CDN. `three-d-playback.js` owns scene objects, cameras, rendering, controls, and disposal; `three-d-core.js` stays renderer-independent and owns coordinate conversion, optional shot metadata normalization, deterministic trajectories, and the centralized playback clock.
+
+Coordinate mapping is centralized in `boardToWorld()`:
+
+```text
+Pickleboard x (0..20 ft) → Three.js x, centered at x=10
+Pickleboard y (0..44 ft) → Three.js z, centered at y=22
+physical height in feet   → Three.js y
+1 foot                    → 0.3048 meters
+```
+
+The modeled court is 20×44 feet with seven-foot kitchens. The net is modeled at the regulation 34-inch center height; the 36-inch sideline height is retained as a dimension constant for future net shaping. Players are lightweight capsule/head/leg figures with green/orange branding, navy clothing/paddles, team-facing orientation, and paddle placement based on existing handedness.
+
+Shots may optionally add metadata without affecting the 2D engine:
+
+```javascript
+shot: {
+  from: { x, y },
+  to: { x, y },
+  type: 'drop',
+  trajectory3d: {
+    speedMph: 18,
+    apexFeet: 7.5,
+    netClearanceInches: 16,
+    contactHeightFeet: 2.2,
+    spin: { type: 'backspin', rpm: 550 },
+    bounce: { enabled: true, heightFeet: 1.25 }
+  }
+}
+```
+
+The Third Shot Drop is the rich proof shot. A deterministic parametric arc derives duration from horizontal distance and a simplified average travel speed, validates net clearance, reaches the shared 2D target, and produces one illustrative bounce. Spin RPM drives visible ball rotation; topspin/backspin/flat currently alter post-bounce forward travel modestly rather than simulating aerodynamic Magnus forces. Other shots use type-based defaults, so every existing Play can load in 3D without duplicated definitions.
+
+One `PlaybackClock` coordinates players, ball rotation, trajectory, pause/restart, and global rates of 1×, 0.5×, or 0.25×. Named cameras are Overhead 3D, Sideline, Behind Green, and Behind Orange. Exiting disposes geometry/materials and the WebGL renderer, stops the frame loop, and returns to the same 2D Play state. The Three.js modules and 3D code are included in the versioned service-worker shell for offline repeat use.
+
+This foundation is deliberately illustrative, not validated sports physics. Future physics can replace `createTrajectory()` without replacing the Play catalog, coordinate adapter, renderer, or clock. Natural V2 steps are curved net tape/sideline height, calibrated launch velocities, aerodynamic spin, richer bounce surfaces, stroke-state metadata, and skeletal player animation.
 
 ## Court coordinate model
 
@@ -171,7 +212,7 @@ The production code targets current evergreen Chrome, Edge, Firefox, and Safari 
 
 ## Contributing
 
-Keep the production runtime dependency free and preserve the existing SVG court geometry unless a product change explicitly requires otherwise. Run `npm test` before opening a pull request. PWA changes should always be tested through HTTP on localhost or HTTPS, including an upgrade from an existing cache.
+Keep the production runtime lightweight, isolate Three.js to 3D playback, and preserve the existing SVG court geometry unless a product change explicitly requires otherwise. Run `npm test` before opening a pull request. PWA changes should always be tested through HTTP on localhost or HTTPS, including an upgrade from an existing cache.
 
 ## License
 
