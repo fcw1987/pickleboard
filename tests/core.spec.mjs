@@ -117,6 +117,26 @@ test('handedness survives game mode changes and Reset while team artwork follows
   await expect(page.locator('#player2')).toHaveAttribute('href', 'assets/players/green-left-handed.png');
 });
 
+test('default ball is visually separate from Player 4 artwork', async ({ page }) => {
+  await openApp(page);
+  const geometry = await page.evaluate(() => {
+    const player = document.querySelector('#player4').getBoundingClientRect();
+    const ball = document.querySelector('#ball').getBoundingClientRect();
+    return {
+      player: { left: player.left, right: player.right, top: player.top, bottom: player.bottom },
+      ball: { left: ball.left, right: ball.right, top: ball.top, bottom: ball.bottom },
+      ballPosition: window.pickleboard.getTokenPositions().ball
+    };
+  });
+
+  const overlaps = geometry.player.left < geometry.ball.right &&
+    geometry.player.right > geometry.ball.left &&
+    geometry.player.top < geometry.ball.bottom &&
+    geometry.player.bottom > geometry.ball.top;
+  expect(overlaps).toBe(false);
+  expect(geometry.ballPosition).toEqual({ x: 19, y: 45 });
+});
+
 test('drawing mode remains enabled, creates a stroke, and can be disabled', async ({ page }) => {
   await openApp(page);
   await openMenu(page);
@@ -195,7 +215,7 @@ test('singles and doubles preserve expected positions, visibility, and teams', a
   expect(state.checkedMode).toBe('singles');
   expect(state.positions).toEqual({
     player1: { x: 5, y: -1 }, player2: { x: 15, y: 45 },
-    player3: { x: 5, y: 36 }, player4: { x: 15, y: 36 }, ball: { x: 16, y: 45 }
+    player3: { x: 5, y: 36 }, player4: { x: 15, y: 36 }, ball: { x: 19, y: 45 }
   });
   expect(state.displays).toEqual({ player3: 'none', player4: 'none' });
   expect(state.hitTargetDisplays).toEqual({ player3: 'none', player4: 'none' });
@@ -208,7 +228,7 @@ test('singles and doubles preserve expected positions, visibility, and teams', a
   expect(state.checkedMode).toBe('doubles');
   expect(state.positions).toEqual({
     player1: { x: 5, y: -1 }, player2: { x: 15, y: 14 },
-    player3: { x: 5, y: 45 }, player4: { x: 15, y: 45 }, ball: { x: 16, y: 45 }
+    player3: { x: 5, y: 45 }, player4: { x: 15, y: 45 }, ball: { x: 19, y: 45 }
   });
   expect(state.displays).toEqual({ player3: 'block', player4: 'block' });
   expect(state.hitTargetDisplays).toEqual({ player3: 'block', player4: 'block' });

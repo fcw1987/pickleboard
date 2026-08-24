@@ -96,7 +96,7 @@ singles: {
   player2: { cx: 15, cy: 45 },
   player3: { cx: 5, cy: 36 }, // hidden
   player4: { cx: 15, cy: 36 }, // hidden
-  ball: { cx: 16, cy: 45 }
+  ball: { cx: 19, cy: 45 }
 }
 
 doubles: {
@@ -104,7 +104,7 @@ doubles: {
   player2: { cx: 15, cy: 14 },
   player3: { cx: 5, cy: 45 },
   player4: { cx: 15, cy: 45 },
-  ball: { cx: 16, cy: 45 }
+  ball: { cx: 19, cy: 45 }
 }
 ```
 

@@ -28,7 +28,7 @@ test.describe('service worker lifecycle', () => {
     await waitForWorker(page);
 
     const cacheState = await page.evaluate(async () => {
-      const cache = await caches.open('pickleboard-static-v4');
+      const cache = await caches.open('pickleboard-static-v5');
       const playerAssets = [
         './assets/players/green-left-handed.png',
         './assets/players/green-right-handed.png',
@@ -42,7 +42,7 @@ test.describe('service worker lifecycle', () => {
         hasPlayerAssets: (await Promise.all(playerAssets.map(path => cache.match(path)))).every(Boolean)
       };
     });
-    expect(cacheState.names).toContain('pickleboard-static-v4');
+    expect(cacheState.names).toContain('pickleboard-static-v5');
     expect(cacheState.hasShell).toBe(true);
     expect(cacheState.hasScript).toBe(true);
     expect(cacheState.hasPlayerAssets).toBe(true);
@@ -73,7 +73,7 @@ test.describe('service worker lifecycle', () => {
     await page.goto('/index.html?upgrade=1');
     await waitForWorker(page);
     await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining([
-      'pickleboard-static-v4',
+      'pickleboard-static-v5',
       'unrelated-application-cache'
     ]));
     expect(await page.evaluate(() => caches.keys())).not.toContain('pickleboard-static-v1');
@@ -106,7 +106,7 @@ test.describe('service worker lifecycle', () => {
     await waitForWorker(page);
 
     await page.evaluate(async () => {
-      const cache = await caches.open('pickleboard-static-v4');
+      const cache = await caches.open('pickleboard-static-v5');
       await cache.put('./script.js', new Response('window.__STALE_PICKLEBOARD_ASSET__ = true;', {
         headers: { 'Content-Type': 'text/javascript' }
       }));
@@ -117,7 +117,7 @@ test.describe('service worker lifecycle', () => {
     expect(await page.evaluate(() => window.__STALE_PICKLEBOARD_ASSET__)).toBeUndefined();
 
     const cachedScript = await page.evaluate(async () => {
-      const cache = await caches.open('pickleboard-static-v4');
+      const cache = await caches.open('pickleboard-static-v5');
       return (await cache.match('./script.js')).text();
     });
     expect(cachedScript).toContain('class Pickleboard');
