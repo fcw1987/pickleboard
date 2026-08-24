@@ -59,16 +59,19 @@ test('manual controls advance, go backward, and restart deterministically', asyn
 test('automatic playback pauses cleanly, resumes once, and stops at the final step', async ({ page }) => {
   await openApp(page);
   await page.evaluate(() => {
-    window.pickleboard.plays.timingScale = 0.02;
-    window.pickleboard.plays.stepHoldMs = 30;
+    // Keep transitions short while leaving enough time for CI to exercise Pause
+    // before the three-step play can race to completion.
+    window.pickleboard.plays.timingScale = 0.5;
+    window.pickleboard.plays.stepHoldMs = 100;
     window.pickleboard.plays.load('serve-and-return');
   });
 
   await page.locator('#playPlayPause').click();
   await expect.poll(async () => (await engineState(page)).status).toBe('playing');
   await page.locator('#playPlayPause').click();
+  await expect.poll(async () => (await engineState(page)).status).toBe('paused');
   const paused = await engineState(page);
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(150);
   expect(await engineState(page)).toEqual(paused);
 
   await page.locator('#playPlayPause').click();
