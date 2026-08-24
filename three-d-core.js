@@ -11,10 +11,10 @@ export const COURT_DIMENSIONS = Object.freeze({
 });
 
 export const CAMERA_PRESETS = Object.freeze({
-    overhead: { label: 'Overhead 3D', position: [0, 13.5, 9.5], target: [0, 0, 0] },
-    sideline: { label: 'Sideline', position: [10.5, 4.5, 0], target: [0, 0.8, 0] },
-    'behind-green': { label: 'Behind Green', position: [0, 4.2, -11.5], target: [0, 0.9, 1.5] },
-    'behind-orange': { label: 'Behind Orange', position: [0, 4.2, 11.5], target: [0, 0.9, -1.5] }
+    overhead: { label: 'Overhead 3D', position: [0, 11.8, 8.8], target: [0, 0.35, 0], fov: 46 },
+    sideline: { label: 'Sideline', position: [9.2, 2.15, 0], target: [0, 0.85, 0], fov: 50 },
+    'behind-green': { label: 'Behind Green', position: [0, 1.95, -10.2], target: [0, 0.8, 1.4], fov: 52 },
+    'behind-orange': { label: 'Behind Orange', position: [0, 1.95, 10.2], target: [0, 0.8, -1.4], fov: 52 }
 });
 
 export function boardToWorld(point, heightFeet = 0) {
