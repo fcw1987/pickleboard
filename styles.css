@@ -303,36 +303,18 @@ body {
   stroke-width: 0.05;
 }
 
-/* Tokens */
+/* Player artwork */
 .player-token {
-  fill: var(--player-color);
-  stroke: var(--court-line);
-  stroke-width: 0.1;
   cursor: grab;
-  transition: r 0.2s ease, stroke-width 0.2s ease;
-  /* Improved touch target */
   touch-action: none;
 }
 
-.player-token:hover {
-  r: 0.9;
-  stroke-width: 0.15;
+.player-artwork {
+  user-select: none;
 }
 
-.player-token:active,
 .player-token.dragging {
   cursor: grabbing;
-  r: 1.0;
-  stroke-width: 0.2;
-}
-
-/* Team colors */
-.team1-player {
-  fill: var(--team1-color);
-}
-
-.team2-player {
-  fill: var(--team2-color);
 }
 
 /* Touch hit areas - invisible larger circles for better touch targeting */
@@ -489,11 +471,11 @@ body {
 }
 
 .legend-dot.team1 {
-  background-color: var(--team1-color);
+  background-color: #66cc33;
 }
 
 .legend-dot.team2 {
-  background-color: var(--team2-color);
+  background-color: #ff7a00;
 }
 
 .legend-dot.ball {

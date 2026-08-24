@@ -28,21 +28,37 @@ test.describe('service worker lifecycle', () => {
     await waitForWorker(page);
 
     const cacheState = await page.evaluate(async () => {
-      const cache = await caches.open('pickleboard-static-v2');
+      const cache = await caches.open('pickleboard-static-v5');
+      const playerAssets = [
+        './assets/players/green-left-handed.png',
+        './assets/players/green-right-handed.png',
+        './assets/players/orange-left-handed.png',
+        './assets/players/orange-right-handed.png'
+      ];
       return {
         names: await caches.keys(),
         hasShell: Boolean(await cache.match('./index.html')),
-        hasScript: Boolean(await cache.match('./script.js'))
+        hasScript: Boolean(await cache.match('./script.js')),
+        hasPlayerAssets: (await Promise.all(playerAssets.map(path => cache.match(path)))).every(Boolean)
       };
     });
-    expect(cacheState.names).toContain('pickleboard-static-v2');
+    expect(cacheState.names).toContain('pickleboard-static-v5');
     expect(cacheState.hasShell).toBe(true);
     expect(cacheState.hasScript).toBe(true);
+    expect(cacheState.hasPlayerAssets).toBe(true);
 
     await context.setOffline(true);
     await page.goto('/index.html?offline=1');
     await expect(page).toHaveTitle('Pickleboard - Pickleball Court Planner');
     await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard))).toBe(true);
+    const offlinePlayerAssets = await page.evaluate(async () => Promise.all(
+      [...document.querySelectorAll('.player-artwork')].map(async image => {
+        const response = await fetch(image.getAttribute('href'));
+        const blob = await response.blob();
+        return response.ok && blob.type === 'image/png' && blob.size > 0;
+      })
+    ));
+    expect(offlinePlayerAssets).toEqual([true, true, true, true]);
     await context.setOffline(false);
   });
 
@@ -57,7 +73,7 @@ test.describe('service worker lifecycle', () => {
     await page.goto('/index.html?upgrade=1');
     await waitForWorker(page);
     await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining([
-      'pickleboard-static-v2',
+      'pickleboard-static-v5',
       'unrelated-application-cache'
     ]));
     expect(await page.evaluate(() => caches.keys())).not.toContain('pickleboard-static-v1');
@@ -90,7 +106,7 @@ test.describe('service worker lifecycle', () => {
     await waitForWorker(page);
 
     await page.evaluate(async () => {
-      const cache = await caches.open('pickleboard-static-v2');
+      const cache = await caches.open('pickleboard-static-v5');
       await cache.put('./script.js', new Response('window.__STALE_PICKLEBOARD_ASSET__ = true;', {
         headers: { 'Content-Type': 'text/javascript' }
       }));
@@ -101,7 +117,7 @@ test.describe('service worker lifecycle', () => {
     expect(await page.evaluate(() => window.__STALE_PICKLEBOARD_ASSET__)).toBeUndefined();
 
     const cachedScript = await page.evaluate(async () => {
-      const cache = await caches.open('pickleboard-static-v2');
+      const cache = await caches.open('pickleboard-static-v5');
       return (await cache.match('./script.js')).text();
     });
     expect(cachedScript).toContain('class Pickleboard');

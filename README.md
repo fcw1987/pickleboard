@@ -6,7 +6,8 @@ The production application is dependency free: HTML, CSS, vanilla browser JavaSc
 
 ## Features
 
-- Four draggable player tokens: Team 1 is red and Team 2 is blue
+- Four draggable branded player tokens: Team 1 uses green artwork and Team 2 uses orange artwork
+- Per-player left/right handedness: all players start right-handed; double click on desktop or double tap on touch devices to toggle
 - A draggable neon-green ball
 - Singles and doubles starting arrangements
 - Movement tracers with automatic expiry and manual clearing
@@ -17,7 +18,7 @@ The production application is dependency free: HTML, CSS, vanilla browser JavaSc
 - Installable PWA shell with repeat-visit offline support
 - No backend, account, analytics, or remote persistence
 
-Player positions and drawings are currently session-only and are lost when the page reloads. Theme preference is the only application setting stored in `localStorage`.
+Player positions, drawings, and handedness are session-only and are lost when the page reloads. Reset restores positions but preserves handedness for the current session. Theme preference is the only application setting stored in `localStorage`.
 
 ## Run locally
 
@@ -54,7 +55,7 @@ npm run test:browser
 npm run test:headed
 ```
 
-The browser suite covers clean initialization, drawing mode and strokes, token drag synchronization, singles/doubles behavior, the public mode API and Reset, theme restoration, service-worker installation/offline/upgrade behavior, cache isolation and freshness, and representative portrait, landscape, and desktop viewports.
+The browser suite covers clean initialization, player artwork and handedness, desktop double click and touch double tap behavior, touch/mouse drag synchronization, drawing mode and strokes, singles/doubles behavior, the public mode API and Reset, theme restoration, service-worker installation/offline/upgrade behavior, cache isolation and freshness, and representative portrait, landscape, and desktop viewports.
 
 ## Architecture
 
@@ -64,12 +65,13 @@ styles.css       Themes, court presentation, overlays, and responsive sizing
 script.js        Pickleboard state, interactions, SVG updates, and public API
 manifest.json    PWA installation metadata
 sw.js            Versioned static-shell cache and offline navigation behavior
+assets/players/  Four transparent PNG player visuals (green/orange, left/right-handed)
 icons/           PWA and Apple launcher icons
 tests/           Playwright browser tests and local test helpers
 .github/         CI quality gate
 ```
 
-A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps the visible SVG token and its larger transparent hit target synchronized. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
+A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Green artwork is front-facing on the far/top side and orange artwork is back-facing on the near/bottom side, so the teams face each other across the court; this viewing orientation is inherent to the team artwork, not separate application state. Artwork is selected centrally from the player’s current team color and explicit physical left/right handedness; all four players default to right-handed. Double-clicking on desktop or double tapping the same player on a touch device toggles that individual handedness without changing its position or front/back orientation. Handedness is session-only and survives mode changes and Reset, while singles/doubles may change the artwork’s team color. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
 
 ## Court coordinate model
 
@@ -94,7 +96,7 @@ singles: {
   player2: { cx: 15, cy: 45 },
   player3: { cx: 5, cy: 36 }, // hidden
   player4: { cx: 15, cy: 36 }, // hidden
-  ball: { cx: 16, cy: 45 }
+  ball: { cx: 19, cy: 45 }
 }
 
 doubles: {
@@ -102,7 +104,7 @@ doubles: {
   player2: { cx: 15, cy: 14 },
   player3: { cx: 5, cy: 45 },
   player4: { cx: 15, cy: 45 },
-  ball: { cx: 16, cy: 45 }
+  ball: { cx: 19, cy: 45 }
 }
 ```
 
@@ -116,7 +118,7 @@ These starting positions and team assignments are intentional game behavior.
 - Navy: four service boxes
 - White: court boundaries and service lines
 - Black: net
-- Red and blue: opposing teams
+- Green and orange branded player artwork: opposing teams
 - Neon green: ball
 
 ## Public API
@@ -145,7 +147,7 @@ The worker maintains an explicitly versioned `pickleboard-static-*` shell cache.
 - Deletes only obsolete caches in the Pickleboard namespace
 - Activates and claims clients after the complete new shell is cached
 
-Changing a shell asset requires incrementing the static cache version in `sw.js`. Browser tests exercise installation, offline repeat visits, upgrades, unrelated-cache preservation, and replacement of stale cached assets.
+Changing a shell asset—including any player PNG—requires incrementing the static cache version in `sw.js`. Browser tests exercise installation, offline repeat visits (including all four player images), upgrades, unrelated-cache preservation, and replacement of stale cached assets.
 
 ## CI
 

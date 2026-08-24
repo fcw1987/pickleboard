@@ -49,14 +49,14 @@ class Pickleboard {
                 player2: { cx: 15, cy: 45 },   // Bottom player (blue) - right service box, behind baseline
                 player3: { cx: 5, cy: 36 },    // Left court, front (hidden in singles)
                 player4: { cx: 15, cy: 36 },   // Right court, front (hidden in singles)
-                ball: { cx: 16, cy: 45 }       // Ball next to bottom player (behind baseline)
+                ball: { cx: 19, cy: 45 }       // Ball beside the bottom player with clear visual separation
             },
             doubles: {
                 player1: { cx: 5, cy: -1 },    // Top team (red) - left service box, behind baseline
                 player2: { cx: 15, cy: 14 },   // Top team (red) - slightly behind NVZ line (legal position)
                 player3: { cx: 5, cy: 45 },    // Bottom team (blue) - left service box, behind baseline
                 player4: { cx: 15, cy: 45 },   // Bottom team (blue) - right service box, behind baseline (server)
-                ball: { cx: 16, cy: 45 }       // Ball with server in lower right service box, behind baseline
+                ball: { cx: 19, cy: 45 }       // Ball beside the server with clear visual separation
             }
         };
         
@@ -68,7 +68,17 @@ class Pickleboard {
             startX: 0,
             startY: 0,
             elementStartX: 0,
-            elementStartY: 0
+            elementStartY: 0,
+            touchStartClientX: 0,
+            touchStartClientY: 0,
+            touchMoved: false
+        };
+        this.touchTapState = {
+            lastTokenId: null,
+            lastTapTime: 0,
+            lastTouchToggleTime: 0,
+            maxDelay: 350,
+            maxMovement: 12
         };
         
         // Tracer system
@@ -79,6 +89,10 @@ class Pickleboard {
             minDistance: 0.5 // Minimum distance between tracer dots
         };
         
+        // Player artwork uses the logical token position as a body-center anchor.
+        this.playerArtworkSize = { width: 4, height: 3 };
+        this.playerArtworkColors = { team1: 'green', team2: 'orange' };
+
         // Drawing system
         this.drawingMode = false;
         this.isDrawing = false;
@@ -113,8 +127,9 @@ class Pickleboard {
                     type: 'player',
                     element: visualElement,
                     touchElement: touchElement,
-                    x: parseFloat(visualElement.getAttribute('cx')),
-                    y: parseFloat(visualElement.getAttribute('cy'))
+                    x: parseFloat(visualElement.dataset.cx),
+                    y: parseFloat(visualElement.dataset.cy),
+                    handedness: visualElement.dataset.handedness === 'left' ? 'left' : 'right'
                 };
             }
         }
@@ -217,6 +232,8 @@ class Pickleboard {
             }
             this.startDrag(e, token);
         }, { passive: false });
+        touchElement.addEventListener('touchend', (event) => this.handlePlayerTouchEnd(event, token));
+        touchElement.addEventListener('touchcancel', () => this.cancelPlayerTouch());
         
         // Touch events on visual element (for direct touches)
         visualElement.addEventListener('touchstart', (e) => {
@@ -231,7 +248,23 @@ class Pickleboard {
             }
             this.startDrag(e, token);
         }, { passive: false });
+        visualElement.addEventListener('touchend', (event) => this.handlePlayerTouchEnd(event, token));
+        visualElement.addEventListener('touchcancel', () => this.cancelPlayerTouch());
         
+        // A double click toggles handedness without changing the logical position.
+        if (token.type === 'player') {
+            const toggleHandedness = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!this.touchTapState.lastTouchToggleTime ||
+                    performance.now() - this.touchTapState.lastTouchToggleTime > this.touchTapState.maxDelay) {
+                    this.togglePlayerHandedness(token);
+                }
+            };
+            touchElement.addEventListener('dblclick', toggleHandedness);
+            visualElement.addEventListener('dblclick', toggleHandedness);
+        }
+
         // Prevent context menu on both elements
         touchElement.addEventListener('contextmenu', (e) => e.preventDefault());
         visualElement.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -242,6 +275,7 @@ class Pickleboard {
             document.addEventListener('mouseup', (e) => this.endDrag(e));
             document.addEventListener('touchmove', (e) => this.drag(e), { passive: false });
             document.addEventListener('touchend', (e) => this.endDrag(e));
+            document.addEventListener('touchcancel', (e) => this.endDrag(e));
             this.globalEventsSetup = true;
         }
     }
@@ -263,6 +297,11 @@ class Pickleboard {
         this.dragState.startY = svgCoords.y;
         this.dragState.elementStartX = token.x;
         this.dragState.elementStartY = token.y;
+        this.dragState.touchMoved = false;
+        if (event.touches) {
+            this.dragState.touchStartClientX = coords.x;
+            this.dragState.touchStartClientY = coords.y;
+        }
         
         // Add visual feedback
         token.element.classList.add('dragging');
@@ -278,6 +317,16 @@ class Pickleboard {
         
         const coords = this.getEventCoords(event);
         const svgCoords = this.screenToSVG(coords.x, coords.y);
+        if (event.touches) {
+            const movement = Math.hypot(
+                coords.x - this.dragState.touchStartClientX,
+                coords.y - this.dragState.touchStartClientY
+            );
+            if (movement > this.touchTapState.maxMovement) {
+                this.dragState.touchMoved = true;
+                this.clearPendingTouchTap();
+            }
+        }
         
         // Calculate new position
         const deltaX = svgCoords.x - this.dragState.startX;
@@ -312,6 +361,38 @@ class Pickleboard {
         // Restore text selection
         document.body.style.userSelect = '';
     }
+
+    handlePlayerTouchEnd(event, token) {
+        if (this.drawingMode || this.dragState.dragElement !== token || this.dragState.touchMoved) {
+            this.clearPendingTouchTap();
+            return;
+        }
+
+        const now = performance.now();
+        const isDoubleTap = this.touchTapState.lastTokenId === token.id &&
+            now - this.touchTapState.lastTapTime <= this.touchTapState.maxDelay;
+
+        if (isDoubleTap) {
+            event.preventDefault();
+            this.togglePlayerHandedness(token);
+            this.touchTapState.lastTouchToggleTime = now;
+            this.clearPendingTouchTap();
+            return;
+        }
+
+        this.touchTapState.lastTokenId = token.id;
+        this.touchTapState.lastTapTime = now;
+    }
+
+    clearPendingTouchTap() {
+        this.touchTapState.lastTokenId = null;
+        this.touchTapState.lastTapTime = 0;
+    }
+
+    cancelPlayerTouch() {
+        this.dragState.touchMoved = true;
+        this.clearPendingTouchTap();
+    }
     
     getEventCoords(event) {
         if (event.touches && event.touches[0]) {
@@ -341,14 +422,46 @@ class Pickleboard {
         
         token.x = x;
         token.y = y;
-        token.element.setAttribute('cx', x);
-        token.element.setAttribute('cy', y);
+        this.renderTokenPosition(token);
         
         // Also update touch target position if it exists
         if (token.touchElement) {
             token.touchElement.setAttribute('cx', x);
             token.touchElement.setAttribute('cy', y);
         }
+    }
+
+    renderTokenPosition(token) {
+        if (token.type === 'player') {
+            const { width, height } = this.playerArtworkSize;
+            token.element.setAttribute('x', token.x - width / 2);
+            token.element.setAttribute('y', token.y - height / 2);
+            token.element.dataset.cx = token.x;
+            token.element.dataset.cy = token.y;
+            this.renderPlayerArtwork(token);
+            return;
+        }
+
+        token.element.setAttribute('cx', token.x);
+        token.element.setAttribute('cy', token.y);
+    }
+
+    getPlayerTeamColor(token) {
+        return token.element.classList.contains('team2-player')
+            ? this.playerArtworkColors.team2
+            : this.playerArtworkColors.team1;
+    }
+
+    renderPlayerArtwork(token) {
+        const teamColor = this.getPlayerTeamColor(token);
+        token.element.setAttribute('href', `assets/players/${teamColor}-${token.handedness}-handed.png`);
+        token.element.dataset.handedness = token.handedness;
+        token.element.setAttribute('aria-label', `${token.id}, ${teamColor} team, ${token.handedness}-handed`);
+    }
+
+    togglePlayerHandedness(token) {
+        token.handedness = token.handedness === 'left' ? 'right' : 'left';
+        this.renderPlayerArtwork(token);
     }
     
     setGameMode(mode) {
@@ -395,13 +508,13 @@ class Pickleboard {
     }
     
     updatePlayerColors(mode) {
-        // In doubles mode: 
-        // - players 1 & 2 (back court) are team1 (red)
-        // - players 3 & 4 (front court) are team2 (blue)
+        // In doubles mode:
+        // - players 1 & 2 are team1 (green artwork)
+        // - players 3 & 4 are team2 (orange artwork)
         //
         // In singles mode:
-        // - player 1 (back court) is team1 (red) - opposing players
-        // - player 2 (front court) is team2 (blue) - should be different color
+        // - player 1 remains team1 (green artwork)
+        // - player 2 becomes team2 (orange artwork)
         // - players 3 & 4 are hidden
         
         if (mode === 'doubles') {
@@ -432,6 +545,10 @@ class Pickleboard {
                 this.tokens.player2.element.classList.add('team2-player');
             }
         }
+
+        Object.values(this.tokens)
+            .filter(token => token.type === 'player')
+            .forEach(token => this.renderPlayerArtwork(token));
     }
     
     resetPositions() {
