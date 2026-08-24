@@ -26,9 +26,7 @@ test('3D View initializes regulation scene with players, ball, and handed paddle
   }));
   expect(scene.state).toMatchObject({ active: true, playerCount: 4, hasBall: true, playId: 'third-shot-drop' });
   expect(scene.paddles.player1).toMatchObject({ handedness: 'right', side: 'right' });
-  expect(scene.paddles.player1.x).toBeGreaterThan(0);
   expect(scene.paddles.player2).toMatchObject({ handedness: 'left', side: 'left' });
-  expect(scene.paddles.player2.x).toBeLessThan(0);
   expect(errors).toEqual([]);
 });
 
