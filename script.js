@@ -1015,6 +1015,7 @@ class Pickleboard {
 document.addEventListener('DOMContentLoaded', () => {
     // Create global instance
     window.pickleboard = new Pickleboard();
+    window.dispatchEvent(new CustomEvent('pickleboard:ready', { detail: window.pickleboard }));
     
     console.log('Pickleboard initialized successfully');
 });

@@ -1078,6 +1078,138 @@ body {
   }
 }
 
+/* Three.js playback foundation */
+.three-d-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: #10251b;
+  color: white;
+}
+
+.three-d-viewer[hidden] {
+  display: none;
+}
+
+.three-d-canvas,
+.three-d-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.three-d-hud {
+  position: absolute;
+  left: max(0.75rem, env(safe-area-inset-left));
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 10px;
+  background: rgba(10, 24, 18, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.three-d-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 9rem;
+}
+
+.three-d-copy span {
+  color: #c8d9cf;
+  font-size: 0.78rem;
+}
+
+.three-d-controls {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.three-d-controls label {
+  display: grid;
+  gap: 0.15rem;
+  color: #d8e7de;
+  font-size: 0.7rem;
+}
+
+.three-d-controls button,
+.three-d-controls select {
+  min-height: 38px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  color: white;
+  background: #1b3c2d;
+  font: inherit;
+}
+
+.three-d-controls button {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (max-width: 650px) {
+  .three-d-hud {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .three-d-copy {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .three-d-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .three-d-controls label,
+  .three-d-controls button {
+    min-width: 0;
+  }
+
+  .three-d-controls select,
+  .three-d-controls button {
+    width: 100%;
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .three-d-hud {
+    left: max(0.4rem, env(safe-area-inset-left));
+    right: max(0.4rem, env(safe-area-inset-right));
+    bottom: max(0.35rem, env(safe-area-inset-bottom));
+    flex-direction: row;
+    padding: 0.35rem 0.45rem;
+  }
+
+  .three-d-copy {
+    display: grid;
+  }
+
+  .three-d-controls {
+    display: flex;
+  }
+
+  .three-d-controls button,
+  .three-d-controls select {
+    min-height: 32px;
+    padding: 0.2rem 0.4rem;
+  }
+}
+
 /* High contrast support */
 @media (prefers-contrast: high) {
   :root {
