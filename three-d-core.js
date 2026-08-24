@@ -32,8 +32,8 @@ const SHOT_DEFAULTS = Object.freeze({
     serve: { speedMph: 28, apexFeet: 7, netClearanceInches: 24, spin: { type: 'topspin', rpm: 650 } },
     return: { speedMph: 30, apexFeet: 7.5, netClearanceInches: 24, spin: { type: 'topspin', rpm: 700 } },
     drop: { speedMph: 18, apexFeet: 7.5, netClearanceInches: 16, spin: { type: 'backspin', rpm: 550 } },
-    drive: { speedMph: 38, apexFeet: 4.5, netClearanceInches: 8, spin: { type: 'topspin', rpm: 950 } },
-    block: { speedMph: 16, apexFeet: 4.2, netClearanceInches: 10, spin: { type: 'backspin', rpm: 350 } },
+    drive: { speedMph: 38, apexFeet: 5.75, netClearanceInches: 8, spin: { type: 'topspin', rpm: 950 } },
+    block: { speedMph: 16, apexFeet: 4.75, netClearanceInches: 10, spin: { type: 'backspin', rpm: 350 } },
     flat: { speedMph: 24, apexFeet: 6, netClearanceInches: 14, spin: { type: 'flat', rpm: 250 } }
 });
 
