@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Cache setup</title>
+<script>
+  window.seedCaches = async () => {
+    const oldCache = await caches.open('pickleboard-static-v1');
+    await oldCache.put('./index.html', new Response('<title>Old Pickleboard</title>', {
+      headers: { 'Content-Type': 'text/html' }
+    }));
+
+    const unrelatedCache = await caches.open('unrelated-application-cache');
+    await unrelatedCache.put(new URL('./unrelated.txt', location.href).href, new Response('keep me'));
+  };
+</script>

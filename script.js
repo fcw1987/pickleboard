@@ -18,7 +18,8 @@ class Pickleboard {
         this.resetBtn = document.getElementById('resetBtn');
         this.clearTracersBtn = document.getElementById('clearTracersBtn');
         this.themeToggle = document.getElementById('themeToggle');
-        this.gameMode = document.querySelectorAll('input[name="gameMode"]');
+        this.gameModeInputs = document.querySelectorAll('input[name="gameMode"]');
+        this.currentGameMode = null;
         this.drawToggle = document.getElementById('drawToggle');
         this.undoBtn = document.getElementById('undoBtn');
         this.clearDrawingsBtn = document.getElementById('clearDrawingsBtn');
@@ -94,6 +95,7 @@ class Pickleboard {
     
     init() {
         this.setupEventListeners();
+        this.setDrawingMode(false);
         this.loadTheme();
         this.setGameMode('doubles'); // Start with doubles
     }
@@ -168,10 +170,10 @@ class Pickleboard {
         this.themeToggle.addEventListener('click', () => this.toggleTheme());
         
         // Game mode selection
-        this.gameMode.forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    this.setGameMode(e.target.value);
+        this.gameModeInputs.forEach(radio => {
+            radio.addEventListener('change', (event) => {
+                if (event.target.checked) {
+                    this.setGameMode(event.target.value);
                 }
             });
         });
@@ -350,6 +352,16 @@ class Pickleboard {
     }
     
     setGameMode(mode) {
+        if (!Object.hasOwn(this.positions, mode)) {
+            console.warn(`Unsupported game mode: ${mode}`);
+            return false;
+        }
+
+        this.currentGameMode = mode;
+        this.gameModeInputs.forEach(radio => {
+            radio.checked = radio.value === mode;
+        });
+
         const positions = this.positions[mode];
         const isDoubles = mode === 'doubles';
         
@@ -379,6 +391,7 @@ class Pickleboard {
         }
         
         console.log(`Game mode set to: ${mode}`);
+        return true;
     }
     
     updatePlayerColors(mode) {
@@ -422,9 +435,7 @@ class Pickleboard {
     }
     
     resetPositions() {
-        // Get current game mode
-        const currentMode = document.querySelector('input[name="gameMode"]:checked').value;
-        this.setGameMode(currentMode);
+        this.setGameMode(this.currentGameMode);
         console.log('Positions reset');
     }
     
@@ -627,18 +638,20 @@ class Pickleboard {
         }, { passive: false });
     }
     
-    toggleDrawingMode() {
-        this.drawingMode = !this.drawingMode;
-        
-        // Update UI
+    setDrawingMode(enabled) {
+        this.drawingMode = Boolean(enabled);
         this.drawToggle.classList.toggle('active', this.drawingMode);
+        this.drawToggle.setAttribute('aria-pressed', String(this.drawingMode));
         this.court.classList.toggle('drawing-mode', this.drawingMode);
-        
-        // Show/hide drawing controls
-        this.undoBtn.style.display = this.drawingMode ? 'inline-block' : 'none';
-        this.clearDrawingsBtn.style.display = this.drawingMode ? 'inline-block' : 'none';
-        
-        console.log(`Drawing mode: ${this.drawingMode ? 'ON' : 'OFF'}`);
+        this.drawControls.hidden = !this.drawingMode;
+
+        if (!this.drawingMode && this.isDrawing) {
+            this.endDrawing();
+        }
+    }
+
+    toggleDrawingMode() {
+        this.setDrawingMode(!this.drawingMode);
     }
     
     startDrawing(event) {
@@ -744,14 +757,6 @@ class Pickleboard {
             }
         });
         
-        // Update drawing controls visibility in menu
-        this.drawToggle.addEventListener('click', () => {
-            this.toggleDrawingMode();
-            // Show/hide draw controls in menu
-            if (this.drawControls) {
-                this.drawControls.style.display = this.drawingMode ? 'block' : 'none';
-            }
-        });
     }
     
     toggleMenu() {
@@ -792,11 +797,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.pickleboard = new Pickleboard();
     
     console.log('Pickleboard initialized successfully');
-    
-    // Optional: Add some debug info
-    if (process?.env?.NODE_ENV === 'development') {
-        console.log('Debug: Token positions available via window.pickleboard.getTokenPositions()');
-    }
 });
 
 // Handle browser back/forward navigation
@@ -816,8 +816,3 @@ document.addEventListener('visibilitychange', () => {
         console.log('Page visible');
     }
 });
-
-// Export for potential module use
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = Pickleboard;
-}

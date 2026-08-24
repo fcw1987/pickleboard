@@ -1,0 +1,16 @@
+{
+  "name": "pickleboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development checks for the dependency-free Pickleboard static application",
+  "scripts": {
+    "start": "node tests/helpers/static-server.mjs",
+    "check": "node --check script.js && node --check sw.js && node tests/helpers/validate-static-assets.mjs",
+    "test": "npm run check && playwright test",
+    "test:browser": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.0"
+  }
+}
