@@ -53,6 +53,7 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
+  min-height: 100dvh;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -60,6 +61,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
 }
 
@@ -150,8 +152,12 @@ body {
   justify-content: center;
   align-items: center;
   background-color: var(--bg-primary);
-  padding: 1rem;
+  box-sizing: border-box;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .reset-btn, .clear-tracers-btn, .theme-toggle, .draw-toggle, .undo-btn, .clear-drawings-btn {
@@ -178,8 +184,12 @@ body {
 /* Draw controls container */
 .draw-controls {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-  align-items: center;
+}
+
+.draw-controls[hidden] {
+  display: none;
 }
 
 /* Draw toggle button */
@@ -240,9 +250,12 @@ body {
 }
 
 .court-svg {
-  width: 100%;
+  display: block;
+  width: min(880px, 100%, calc((100vh - 2rem) * 0.6));
+  width: min(880px, 100%, calc((100dvh - 2rem) * 0.6));
   height: auto;
-  max-width: 880px;
+  max-height: 100%;
+  aspect-ratio: 3 / 5;
   border-radius: 4px;
   cursor: default;
   /* Prevent page panning during touch interactions */
@@ -853,13 +866,13 @@ body {
   }
   
   .fab-menu {
-    top: 16px;
-    left: 16px;
+    top: max(16px, env(safe-area-inset-top));
+    left: max(16px, env(safe-area-inset-left));
   }
   
   .fab-info {
-    bottom: 16px;
-    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    right: max(16px, env(safe-area-inset-right));
   }
   
   .menu-panel {

@@ -1,10 +1,14 @@
-const CACHE_NAME = 'pickleboard-cache-v1';
-const ASSETS = [
+const CACHE_PREFIX = 'pickleboard-';
+const STATIC_CACHE = `${CACHE_PREFIX}static-v2`;
+const LEGACY_CACHES = new Set(['pickleboard-cache-v1']);
+const APP_SHELL_URL = new URL('./index.html', self.location).href;
+const STATIC_ASSETS = [
   './',
   './index.html',
   './script.js',
   './styles.css',
   './manifest.json',
+  './icons/apple-icon-180.png',
   './icons/icon-72x72.png',
   './icons/icon-96x96.png',
   './icons/icon-128x128.png',
@@ -14,63 +18,97 @@ const ASSETS = [
   './icons/icon-384x384.png',
   './icons/icon-512x512.png'
 ];
+const CACHEABLE_URLS = new Set(STATIC_ASSETS.map(path => new URL(path, self.location).href));
 
-// Install Service Worker and cache all assets
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(ASSETS);
-    }).then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    await cache.addAll(STATIC_ASSETS);
+    await self.skipWaiting();
+  })());
 });
 
-// Activate and clean up old caches
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(cacheName => {
-          return cacheName !== CACHE_NAME;
-        }).map(cacheName => {
-          return caches.delete(cacheName);
-        })
-      );
-    }).then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    const obsoletePickleboardCaches = cacheNames.filter(cacheName =>
+      cacheName !== STATIC_CACHE &&
+      (cacheName.startsWith(CACHE_PREFIX) || LEGACY_CACHES.has(cacheName))
+    );
+    await Promise.all(obsoletePickleboardCaches.map(cacheName => caches.delete(cacheName)));
+    await self.clients.claim();
+  })());
 });
 
-// Serve cached content when offline
+async function updateStaticCache(request, response) {
+  try {
+    const cache = await caches.open(STATIC_CACHE);
+    await cache.put(request, response);
+  } catch (error) {
+    console.warn('Unable to refresh the Pickleboard static cache:', error);
+  }
+}
+
+async function matchStaticCache(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  return cache.match(request);
+}
+
+async function fetchAndRefresh(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === 'basic') {
+      await updateStaticCache(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await matchStaticCache(request);
+    if (cached) return cached;
+    throw error;
+  }
+}
+
+async function handleNavigation(request) {
+  try {
+    const response = await fetch(request);
+    const requestUrl = new URL(request.url);
+    const shellUrl = new URL(APP_SHELL_URL);
+    const scopePath = new URL(self.registration.scope).pathname;
+    const isAppShell = requestUrl.pathname === shellUrl.pathname || requestUrl.pathname === scopePath;
+
+    if (isAppShell && response.ok && response.type === 'basic') {
+      await updateStaticCache(APP_SHELL_URL, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cachedShell = await matchStaticCache(APP_SHELL_URL);
+    if (!cachedShell) throw error;
+
+    const requestPath = new URL(request.url).pathname;
+    const shellPath = new URL(APP_SHELL_URL).pathname;
+    const scopePath = new URL(self.registration.scope).pathname;
+    if (requestPath !== shellPath && requestPath !== scopePath) {
+      return Response.redirect(APP_SHELL_URL, 302);
+    }
+    return cachedShell;
+  }
+}
+
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      // Return cached response if found
-      if (response) {
-        return response;
-      }
-      
-      // Clone the request as it can only be used once
-      const fetchRequest = event.request.clone();
-      
-      // Try network then cache strategy
-      return fetch(fetchRequest).then(response => {
-        // Check if response is valid
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        
-        // Clone the response as it can only be used once
-        const responseToCache = response.clone();
-        
-        // Add response to cache for future offline use
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseToCache);
-        });
-        
-        return response;
-      }).catch(() => {
-        // Fallback to cache if network fails
-        return caches.match(event.request);
-      });
-    })
-  );
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const requestUrl = new URL(request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(handleNavigation(request));
+    return;
+  }
+
+  const normalizedUrl = new URL(requestUrl.pathname, self.location.origin).href;
+  if (!CACHEABLE_URLS.has(normalizedUrl)) return;
+
+  const normalizedRequest = new Request(normalizedUrl, { credentials: 'same-origin' });
+  event.respondWith(fetchAndRefresh(normalizedRequest));
 });

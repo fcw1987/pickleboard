@@ -7,6 +7,7 @@
     <meta name="description" content="Pickleball Court Planner and Strategy Tool">
     <title>Pickleboard - Pickleball Court Planner</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="icons/icon-192x192.png">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/apple-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
@@ -126,8 +127,8 @@
                     <!-- Drawing Tools -->
                     <div class="menu-section">
                         <h3>Drawing Tools</h3>
-                        <button id="drawToggle" class="menu-btn toggle-btn">✏️ Drawing Mode</button>
-                        <div class="draw-controls" id="drawControls" style="display: none;">
+                        <button id="drawToggle" class="menu-btn toggle-btn" aria-pressed="false">✏️ Drawing Mode</button>
+                        <div class="draw-controls" id="drawControls" hidden>
                             <button id="undoBtn" class="menu-btn secondary">↶ Undo</button>
                             <button id="clearDrawingsBtn" class="menu-btn secondary">🗑️ Clear Drawings</button>
                         </div>
