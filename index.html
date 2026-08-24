@@ -125,10 +125,42 @@
                 <button id="playPlayPause" type="button" aria-pressed="false">Play</button>
                 <button id="playNext" type="button" aria-label="Next step">Next</button>
                 <button id="playRestart" type="button">Restart</button>
+                <button id="play3dView" type="button">3D View</button>
                 <button id="playExit" type="button">Exit</button>
             </div>
         </section>
         <div id="playbackAnnouncement" class="visually-hidden" aria-live="polite"></div>
+
+        <!-- Separate Three.js playback mode; the 2D board remains authoritative underneath. -->
+        <section id="threeDViewer" class="three-d-viewer" aria-label="3D Play playback" hidden>
+            <div id="threeDCanvas" class="three-d-canvas" aria-label="Three-dimensional pickleball court"></div>
+            <div class="three-d-hud">
+                <div class="three-d-copy">
+                    <strong id="threeDTitle">3D Play</strong>
+                    <span id="threeDStatus">Ready</span>
+                </div>
+                <div class="three-d-controls">
+                    <button id="threeDPlayPause" type="button" aria-pressed="false">Play</button>
+                    <button id="threeDRestart" type="button">Restart</button>
+                    <label>Camera
+                        <select id="threeDCamera">
+                            <option value="overhead">Overhead 3D</option>
+                            <option value="sideline">Sideline</option>
+                            <option value="behind-green">Behind Green</option>
+                            <option value="behind-orange">Behind Orange</option>
+                        </select>
+                    </label>
+                    <label>Speed
+                        <select id="threeDRate">
+                            <option value="1">1×</option>
+                            <option value="0.5">0.5×</option>
+                            <option value="0.25">0.25×</option>
+                        </select>
+                    </label>
+                    <button id="threeDExit" type="button">Exit 3D</button>
+                </div>
+            </div>
+        </section>
 
         <!-- Menu Overlay (Hidden by default) -->
         <div id="menuOverlay" class="overlay">
@@ -211,6 +243,7 @@
                     <section class="info-section">
                         <h3>Plays</h3>
                         <p>Plays demonstrate common patterns rather than mandatory strategy. Choose one from the menu, then use Previous, Play/Pause, Next, Restart, or Exit to study it.</p>
+                        <p>While a Play is open, choose 3D View for a spatial replay. Switch cameras, use Play/Pause or Restart, choose a playback speed, and Exit 3D to return to the same 2D Play.</p>
                     </section>
 
                     <!-- Court Information -->
@@ -258,5 +291,6 @@
 
     <script src="guided-plays.js"></script>
     <script src="script.js"></script>
+    <script type="module" src="three-d-playback.js"></script>
 </body>
 </html>

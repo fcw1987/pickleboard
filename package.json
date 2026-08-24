@@ -2,15 +2,19 @@
   "name": "pickleboard",
   "version": "1.0.0",
   "private": true,
-  "description": "Development checks for the dependency-free Pickleboard static application",
+  "type": "module",
+  "description": "Development checks for the Pickleboard static application and optional Three.js playback mode",
   "scripts": {
     "start": "node tests/helpers/static-server.mjs",
-    "check": "node --check script.js && node --check sw.js && node tests/helpers/validate-static-assets.mjs",
+    "check": "node --check script.js && node --check sw.js && node --test tests/three-d-core.unit.mjs && node tests/helpers/validate-static-assets.mjs",
     "test": "npm run check && playwright test",
     "test:browser": "playwright test",
     "test:headed": "playwright test --headed"
   },
   "devDependencies": {
     "@playwright/test": "1.61.0"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
   }
 }
