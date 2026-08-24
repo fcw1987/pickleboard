@@ -124,7 +124,13 @@ The Third Shot Drop is the rich proof shot. A deterministic parametric arc deriv
 
 One `PlaybackClock` coordinates players, ball rotation, trajectory, pause/restart, and global rates of 1×, 0.5×, or 0.25×. Named cameras are Overhead 3D, Sideline, Behind Green, and Behind Orange. Exiting disposes geometry/materials and the WebGL renderer, stops the frame loop, and returns to the same 2D Play state. The Three.js modules and 3D code are included in the versioned service-worker shell for offline repeat use.
 
-This foundation is deliberately illustrative, not validated sports physics. Future physics can replace `createTrajectory()` without replacing the Play catalog, coordinate adapter, renderer, or clock. Natural V2 steps are curved net tape/sideline height, calibrated launch velocities, aerodynamic spin, richer bounce surfaces, stroke-state metadata, and skeletal player animation.
+All four Guided Plays now compile and complete in 3D. Shot types provide valid defaults when rich `trajectory3d` metadata is absent, including the drive and compact block used by Third Shot Drive and Fifth Shot Drop.
+
+Procedural players use separate named transforms for hips, torso, head/cap, shoulders, elbows, hands, thighs, knees, lower legs, feet, and a paddle attached beneath the active hand. The athletic ready pose, navy hoodie/cap/paddle language, green/orange accents, and contact shadows establish a lightweight Pickleboard identity while leaving joints directly addressable by future animation code.
+
+The court includes a physical slab, contrasting kitchen surface, neutral surround, raised lines, and a segmented net mesh. A curved top tape uses 36-inch sideline and 34-inch center heights without cloth simulation. Camera presets use explicit position, target, and field of view: overhead remains tactical; behind-team views sit near human coaching height; sideline emphasizes trajectory height and clearance. The ball is rendered 16% larger than its physical collision/trajectory radius solely for replay readability.
+
+This foundation is deliberately illustrative, not validated sports physics. Future physics can replace `createTrajectory()` without replacing the Play catalog, coordinate adapter, renderer, or clock. Natural next steps are calibrated launch velocities, aerodynamic spin, richer bounce surfaces, stroke-state metadata, and animation of the existing procedural joint hierarchy before considering skeletal assets.
 
 ## Court coordinate model
 
