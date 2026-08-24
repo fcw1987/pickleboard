@@ -33,6 +33,7 @@ class Pickleboard {
         this.infoModal = document.getElementById('infoModal');
         this.infoClose = document.getElementById('infoClose');
         this.drawControls = document.getElementById('drawControls');
+        this.playInteractionLocked = false;
         
         // Court boundaries (SVG coordinates in feet) - expanded to allow movement outside court
         this.courtBounds = {
@@ -112,6 +113,26 @@ class Pickleboard {
         this.setDrawingMode(false);
         this.loadTheme();
         this.setGameMode('doubles'); // Start with doubles
+        this.initializeGuidedPlays();
+    }
+
+    initializeGuidedPlays() {
+        if (!window.GuidedPlayEngine || !window.PICKLEBOARD_PLAYS) return;
+        this.plays = new window.GuidedPlayEngine(this, window.PICKLEBOARD_PLAYS, {
+            library: document.getElementById('playLibrary'),
+            pathLayer: document.getElementById('playPathLayer'),
+            controls: document.getElementById('playbackControls'),
+            title: document.getElementById('playbackTitle'),
+            progress: document.getElementById('playbackProgress'),
+            stepLabel: document.getElementById('playbackStepLabel'),
+            description: document.getElementById('playbackDescription'),
+            previous: document.getElementById('playPrevious'),
+            playPause: document.getElementById('playPlayPause'),
+            next: document.getElementById('playNext'),
+            restart: document.getElementById('playRestart'),
+            exit: document.getElementById('playExit'),
+            announcement: document.getElementById('playbackAnnouncement')
+        });
     }
     
     initializeTokens() {
@@ -256,6 +277,7 @@ class Pickleboard {
             const toggleHandedness = (event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (this.playInteractionLocked) return;
                 if (!this.touchTapState.lastTouchToggleTime ||
                     performance.now() - this.touchTapState.lastTouchToggleTime > this.touchTapState.maxDelay) {
                     this.togglePlayerHandedness(token);
@@ -281,8 +303,8 @@ class Pickleboard {
     }
     
     startDrag(event, token) {
-        // Don't start dragging in drawing mode
-        if (this.drawingMode) return;
+        // Don't start dragging in drawing or guided play mode.
+        if (this.drawingMode || this.playInteractionLocked) return;
         
         event.preventDefault();
         
@@ -363,7 +385,7 @@ class Pickleboard {
     }
 
     handlePlayerTouchEnd(event, token) {
-        if (this.drawingMode || this.dragState.dragElement !== token || this.dragState.touchMoved) {
+        if (this.playInteractionLocked || this.drawingMode || this.dragState.dragElement !== token || this.dragState.touchMoved) {
             this.clearPendingTouchTap();
             return;
         }
@@ -464,7 +486,8 @@ class Pickleboard {
         this.renderPlayerArtwork(token);
     }
     
-    setGameMode(mode) {
+    setGameMode(mode, { source = 'user' } = {}) {
+        if (this.playInteractionLocked && source !== 'playback' && source !== 'restore') return false;
         if (!Object.hasOwn(this.positions, mode)) {
             console.warn(`Unsupported game mode: ${mode}`);
             return false;
@@ -552,10 +575,88 @@ class Pickleboard {
     }
     
     resetPositions() {
+        if (this.playInteractionLocked) return false;
         this.setGameMode(this.currentGameMode);
         console.log('Positions reset');
     }
     
+    captureBoardState() {
+        return {
+            mode: this.currentGameMode,
+            positions: this.getTokenPositions(),
+            handedness: Object.fromEntries(Object.entries(this.tokens)
+                .filter(([, token]) => token.type === 'player')
+                .map(([id, token]) => [id, token.handedness])),
+            drawingMode: this.drawingMode,
+            drawings: this.drawingPaths.map(path => path.getAttribute('d')),
+            tracers: this.tracerDots.map(tracer => ({
+                cx: tracer.element.getAttribute('cx'),
+                cy: tracer.element.getAttribute('cy'),
+                r: tracer.element.getAttribute('r'),
+                className: tracer.element.getAttribute('class')
+            }))
+        };
+    }
+
+    restoreBoardState(snapshot) {
+        if (!snapshot) return;
+        this.setGameMode(snapshot.mode, { source: 'restore' });
+        Object.entries(snapshot.positions).forEach(([id, position]) => {
+            if (this.tokens[id]) this.updateTokenPosition(this.tokens[id], position.x, position.y);
+        });
+        Object.entries(snapshot.handedness).forEach(([id, handedness]) => {
+            if (this.tokens[id]) {
+                this.tokens[id].handedness = handedness;
+                this.renderPlayerArtwork(this.tokens[id]);
+            }
+        });
+        this.clearAllDrawings();
+        snapshot.drawings.forEach(d => {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.classList.add('drawing-stroke');
+            path.setAttribute('d', d);
+            this.drawingLayer.appendChild(path);
+            this.drawingPaths.push(path);
+        });
+        this.clearAllTracers();
+        snapshot.tracers.forEach(data => {
+            const element = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            element.setAttribute('cx', data.cx);
+            element.setAttribute('cy', data.cy);
+            element.setAttribute('r', data.r);
+            element.setAttribute('class', data.className);
+            const touchTarget = this.court.querySelector('.touch-target');
+            this.court.insertBefore(element, touchTarget);
+            const tracer = { element, createdTime: Date.now(), timeout: null };
+            tracer.timeout = setTimeout(() => this.removeTracerDot(tracer), this.tracerSettings.fadeTime);
+            this.tracerDots.push(tracer);
+        });
+        this.setDrawingMode(snapshot.drawingMode);
+    }
+
+    prepareForPlay() {
+        this.endDrag();
+        this.clearPendingTouchTap();
+        if (this.isDrawing) this.endDrawing();
+        this.setDrawingMode(false);
+    }
+
+    setPlayInteractionLocked(locked) {
+        this.playInteractionLocked = Boolean(locked);
+        this.court.classList.toggle('playback-locked', this.playInteractionLocked);
+        this.resetBtn.disabled = this.playInteractionLocked;
+        this.drawToggle.disabled = this.playInteractionLocked;
+        this.undoBtn.disabled = this.playInteractionLocked;
+        this.clearDrawingsBtn.disabled = this.playInteractionLocked;
+        this.gameModeInputs.forEach(input => { input.disabled = this.playInteractionLocked; });
+    }
+
+    applyPlayPositions(positions) {
+        Object.entries(positions).forEach(([id, position]) => {
+            if (this.tokens[id]) this.updateTokenPosition(this.tokens[id], position.x, position.y);
+        });
+    }
+
     toggleTheme() {
         const body = document.body;
         const currentTheme = body.getAttribute('data-theme');
@@ -593,6 +694,7 @@ class Pickleboard {
     }
     
     setTokenPosition(tokenId, x, y) {
+        if (this.playInteractionLocked) return false;
         if (this.tokens[tokenId]) {
             // Constrain to court boundaries
             const token = this.tokens[tokenId];
@@ -768,11 +870,12 @@ class Pickleboard {
     }
 
     toggleDrawingMode() {
+        if (this.playInteractionLocked) return;
         this.setDrawingMode(!this.drawingMode);
     }
     
     startDrawing(event) {
-        if (!this.drawingMode) return;
+        if (!this.drawingMode || this.playInteractionLocked) return;
         
         event.preventDefault();
         this.isDrawing = true;

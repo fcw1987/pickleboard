@@ -16,6 +16,7 @@ The production application is dependency free: HTML, CSS, vanilla browser JavaSc
 - Mouse and touch interaction
 - Viewport-fitted portrait, landscape, mobile, and desktop layouts
 - Installable PWA shell with repeat-visit offline support
+- Four guided Plays with manual or automatic step-by-step playback
 - No backend, account, analytics, or remote persistence
 
 Player positions, drawings, and handedness are session-only and are lost when the page reloads. Reset restores positions but preserves handedness for the current session. Theme preference is the only application setting stored in `localStorage`.
@@ -63,6 +64,7 @@ The browser suite covers clean initialization, player artwork and handedness, de
 index.html       Application shell, inline SVG court, controls, and help content
 styles.css       Themes, court presentation, overlays, and responsive sizing
 script.js        Pickleboard state, interactions, SVG updates, and public API
+guided-plays.js  Declarative play catalog and reusable playback engine
 manifest.json    PWA installation metadata
 sw.js            Versioned static-shell cache and offline navigation behavior
 assets/players/  Four transparent PNG player visuals (green/orange, left/right-handed)
@@ -72,6 +74,16 @@ tests/           Playwright browser tests and local test helpers
 ```
 
 A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Green artwork is front-facing on the far/top side and orange artwork is back-facing on the near/bottom side, so the teams face each other across the court; this viewing orientation is inherent to the team artwork, not separate application state. Artwork is selected centrally from the player’s current team color and explicit physical left/right handedness; all four players default to right-handed. Double-clicking on desktop or double tapping the same player on a touch device toggles that individual handedness without changing its position or front/back orientation. Handedness is session-only and survives mode changes and Reset, while singles/doubles may change the artwork’s team color. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
+
+## Guided Plays
+
+The menu's **Plays** section provides four illustrative opening patterns: Serve & Return, Third Shot Drop, Third Shot Drive, and Fifth Shot Drop. `guided-plays.js` contains both the declarative catalog and one reusable `GuidedPlayEngine`; adding another play should primarily mean adding a validated definition with a mode and ordered steps rather than new playback logic.
+
+Each step declares a label, explanation, duration, absolute SVG-coordinate positions for the existing tokens, and an optional ball shot path. The engine animates the authoritative player and ball state through `requestAnimationFrame`, keeps hit targets synchronized, and owns a separate SVG shot-path layer so play cues never become user drawings or movement tracers.
+
+Entering a Play captures the current mode, token positions, player handedness, drawings, tracers, and drawing-mode state. Play mode locks manual board editing. **Exit** restores the captured arrangement; **Restart** returns only to the selected Play's first step. Handedness is never encoded in play data and remains unchanged. User drawings are preserved, while play paths are transient and removed on restart or exit. Reduced-motion preference makes step transitions immediate without removing manual or automatic navigation.
+
+The play catalog and engine are part of the versioned service-worker shell, so the library works on offline repeat visits. Browser tests cover the exact catalog, manual and automatic playback, pause/final-step behavior, restoration, locking, reduced motion, required viewports, and offline execution.
 
 ## Court coordinate model
 
