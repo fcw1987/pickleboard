@@ -6,7 +6,8 @@ The production application is dependency free: HTML, CSS, vanilla browser JavaSc
 
 ## Features
 
-- Four draggable player tokens: Team 1 is red and Team 2 is blue
+- Four draggable branded player tokens: Team 1 uses green artwork and Team 2 uses orange artwork
+- Per-player left/right handedness, toggled with a double click and retained for the browser session
 - A draggable neon-green ball
 - Singles and doubles starting arrangements
 - Movement tracers with automatic expiry and manual clearing
@@ -64,12 +65,13 @@ styles.css       Themes, court presentation, overlays, and responsive sizing
 script.js        Pickleboard state, interactions, SVG updates, and public API
 manifest.json    PWA installation metadata
 sw.js            Versioned static-shell cache and offline navigation behavior
+assets/players/  Four transparent PNG player visuals (green/orange, left/right)
 icons/           PWA and Apple launcher icons
 tests/           Playwright browser tests and local test helpers
 .github/         CI quality gate
 ```
 
-A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps the visible SVG token and its larger transparent hit target synchronized. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
+A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Artwork is selected centrally from the player’s current team color and explicit left/right handedness. Double-clicking a player toggles that individual handedness without changing its position; handedness is session-only and survives mode changes and Reset. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
 
 ## Court coordinate model
 
@@ -116,7 +118,7 @@ These starting positions and team assignments are intentional game behavior.
 - Navy: four service boxes
 - White: court boundaries and service lines
 - Black: net
-- Red and blue: opposing teams
+- Green and orange branded player artwork: opposing teams
 - Neon green: ball
 
 ## Public API
@@ -145,7 +147,7 @@ The worker maintains an explicitly versioned `pickleboard-static-*` shell cache.
 - Deletes only obsolete caches in the Pickleboard namespace
 - Activates and claims clients after the complete new shell is cached
 
-Changing a shell asset requires incrementing the static cache version in `sw.js`. Browser tests exercise installation, offline repeat visits, upgrades, unrelated-cache preservation, and replacement of stale cached assets.
+Changing a shell asset—including any player PNG—requires incrementing the static cache version in `sw.js`. Browser tests exercise installation, offline repeat visits (including all four player images), upgrades, unrelated-cache preservation, and replacement of stale cached assets.
 
 ## CI
 
