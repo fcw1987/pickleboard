@@ -18,6 +18,8 @@
   --button-bg: #007bff;
   --button-hover: #0056b3;
   --shadow: rgba(0, 0, 0, 0.1);
+  --play-path: #ffd60a;
+  --play-panel: rgba(255, 255, 255, 0.96);
 }
 
 [data-theme="dark"] {
@@ -39,6 +41,8 @@
   --button-bg: #0056b3;
   --button-hover: #007bff;
   --shadow: rgba(0, 0, 0, 0.3);
+  --play-path: #ffe66d;
+  --play-panel: rgba(45, 45, 45, 0.96);
 }
 
 /* Reset and Base Styles */
@@ -839,6 +843,135 @@ body {
   color: var(--text-primary);
 }
 
+/* Guided Plays */
+.menu-section-copy {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: -0.5rem 0 0.75rem;
+}
+
+.play-library {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.play-library-btn {
+  margin-bottom: 0.25rem;
+}
+
+.play-path-layer,
+.play-shot-path {
+  pointer-events: none;
+}
+
+.play-shot-path {
+  fill: none;
+  stroke: var(--play-path);
+  stroke-width: 0.35;
+  stroke-linecap: round;
+  stroke-dasharray: 0.8 0.55;
+  opacity: 0.95;
+}
+
+.play-arrowhead {
+  fill: var(--play-path);
+}
+
+.court-svg.playback-locked .player-token,
+.court-svg.playback-locked .ball-token,
+.court-svg.playback-locked .touch-target {
+  pointer-events: none;
+}
+
+.playback-controls {
+  position: fixed;
+  z-index: 1200;
+  left: 50%;
+  bottom: max(0.65rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(44rem, calc(100vw - 8rem));
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: var(--play-panel);
+  box-shadow: 0 5px 18px var(--shadow);
+  backdrop-filter: blur(8px);
+}
+
+.playback-controls[hidden] {
+  display: none;
+}
+
+.playback-copy {
+  min-width: 0;
+}
+
+.playback-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.88rem;
+}
+
+.playback-progress {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.playback-step-label {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: var(--button-bg);
+}
+
+.playback-copy p {
+  margin: 0.15rem 0 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.playback-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.playback-buttons button {
+  min-height: 36px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.playback-buttons button:hover:not(:disabled) {
+  color: white;
+  background: var(--button-bg);
+}
+
+.playback-buttons button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Responsive adjustments for overlays */
 @media (max-width: 768px) {
   .fab {
@@ -872,6 +1005,25 @@ body {
 }
 
 @media (max-width: 480px) {
+  .playback-controls {
+    left: 0.4rem;
+    right: 0.4rem;
+    bottom: max(0.4rem, env(safe-area-inset-bottom));
+    transform: none;
+    width: auto;
+  }
+
+  .playback-copy p {
+    max-height: 2.1em;
+    overflow: hidden;
+  }
+
+  .playback-buttons button {
+    min-height: 40px;
+    padding: 0 0.2rem;
+    font-size: 0.72rem;
+  }
+
   .menu-panel {
     width: 100vw;
     left: -100vw;
@@ -892,6 +1044,37 @@ body {
   .modal-header,
   .modal-body {
     padding: 1rem;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .playback-controls {
+    left: auto;
+    right: max(0.5rem, env(safe-area-inset-right));
+    bottom: 50%;
+    transform: translateY(50%);
+    width: min(18rem, 34vw);
+    padding: 0.45rem;
+  }
+
+  .playback-copy p {
+    max-height: 2.2em;
+    overflow: hidden;
+  }
+
+  .playback-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .playback-buttons button {
+    min-height: 34px;
+    font-size: 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-shot-path {
+    transition: none;
   }
 }
 
