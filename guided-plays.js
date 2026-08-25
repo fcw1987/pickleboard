@@ -26,7 +26,11 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 5, y: 38 }
         },
-        shot: { from: { x: 18, y: -1 }, to: { x: 5, y: 38 }, type: 'serve' }
+        shot: {
+            from: { x: 18, y: -1 }, to: { x: 5, y: 38 }, type: 'serve',
+            playerId: 'player1', stroke: 'serve',
+            contact3d: { x: 16.2, y: 0, heightFeet: 2.8 }
+        }
     },
     return: {
         id: 'return',
@@ -40,7 +44,11 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 15, y: 6 }
         },
-        shot: { from: { x: 5, y: 38 }, to: { x: 15, y: 6 }, type: 'return' }
+        shot: {
+            from: { x: 5, y: 38 }, to: { x: 15, y: 6 }, type: 'return',
+            playerId: 'player3', stroke: 'forehand',
+            contact3d: { x: 5.8, y: 39, heightFeet: 2.3 }
+        }
     },
     thirdDrop: {
         id: 'third-drop',
@@ -58,6 +66,9 @@ const COMMON_PLAY_STEPS = {
             from: { x: 15, y: 6 },
             to: { x: 7, y: 27 },
             type: 'drop',
+            playerId: 'player1',
+            stroke: 'drop',
+            contact3d: { x: 14.4, y: 7, heightFeet: 2.1 },
             trajectory3d: {
                 speedMph: 18,
                 apexFeet: 7.5,
@@ -93,7 +104,12 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 14.5, y: 29.5 }
         },
-        shot: { from: { x: 15, y: 6 }, to: { x: 14.5, y: 29.5 }, type: 'drive' }
+        shot: {
+            from: { x: 15, y: 6 }, to: { x: 14.5, y: 29.5 }, type: 'drive',
+            playerId: 'player1', stroke: 'forehand',
+            contact3d: { x: 14.5, y: 7, heightFeet: 2.4 },
+            trajectory3d: { apexFeet: 5.5 }
+        }
     },
     block: {
         id: 'fourth-block',
@@ -107,7 +123,12 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 13.5, y: 12 }
         },
-        shot: { from: { x: 14.5, y: 29.5 }, to: { x: 13.5, y: 12 }, type: 'block' }
+        shot: {
+            from: { x: 14.5, y: 29.5 }, to: { x: 13.5, y: 12 }, type: 'block',
+            playerId: 'player4', stroke: 'block',
+            contact3d: { x: 14.4, y: 29.5, heightFeet: 2.7 },
+            trajectory3d: { apexFeet: 5 }
+        }
     },
     fifthDrop: {
         id: 'fifth-drop',
@@ -121,7 +142,11 @@ const COMMON_PLAY_STEPS = {
             player4: { x: 15, y: 30 },
             ball: { x: 14, y: 27 }
         },
-        shot: { from: { x: 13.5, y: 12 }, to: { x: 14, y: 27 }, type: 'drop' }
+        shot: {
+            from: { x: 13.5, y: 12 }, to: { x: 14, y: 27 }, type: 'drop',
+            playerId: 'player1', stroke: 'drop',
+            contact3d: { x: 13.8, y: 12, heightFeet: 2.1 }
+        }
     },
     fifthTransition: {
         id: 'fifth-transition',
