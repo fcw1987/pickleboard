@@ -132,6 +132,18 @@ The court includes a physical slab, contrasting kitchen surface, neutral surroun
 
 This foundation is deliberately illustrative, not validated sports physics. Future physics can replace `createTrajectory()` without replacing the Play catalog, coordinate adapter, renderer, or clock. Natural next steps are calibrated launch velocities, aerodynamic spin, richer bounce surfaces, stroke-state metadata, and animation of the existing procedural joint hierarchy before considering skeletal assets.
 
+## 3D player animation and contact
+
+The 3D viewer now layers deterministic authored poses over the existing named procedural hierarchy. `three-d-animation.js` contains a reusable pose library and absolute-time clip sampling; each render restores immutable rig rest transforms, resolves semantic dominant/non-dominant roles from handedness, blends preparation/contact/follow-through/recovery, and applies lightweight locomotion or split-step motion through the same `PlaybackClock` that drives ball flight and spin.
+
+Shared Guided Play shots may optionally declare `playerId`, `stroke`, and `contact3d`. The four current Plays explicitly identify the Green server (`player1`), Orange returner (`player3`), Green third/fifth-shot player (`player1`), and Orange blocker (`player4`). If ownership is absent, the 3D adapter uses the nearest player to the shared shot origin; invalid explicit IDs, strokes, or contact coordinates fail validation.
+
+Every compiled shot segment has one authoritative `contactTime`. Before it, the striker prepares and plants while the ball waits. At contact the ball is placed at the paddle's world transform and launch becomes active; the unchanged trajectory solver then samples from time zero while follow-through overlaps flight. Rates of 1×, 0.5×, and 0.25×, Pause, and Restart apply to the entire clock, so body pose, locomotion, paddle, ball, spin, and bounce remain synchronized. 3D Previous/Next seek logical step endpoints and support reduced-motion inspection.
+
+The animation vocabulary currently includes ready, split-step, serve, forehand, backhand, soft drop, drive, compact block, follow-through, and recovery poses. Locomotion uses a restrained procedural leg/arm cycle, and strikers finish movement before the contact window. Future strokes can be added by defining rest-relative channels against semantic roles such as `dominantArm`, `dominantElbow`, and `dominantKnee`; no separate left-handed clip is required.
+
+Known limitations remain: contact positioning is an authored visual approximation rather than collision physics, locomotion has no foot IK, return side is currently explicitly forehand, and poses are stylized rather than motion-captured.
+
 ## Court coordinate model
 
 The SVG coordinate system uses feet:

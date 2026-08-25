@@ -186,6 +186,38 @@ export class PlaybackClock {
     }
 }
 
+
+export const STROKE_PROFILES = Object.freeze({
+    serve: { duration: 0.95, contactRatio: 0.48, prepareRatio: 0.34, recoverRatio: 0.82, intensity: 0.9 },
+    forehand: { duration: 0.72, contactRatio: 0.44, prepareRatio: 0.28, recoverRatio: 0.78, intensity: 1 },
+    backhand: { duration: 0.76, contactRatio: 0.46, prepareRatio: 0.3, recoverRatio: 0.8, intensity: 0.9 },
+    drop: { duration: 0.82, contactRatio: 0.48, prepareRatio: 0.32, recoverRatio: 0.8, intensity: 0.52 },
+    drive: { duration: 0.68, contactRatio: 0.42, prepareRatio: 0.27, recoverRatio: 0.76, intensity: 1.15 },
+    block: { duration: 0.52, contactRatio: 0.38, prepareRatio: 0.22, recoverRatio: 0.68, intensity: 0.35 }
+});
+
+export function resolveShotSemantics(shot, previousPositions = {}) {
+    if (!shot) return null;
+    const playerIds = Object.keys(previousPositions).filter(id => id.startsWith('player'));
+    const fallbackPlayer = playerIds
+        .map(id => ({ id, distance: Math.hypot(previousPositions[id].x - shot.from.x, previousPositions[id].y - shot.from.y) }))
+        .sort((a, b) => a.distance - b.distance)[0]?.id;
+    const playerId = shot.playerId || fallbackPlayer;
+    if (!playerId || !previousPositions[playerId] || !playerId.startsWith('player')) {
+        throw new TypeError(`Unknown striking player: ${playerId || 'none'}.`);
+    }
+    const stroke = shot.stroke || (shot.type === 'drop' ? 'drop' : shot.type === 'block' ? 'block' :
+        shot.type === 'drive' ? 'drive' : shot.type === 'serve' ? 'serve' : 'forehand');
+    const profile = STROKE_PROFILES[stroke];
+    if (!profile) throw new TypeError(`Unsupported stroke: ${stroke}.`);
+    const contact3d = shot.contact3d || null;
+    if (contact3d && (!Number.isFinite(contact3d.x) || !Number.isFinite(contact3d.y) ||
+        !Number.isFinite(contact3d.heightFeet) || contact3d.heightFeet < 0)) {
+        throw new TypeError('3D contact coordinates and height must be finite nonnegative values.');
+    }
+    return { playerId, stroke, profile, contact3d };
+}
+
 export function compilePlayTimeline(play) {
     if (!play?.steps?.length) throw new TypeError('A Play requires at least one step.');
     const segments = [];
@@ -193,9 +225,28 @@ export function compilePlayTimeline(play) {
     for (let index = 1; index < play.steps.length; index += 1) {
         const previous = play.steps[index - 1];
         const step = play.steps[index];
-        const trajectory = step.shot ? createTrajectory(step.shot) : null;
-        const duration = trajectory?.totalDuration ?? Math.max(0.35, (step.durationMs || 850) / 1000);
-        segments.push({ index, previous, step, trajectory, startTime: cursor, duration, endTime: cursor + duration });
+        const shotSemantics = step.shot ? resolveShotSemantics(step.shot, previous.positions) : null;
+        const trajectoryShot = step.shot && shotSemantics.contact3d ? {
+            ...step.shot,
+            from: { x: shotSemantics.contact3d.x, y: shotSemantics.contact3d.y },
+            trajectory3d: {
+                ...(step.shot.trajectory3d || {}),
+                contactHeightFeet: shotSemantics.contact3d.heightFeet
+            }
+        } : step.shot;
+        const trajectory = trajectoryShot ? createTrajectory(trajectoryShot) : null;
+        const preparationDuration = shotSemantics ? shotSemantics.profile.duration * shotSemantics.profile.contactRatio : 0;
+        const actionDuration = shotSemantics ? shotSemantics.profile.duration : 0;
+        const movementDuration = Math.max(0.35, (step.durationMs || 850) / 1000);
+        const duration = trajectory ? preparationDuration + Math.max(trajectory.totalDuration, actionDuration - preparationDuration) : movementDuration;
+        const contactTime = shotSemantics ? preparationDuration : null;
+        segments.push({
+            index, previous, step, trajectory, shotSemantics,
+            startTime: cursor, duration, endTime: cursor + duration,
+            contactTime,
+            trajectoryStartTime: contactTime,
+            trajectoryEndTime: trajectory ? contactTime + trajectory.totalDuration : null
+        });
         cursor += duration;
     }
     return { play, segments, duration: cursor };

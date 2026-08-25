@@ -7,6 +7,12 @@ import {
     boardToWorld,
     compilePlayTimeline
 } from './three-d-core.js';
+import {
+    POSE_LIBRARY,
+    captureRigRest,
+    dominantAliases,
+    sampleStrokePose
+} from './three-d-animation.js';
 
 const TEAM_COLORS = { team1: 0x66cc33, team2: 0xff7a00 };
 const NAVY = 0x162b5c;
@@ -19,7 +25,9 @@ class ThreeDPlaybackViewer {
             canvas: document.getElementById('threeDCanvas'),
             title: document.getElementById('threeDTitle'),
             status: document.getElementById('threeDStatus'),
+            previous: document.getElementById('threeDPrevious'),
             playPause: document.getElementById('threeDPlayPause'),
+            next: document.getElementById('threeDNext'),
             restart: document.getElementById('threeDRestart'),
             camera: document.getElementById('threeDCamera'),
             rate: document.getElementById('threeDRate'),
@@ -42,7 +50,9 @@ class ThreeDPlaybackViewer {
 
     bindControls() {
         this.elements.enter.addEventListener('click', () => this.enter());
+        this.elements.previous.addEventListener('click', () => this.previous());
         this.elements.playPause.addEventListener('click', () => this.togglePlay());
+        this.elements.next.addEventListener('click', () => this.next());
         this.elements.restart.addEventListener('click', () => this.restart());
         this.elements.camera.addEventListener('change', event => this.setCamera(event.target.value));
         this.elements.rate.addEventListener('change', event => this.setPlaybackRate(Number(event.target.value)));
@@ -207,6 +217,9 @@ class ThreeDPlaybackViewer {
             group.userData.id = token.id;
             group.userData.team = team;
             group.userData.handedness = token.handedness;
+            group.userData.restPose = captureRigRest(group.userData.nodes);
+            group.userData.aliases = dominantAliases(token.handedness);
+            group.userData.animation = { pose: 'ready', phase: 'ready', stroke: null, planted: false, locomotion: false };
             this.scene.add(group);
             this.playerObjects.set(token.id, group);
         }
@@ -345,6 +358,124 @@ class ThreeDPlaybackViewer {
         return root;
     }
 
+    resolvePoseChannels(root, poseName) {
+        const pose = POSE_LIBRARY[poseName] || POSE_LIBRARY.ready;
+        const aliases = root.userData.aliases;
+        return Object.fromEntries(Object.entries(pose).map(([role, value]) => [aliases[role] || role, value]));
+    }
+
+    applyPose(root, fromName, toName, progress) {
+        const rest = root.userData.restPose;
+        const from = this.resolvePoseChannels(root, fromName);
+        const to = this.resolvePoseChannels(root, toName);
+        const t = THREE.MathUtils.smoothstep(Math.max(0, Math.min(1, progress)), 0, 1);
+        Object.entries(root.userData.nodes).forEach(([name, node]) => {
+            const base = rest[name];
+            if (!base) return;
+            const fromChannel = from[name] || {};
+            const toChannel = to[name] || {};
+            const fromRotation = fromChannel.rotation || { x: 0, y: 0, z: 0 };
+            const toRotation = toChannel.rotation || { x: 0, y: 0, z: 0 };
+            node.rotation.set(
+                base.rotation.x + THREE.MathUtils.lerp(fromRotation.x, toRotation.x, t),
+                base.rotation.y + THREE.MathUtils.lerp(fromRotation.y, toRotation.y, t),
+                base.rotation.z + THREE.MathUtils.lerp(fromRotation.z, toRotation.z, t)
+            );
+            const fromPosition = fromChannel.position || { x: 0, y: 0, z: 0 };
+            const toPosition = toChannel.position || { x: 0, y: 0, z: 0 };
+            node.position.set(
+                base.position.x + THREE.MathUtils.lerp(fromPosition.x, toPosition.x, t),
+                base.position.y + THREE.MathUtils.lerp(fromPosition.y, toPosition.y, t),
+                base.position.z + THREE.MathUtils.lerp(fromPosition.z, toPosition.z, t)
+            );
+        });
+        root.userData.animation.pose = toName;
+    }
+
+    resetPlayerPoses() {
+        this.playerObjects.forEach(root => {
+            this.applyPose(root, 'ready', 'ready', 1);
+            root.userData.animation = { pose: 'ready', phase: 'ready', stroke: null, planted: false, locomotion: false };
+        });
+    }
+
+    applyLocomotion(root, progress, distance) {
+        if (distance < 0.06) return;
+        const phase = progress * Math.max(1, distance / 0.5) * Math.PI * 2;
+        const nodes = root.userData.nodes;
+        const rest = root.userData.restPose;
+        const swing = Math.sin(phase) * Math.min(0.24, distance * 0.06);
+        nodes.LeftLeg.rotation.x = rest.LeftLeg.rotation.x + swing;
+        nodes.RightLeg.rotation.x = rest.RightLeg.rotation.x - swing;
+        nodes.LeftArm.rotation.x = rest.LeftArm.rotation.x - swing * 0.35;
+        nodes.RightArm.rotation.x = rest.RightArm.rotation.x + swing * 0.35;
+        nodes.Hips.position.y = rest.Hips.position.y + Math.abs(Math.sin(phase)) * 0.025;
+        root.userData.animation.locomotion = true;
+    }
+
+    applySegmentAnimations(segment, localTime, progress) {
+        this.resetPlayerPoses();
+        const semantics = segment.shotSemantics;
+        this.playerObjects.forEach((root, id) => {
+            const from = segment.previous.positions[id];
+            const to = segment.step.positions[id];
+            const distance = from && to ? Math.hypot(to.x - from.x, to.y - from.y) * FEET_TO_METERS : 0;
+            const isStriker = semantics?.playerId === id;
+            if (isStriker) {
+                const plantStart = Math.max(0, segment.contactTime - semantics.profile.duration * 0.13);
+                const movementProgress = segment.contactTime ? Math.min(1, localTime / plantStart) : progress;
+                const planted = localTime >= plantStart && localTime <= segment.contactTime + 0.12;
+                root.userData.animation.planted = planted;
+                root.userData.animation.locomotion = false;
+                const strokeTime = Math.max(0, Math.min(semantics.profile.duration, localTime));
+                const sample = sampleStrokePose(semantics.stroke, semantics.profile, strokeTime);
+                this.applyPose(root, sample.from, sample.to, sample.progress);
+                root.userData.animation.phase = sample.phase;
+                root.userData.animation.stroke = semantics.stroke;
+                root.userData.animation.contactTime = segment.contactTime;
+                root.userData.animation.movementProgress = movementProgress;
+            } else {
+                if (segment.step.shot && localTime < segment.contactTime && distance < 0.25) {
+                    const splitProgress = Math.sin(Math.PI * Math.min(1, localTime / segment.contactTime));
+                    this.applyPose(root, 'ready', 'split-step', splitProgress);
+                    root.userData.animation.phase = 'split-step';
+                }
+                this.applyLocomotion(root, progress, distance);
+            }
+        });
+    }
+
+    segmentEndpointTime(index) {
+        if (index <= 0) return 0;
+        return this.timeline.segments[Math.min(index - 1, this.timeline.segments.length - 1)].endTime;
+    }
+
+    currentStepIndex() {
+        if (!this.timeline || this.clock.elapsed <= 0) return 0;
+        const index = this.timeline.segments.findIndex(segment => this.clock.elapsed <= segment.endTime);
+        return index < 0 ? this.currentPlay.steps.length - 1 : this.timeline.segments[index].index;
+    }
+
+    previous() {
+        if (!this.active) return false;
+        this.clock.pause();
+        const target = Math.max(0, this.currentStepIndex() - 1);
+        this.clock.elapsed = this.segmentEndpointTime(target);
+        this.applyAtTime(this.clock.elapsed);
+        this.updateUI();
+        return true;
+    }
+
+    next() {
+        if (!this.active) return false;
+        this.clock.pause();
+        const target = Math.min(this.currentPlay.steps.length - 1, this.currentStepIndex() + 1);
+        this.clock.elapsed = this.segmentEndpointTime(target);
+        this.applyAtTime(this.clock.elapsed);
+        this.updateUI();
+        return true;
+    }
+
     buildBall() {
         const radius = COURT_DIMENSIONS.ballDiameterMeters / 2;
         const visualRadius = radius * 1.16;
@@ -409,6 +540,7 @@ class ThreeDPlaybackViewer {
     applyAtTime(seconds) {
         const initial = this.currentPlay.steps[0].positions;
         if (!this.timeline.segments.length || seconds <= 0) {
+            this.resetPlayerPoses();
             this.applyPlayerPositions(initial, initial, 0);
             const p = boardToWorld(initial.ball, 2.5);
             this.ballObject?.position.set(p.x, p.y, p.z);
@@ -419,13 +551,27 @@ class ThreeDPlaybackViewer {
         const localTime = Math.max(0, Math.min(segment.duration, seconds - segment.startTime));
         const progress = segment.duration ? localTime / segment.duration : 1;
         const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-        this.applyPlayerPositions(segment.previous.positions, segment.step.positions, eased);
+        this.applySegmentAnimations(segment, localTime, eased);
+        this.applyPlayerPositions(segment.previous.positions, segment.step.positions, eased, segment, localTime);
         let ballState;
         if (segment.trajectory) {
-            ballState = segment.trajectory.sample(localTime);
-            this.ballObject.position.set(ballState.x, ballState.y, ballState.z);
+            const trajectoryTime = Math.max(0, localTime - segment.trajectoryStartTime);
+            if (localTime + 1e-9 < segment.contactTime) {
+                const start = segment.trajectory.start;
+                ballState = { ...start, phase: 'waiting-contact', bounced: false, launched: false };
+            } else {
+                ballState = { ...segment.trajectory.sample(trajectoryTime), launched: true };
+            }
+            if (localTime + 1e-9 >= segment.contactTime && localTime <= segment.contactTime + 1e-9 && segment.shotSemantics) {
+                const actor = this.playerObjects.get(segment.shotSemantics.playerId);
+                actor.updateMatrixWorld(true);
+                actor.userData.paddle.getWorldPosition(this.ballObject.position);
+                ballState = { x: this.ballObject.position.x, y: this.ballObject.position.y, z: this.ballObject.position.z, phase: 'contact', bounced: false, launched: localTime + 1e-9 >= segment.contactTime };
+            } else {
+                this.ballObject.position.set(ballState.x, ballState.y, ballState.z);
+            }
             const rotationsPerSecond = segment.trajectory.metadata.spin.rpm / 60;
-            const angle = localTime * rotationsPerSecond * Math.PI * 2;
+            const angle = trajectoryTime * rotationsPerSecond * Math.PI * 2;
             this.ballObject.rotation.set(angle, angle * 0.35, 0);
         } else {
             const from = boardToWorld(segment.previous.positions.ball, 1.2);
@@ -438,14 +584,19 @@ class ThreeDPlaybackViewer {
         return this.lastState;
     }
 
-    applyPlayerPositions(fromPositions, toPositions, progress) {
+    applyPlayerPositions(fromPositions, toPositions, progress, segment = null, localTime = 0) {
         this.playerObjects.forEach((object, id) => {
             const from = boardToWorld(fromPositions[id]);
             const to = boardToWorld(toPositions[id]);
+            let movementProgress = progress;
+            if (segment?.shotSemantics?.playerId === id) {
+                const plantStart = Math.max(0.05, segment.contactTime - segment.shotSemantics.profile.duration * 0.13);
+                movementProgress = localTime >= plantStart ? 1 : Math.min(1, localTime / plantStart);
+            }
             object.position.set(
-                THREE.MathUtils.lerp(from.x, to.x, progress),
+                THREE.MathUtils.lerp(from.x, to.x, movementProgress),
                 0,
-                THREE.MathUtils.lerp(from.z, to.z, progress)
+                THREE.MathUtils.lerp(from.z, to.z, movementProgress)
             );
         });
     }
@@ -464,6 +615,9 @@ class ThreeDPlaybackViewer {
         this.elements.title.textContent = `${this.currentPlay.name} · 3D`;
         this.elements.playPause.textContent = this.clock.playing ? 'Pause' : this.clock.elapsed >= this.timeline.duration ? 'Replay' : 'Play';
         this.elements.playPause.setAttribute('aria-pressed', String(this.clock.playing));
+        const stepIndex = this.currentStepIndex();
+        this.elements.previous.disabled = this.clock.playing || stepIndex === 0;
+        this.elements.next.disabled = this.clock.playing || stepIndex >= this.currentPlay.steps.length - 1;
         if (!this.clock.playing && this.clock.elapsed === 0) this.elements.status.textContent = 'Ready';
     }
 
