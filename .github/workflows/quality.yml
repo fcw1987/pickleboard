@@ -79,14 +79,19 @@ jobs:
         run: npm ci
       - name: Install WebKit
         run: npx playwright install --with-deps webkit
-      - name: Run WebKit suite
-        run: npx playwright test --config=playwright.webkit.config.mjs --workers=1
-      - name: Upload report on failure
-        if: failure()
+      - name: Confirm isolated WebKit infrastructure signatures
+        run: node tools/verify-webkit-infrastructure.mjs
+      - name: Run full WebKit suite with strict documented infrastructure policy
+        run: node tools/run-webkit-ci.mjs
+      - name: Retain full WebKit diagnostic report
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: webkit-playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            release-results/webkit*.json
+            release-results/webkit-html/
           if-no-files-found: ignore
           retention-days: 7
 

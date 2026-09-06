@@ -23,7 +23,7 @@ The package test originally caught two harness assumptions: the directory shell 
 
 ## Delivery policy
 
-Quality runs on main pull requests and main pushes. Checks, Chromium, WebKit and Package must all succeed; the aggregate **Quality gate** rejects missing, skipped, cancelled or failed jobs. Browser concurrency is one per job. No general WebKit allow-failure or blanket quarantine is used.
+Quality runs on main pull requests and main pushes. Checks, Chromium, WebKit and Package must all succeed; the aggregate **Quality gate** rejects missing, skipped, cancelled or failed jobs. Browser concurrency is one per job. No general WebKit allow-failure or blanket quarantine is used. The exact infrastructure signatures in [issue 14](https://github.com/fcw1987/pickleboard/issues/14) require a same-job no-application-code reproduction, pinned browser/test identities, and strict report classification; unexpected passes or any unmatched failure block delivery. All original tests still execute and the mandatory real-offline package job is unchanged.
 
 Pages deployment is manual and restricted to trusted main. It selects the successful main Quality run for the exact input SHA, downloads that run's already-tested Pages tar, validates the build identity, manifest digest, complete file set and every runtime hash, and reuploads the same tar bytes. It does not rebuild from latest main. PR runs cannot deploy. Failure reports and build artifacts have bounded seven-day retention.
 
@@ -40,3 +40,9 @@ Report issues with: device, OS/browser, build revision, lesson, camera, steps, e
 ## Hosted generation correction
 
 The first hosted run rejected generated PNG byte differences on its newer Node/zlib build. The aggregate gate correctly rejected Checks=failure and all three skipped downstream jobs. The check now generates into an empty temporary asset tree and requires the complete output path set, exact non-PNG bytes, and exact PNG geometry, metadata, CRC validity and inflated scanline bytes. It counts compression-only differences explicitly; it is not a perceptual image comparison. Negative tests reject changed pixels, dimensions, metadata, paths and corrupt CRCs. Deployment still requires every original encoded runtime byte and the independently pinned manifest hash; generated scratch files never replace the approved assets. Hosted results must confirm whether the observed differences are lossless-compression-only.
+
+## Hosted WebKit findings
+
+The Linux run [34063739734](https://github.com/fcw1987/pickleboard/actions/runs/34063739734) passed 61 unit checks, all 122 Chromium tests and all four exact-package fresh/upgrade cases. Full WebKit reproduced 115 passes and exactly seven preexisting signatures: six Playwright offline-emulation navigation errors and one cache entry lost across navigation. The complete HTML/trace report was retained. A separate diagnostic with no application code and no cache deletion reproduces the failure signatures; its valid service worker works after the server is stopped. A strictly bounded policy is tracked in issue 14, expires for review on 2026-10-06, and fails on new/missing/skipped/timed-out/flaky/unexpectedly passing cases or changed signatures. It does not convert those original assertions into passing tests. Native Safari and physical-device behavior are distinct.
+
+Hosted Node 22.23.2 / zlib 1.3.1-e00f703 reproduced every pixel/metadata byte, with 44 PNG files differing only in compression encoding. The shipped 81-file runtime and its pinned SHA-256 manifest remain byte-for-byte identical to the approved source.

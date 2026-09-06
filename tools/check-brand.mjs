@@ -81,7 +81,7 @@ const removeApprovedLegacyContracts = (file, source) => {
   }
   if (file === 'tools/diagnose-webkit-cache.mjs') text = text.replace(/Old Pickleboard/g, '');
   if (file === 'tests/fixtures/cache-setup.html' || file === 'tests/service-worker.spec.mjs') text = text.replace(/Old Pickleboard/g, '');
-  if (file === 'tests/service-worker.spec.mjs') text = text.replace(/old Pickleboard caches/g, 'old caches');
+  if (['tests/service-worker.spec.mjs', 'tools/webkit-policy.mjs'].includes(file)) text = text.replace(/old Pickleboard caches/g, 'old caches');
   if (file === 'tools/generate-art.mjs') text = text.replace(/\bpb\b/g, '');
   if (file === 'docs/REBRAND_STATUS.md') text = text.replace(/visible PB wordmark/g, 'visible wordmark').replace(/lowercase `pb`/g, 'lowercase');
   if (file === 'docs/ASSET_PROVENANCE.md') text = text.replace(/old PB lettering/g, 'old lettering');

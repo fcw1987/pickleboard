@@ -124,7 +124,7 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
       await expect(page.locator('#threeDCanvas canvas')).toHaveCount(0); expect(errors).toEqual([]);
       results.push({ browser: browserName, mode, status: 'PASS', runtimeHashes: checks.all.length, cacheEntries: checks.cached.length, offlineLessons: ids.length, offlineMethod: 'owned server stopped', source: info.revision, previousPublicSource: mode === 'upgrade' ? prior.revision : null });
     } catch (e) { results.push({ browser: browserName, mode, status: 'FAIL', error: e.message }); throw e; }
-    finally { await browser.close(); if (!stopped) { server.closeAllConnections(); await new Promise(r => server.close(r)); } mkdirSync('release-results', { recursive: true }); writeFileSync('release-results/package.json', JSON.stringify(results, null, 2)); }
+    finally { await browser.close(); if (!stopped) { server.closeAllConnections(); await new Promise(r => server.close(r)); } mkdirSync('release-results', { recursive: true }); writeFileSync('release-results/package-verification.json', JSON.stringify(results, null, 2)); }
   }
 }
 console.log(JSON.stringify(results, null, 2));
