@@ -71,6 +71,10 @@ jobs:
       pages: write
       id-token: write
     steps:
+      - name: Check out the exact trusted validation code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.commit_sha }}
       - name: Reconfirm current main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -89,8 +93,6 @@ jobs:
       - name: Validate artifact identity and manifest digest
         env:
           COMMIT_SHA: ${{ inputs.commit_sha }}
-          APPROVED_SOURCE: f89cdfd6b7a0a9cbf4e1662c192634d6b794460f
-          APPROVED_MANIFEST_SHA256: 07d70d8216a078b8c83b2d0f03810f76b76a95b9ea2d8b68a94c3fd02e284cc5
         run: |
           test -f verified-artifact/artifact.tar
           mkdir verified-contents
@@ -98,36 +100,12 @@ jobs:
             echo 'Artifact contains an unsafe path' >&2
             exit 1
           fi
+          if tar -tvf verified-artifact/artifact.tar | grep -Eq '^[^-d]'; then
+            echo 'Artifact contains a link or nonregular entry' >&2
+            exit 1
+          fi
           tar -xf verified-artifact/artifact.tar -C verified-contents
-          node -e '
-            const fs = require("node:fs");
-            const path = require("node:path");
-            const crypto = require("node:crypto");
-            const root = "verified-contents";
-            const manifestBytes = fs.readFileSync(path.join(root, "runtime-manifest.json"));
-            const info = JSON.parse(fs.readFileSync(path.join(root, "build-info.json")));
-            const manifest = JSON.parse(manifestBytes);
-            const expected = process.env.COMMIT_SHA;
-            const sha = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
-            const walk = (dir, prefix = "") => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
-              entry.isDirectory() ? walk(path.join(dir, entry.name), `${prefix}${entry.name}/`) : `${prefix}${entry.name}`);
-            if (info.revision !== expected) throw new Error("artifact revision mismatch");
-            if (info.product !== "Pickleball Park") throw new Error("artifact product mismatch");
-            if (info.approvedSource !== process.env.APPROVED_SOURCE) throw new Error("approved source mismatch");
-            if (sha(manifestBytes) !== process.env.APPROVED_MANIFEST_SHA256) throw new Error("unapproved runtime manifest");
-            if (info.runtimeManifestSha256 !== sha(manifestBytes)) throw new Error("runtime manifest digest mismatch");
-            if (manifest.approvedSource !== info.approvedSource) throw new Error("manifest source mismatch");
-            const metadata = [".nojekyll", "build-info.json", "runtime-manifest.json"];
-            const expectedPaths = [...manifest.files.map(file => file.path), ...metadata].sort();
-            if (JSON.stringify(walk(root).sort()) !== JSON.stringify(expectedPaths)) throw new Error("artifact path set mismatch");
-            for (const file of manifest.files) {
-              if (!/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$)).+/.test(file.path)) throw new Error("unsafe manifest path");
-              const bytes = fs.readFileSync(path.join(root, file.path));
-              if (bytes.length !== file.bytes || sha(bytes) !== file.sha256) throw new Error(`runtime file mismatch: ${file.path}`);
-            }
-            if (info.runtimeFiles !== manifest.files.length) throw new Error("runtime file count mismatch");
-            if (info.runtimeBytes !== manifest.files.reduce((sum, file) => sum + file.bytes, 0)) throw new Error("runtime byte count mismatch");
-          '
+          node tools/verify-deployment-artifact.mjs verified-contents "$COMMIT_SHA"
       - name: Re-upload the unchanged verified artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

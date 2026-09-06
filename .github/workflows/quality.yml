@@ -133,6 +133,12 @@ jobs:
           path: dist/
           retention-days: 7
 
+      - name: Verify the tar produced by the official Pages action
+        run: |
+          mkdir verified-upload
+          tar -xf "$RUNNER_TEMP/artifact.tar" -C verified-upload
+          node tools/verify-deployment-artifact.mjs verified-upload "$GITHUB_SHA"
+
   quality-gate:
     name: Quality gate
     if: always()

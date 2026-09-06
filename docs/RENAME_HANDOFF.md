@@ -6,9 +6,9 @@ The public snapshot adopts **Pickleball Park** for display text and `pickleballp
 
 - Repository: <https://github.com/fcw1987/pickleboard>
 - Published site: <https://fcw1987.github.io/pickleboard/>
-- Current public main: `e67d060ca44a3c27af346007e619927bc6e3c9a1`
+- Previous public baseline: `e67d060ca44a3c27af346007e619927bc6e3c9a1`
 - Accepted runtime source: `f89cdfd` (published here through a sanitized snapshot)
-- Current Pages source: `main` at `/`
+- Pages publishing: manual Actions deployment of an exact green main artifact; existing hosting path retained
 
 Keep these URLs, the existing hosted path, install start URL, service-worker scope, theme key, and compatibility API until a coordinated migration has been tested. The proposed future repository slug is `pickleballpark`; this document makes no availability or reservation claim.
 
@@ -16,4 +16,4 @@ Keep these URLs, the existing hosted path, install start URL, service-worker sco
 
 If the repository or Pages path changes later, verify redirects, existing installed profiles, worker scope, offline behavior, and old/new origins. Update factual links and project labels together. Any local project binding, checkout label, or path change must be coordinated manually with active sessions and local tooling; no local path or account identifier is recorded here.
 
-No remote rename, Pages change, tag move, or external project setting change is performed by this snapshot.
+The release mission changed Pages from legacy branch publishing to manual Actions delivery and added the required Quality gate on main. No repository/path rename or historical tag move was performed.
