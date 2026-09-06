@@ -22,11 +22,11 @@ test('3D View initializes regulation scene with players, ball, and handed paddle
   const scene = await page.evaluate(() => ({
     state: window.pickleboard.threeD.getState(),
     paddles: Object.fromEntries([...window.pickleboard.threeD.playerObjects]
-      .map(([id, object]) => [id, { handedness: object.userData.handedness, side: object.userData.paddle.userData.side, x: object.userData.paddle.position.x }]))
+      .map(([id, object]) => [id, { handedness: object.userData.handedness, side: object.userData.animation.handedness, frameHand: object.userData.arm.userData.currentFrame.hand }]))
   }));
   expect(scene.state).toMatchObject({ active: true, playerCount: 4, hasBall: true, playId: 'third-shot-drop' });
-  expect(scene.paddles.player1).toMatchObject({ handedness: 'right', side: 'right' });
-  expect(scene.paddles.player2).toMatchObject({ handedness: 'left', side: 'left' });
+  expect(scene.paddles.player1).toMatchObject({ handedness: 'right', side: 'right', frameHand: 'right' });
+  expect(scene.paddles.player2).toMatchObject({ handedness: 'left', side: 'left', frameHand: 'left' });
   expect(errors).toEqual([]);
 });
 
@@ -57,11 +57,11 @@ test('play, pause, playback rate, restart, and proof bounce share one clock', as
   await page.evaluate(() => {
     const viewer = window.pickleboard.threeD;
     const proof = viewer.timeline.segments.find(segment => segment.step.id === 'third-drop');
-    viewer.clock.elapsed = proof.endTime - proof.trajectory.bounceDuration / 2;
+    viewer.clock.elapsed = proof.startTime + proof.contactTime + proof.trajectory.flightDuration;
     viewer.applyAtTime(viewer.clock.elapsed);
   });
   const proof = await page.evaluate(() => window.pickleboard.threeD.getState().lastState);
-  expect(proof.bounced).toBe(true);
+  expect(proof.y).toBeCloseTo(0.037, 6);
   expect(proof.phase).toBe('bounce');
   await page.locator('#threeDRestart').click();
   expect(await page.evaluate(() => window.pickleboard.threeD.getState())).toMatchObject({ elapsed: 0, playing: false });

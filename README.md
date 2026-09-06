@@ -1,22 +1,24 @@
-# Pickleboard 🏓
+# Pickleball Park 🏓
 
-Pickleboard is a lightweight, local-first pickleball strategy board. It displays a regulation-proportioned 44′ × 20′ court plus an expanded planning area, and lets coaches and players position teams, move the ball, trace movement, and draw annotations.
+Pickleball Park is an interactive pickleball coaching and strategy app: an editable tactical board, guided lessons, and spatial replay in one original pixel art park. It displays a regulation-proportioned 44′ × 20′ court plus an expanded planning area, and lets coaches and players position teams, move the ball, trace movement, and draw annotations.
 
-Pickleboard remains a lightweight static application built with HTML, CSS, vanilla browser JavaScript, inline SVG, and a service worker. Three.js is isolated to the optional 3D playback mode; development tooling uses Node.js and Playwright for reproducible tests.
+Pickleball Park remains a lightweight static application built with HTML, CSS, vanilla browser JavaScript, inline SVG, and a service worker. Three.js is isolated to the optional 3D playback mode; development tooling uses Node.js and Playwright for reproducible tests.
+
+Formerly Pickleboard. The public snapshot preserves the accepted coaching behavior under the Pickleball Park name. See [rebrand verification](docs/REBRAND_VERIFICATION.md), [release notes](docs/RELEASE_NOTES.md), and [rename handoff](docs/RENAME_HANDOFF.md).
 
 ## Features
 
 - Four draggable branded player tokens: Team 1 uses green artwork and Team 2 uses orange artwork
 - Per-player left/right handedness: all players start right-handed; double click on desktop or double tap on touch devices to toggle
-- A draggable neon-green ball
+- A draggable yellow-green ball
 - Singles and doubles starting arrangements
 - Movement tracers with automatic expiry and manual clearing
 - Freehand drawing mode with undo and clear actions
 - Light and dark themes with the preference stored locally
-- Mouse and touch interaction
+- Mouse, touch, and keyboard token interaction; arrow keys move a focused token half a foot, Enter/Space switches player handedness
 - Viewport-fitted portrait, landscape, mobile, and desktop layouts
 - Installable PWA shell with repeat-visit offline support
-- Four guided Plays with manual or automatic step-by-step playback
+- Eight guided Plays with manual or automatic playback and shared Loop controls
 - No backend, account, analytics, or remote persistence
 
 Player positions, drawings, and handedness are session-only and are lost when the page reloads. Reset restores positions but preserves handedness for the current session. Theme preference is the only application setting stored in `localStorage`.
@@ -63,8 +65,16 @@ The browser suite covers clean initialization, player artwork and handedness, de
 ```text
 index.html       Application shell, inline SVG court, controls, and help content
 styles.css       Themes, court presentation, overlays, and responsive sizing
-script.js        Pickleboard state, interactions, SVG updates, and public API
-guided-plays.js  Declarative play catalog and reusable playback engine
+board-projection.js Canonical court ↔ elevated SVG view mapping
+script.js        Board state, interactions, SVG updates, and public API
+play-catalog.js  Shared declarative lessons, contacts and flight metadata
+guided-plays.js  Guided playback and snapshot ownership
+coaching-session.js Shared clock, loop preference and end hold
+court-geometry.js Canonical court dimensions and marking endpoints
+park-layout.js / park-scene.js Shared pixel park layout and rendering adapters
+visual-theme.js Shared frozen palette and rendering tokens (CSS/SVG/Three.js/art)
+three-d-loader.js Deferred 3D import, loading, retry and cancellation boundary
+tools/           Reproducible original artwork and visual/update verification
 manifest.json    PWA installation metadata
 sw.js            Versioned static-shell cache and offline navigation behavior
 assets/players/  Four transparent PNG player visuals (green/orange, left/right-handed)
@@ -73,76 +83,35 @@ tests/           Playwright browser tests and local test helpers
 .github/         CI quality gate
 ```
 
-A single `Pickleboard` instance owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player images use a body-center anchor while preserving the source PNG aspect ratio. Green artwork is front-facing on the far/top side and orange artwork is back-facing on the near/bottom side, so the teams face each other across the court; this viewing orientation is inherent to the team artwork, not separate application state. Artwork is selected centrally from the player’s current team color and explicit physical left/right handedness; all four players default to right-handed. Double-clicking on desktop or double tapping the same player on a touch device toggles that individual handedness without changing its position or front/back orientation. Handedness is session-only and survives mode changes and Reset, while singles/doubles may change the artwork’s team color. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
+A single board instance (the compatibility class `Pickleboard`) owns the current board behavior. Token position changes flow through `updateTokenPosition()`, which keeps each visible SVG player image and its larger transparent hit target synchronized. Player numeric image attributes remain centered for compatibility, while upright artwork is projected and anchored at the visible shoe edge. `board-projection.js` provides the fixed elevated court projection and inverse input mapping; logical coordinates and drawing data stay in feet. Green artwork is front-facing on the far/top side and orange artwork is back-facing on the near/bottom side, so the teams face each other across the court; this viewing orientation is inherent to the team artwork, not separate application state. Artwork is selected centrally from the player’s current team color and explicit physical left/right handedness; all four players default to right-handed. Double-clicking on desktop or double tapping the same player on a touch device toggles that individual handedness without changing its position or front/back orientation. Handedness is session-only and survives mode changes and Reset, while singles/doubles may change the artwork’s team color. `currentGameMode` is authoritative for mode changes made through the controls, public API, and Reset. `drawingMode` is authoritative for drawing UI state.
 
-## Guided Plays
+## Guided Plays and replay
 
-The menu's **Plays** section provides four illustrative opening patterns: Serve & Return, Third Shot Drop, Third Shot Drive, and Fifth Shot Drop. `guided-plays.js` contains both the declarative catalog and one reusable `GuidedPlayEngine`; adding another play should primarily mean adding a validated definition with a mode and ordered steps rather than new playback logic.
+The Plays menu offers **Serve & Return, Third Shot Drop, Third Shot Drive, Fifth Shot Drop, Dink Exchange, Volley & Block, Short-Hop Reset, and Lob & Overhead**. The four mid-rally demonstrations explicitly assume the opening serve/return bounces have already happened. These are illustrative teaching examples, not validated biomechanics or a complete officiating engine.
 
-Each step declares a label, explanation, duration, absolute SVG-coordinate positions for the existing tokens, and an optional ball shot path. The engine animates the authoritative player and ball state through `requestAnimationFrame`, keeps hit targets synchronized, and owns a separate SVG shot-path layer so play cues never become user drawings or movement tracers.
+`play-catalog.js` is the only lesson source. `three-d-core.js` compiles ordered contact, net-crossing, bounce and end events; both views sample the same continuous ball trajectory and player presentation at the same absolute time. `rally-rules.js` checks the represented standing-play invariants. Add lessons through that contract, not a private rendering script. See [the coaching contract](docs/PARK_COACHING_VERIFICATION.md) for scope and limits.
 
-Entering a Play captures the current mode, token positions, player handedness, drawings, tracers, and drawing-mode state. Play mode locks manual board editing. **Exit** restores the captured arrangement; **Restart** returns only to the selected Play's first step. Handedness is never encoded in play data and remains unchanged. User drawings are preserved, while play paths are transient and removed on restart or exit. Reduced-motion preference makes step transitions immediate without removing manual or automatic navigation.
+Entering a Play captures mode, exact token positions, handedness, drawings, tracers and drawing state once. Editing is locked until **Exit**, which restores that snapshot. **Previous/Next** seek step endpoints and pause. **Restart** returns to the opening state and pauses. **Play/Pause** resumes the same clock, including an interrupted shot. Entering/exiting **3D View** hands off the same paused time; camera changes do not change tactical state.
 
-The play catalog and engine are part of the versioned service-worker shell, so the library works on offline repeat visits. Browser tests cover the exact catalog, manual and automatic playback, pause/final-step behavior, restoration, locking, reduced motion, required viewports, and offline execution.
+**Loop** is visible in both guided views and shared for the current session (off on a new page). It finishes the last event/recovery, holds for one playback second, then resets to the opening state. Pause freezes the hold too. Turning Loop off during the hold leaves a completed, stopped view. Speed, handedness and camera persist; the editable snapshot is never recaptured. Exit, replacement and loading cancellation invalidate pending restarts. Reduced motion keeps cues static and manual navigation usable.
 
-## 3D playback foundation
+Transport, lesson context and viewing options are grouped separately. Short phone landscape uses a side instruction panel; other layouts reserve a bottom coaching panel. Shot cues use timeline-derived phases, with persistent instructions and no independent animation timer.
 
-An active 2D Play now offers **3D View**, an isolated Three.js replay layer. The 2D board and `guided-plays.js` remain authoritative: the 3D adapter consumes the selected Play's existing step order, player/ball positions, labels, and shot endpoints rather than maintaining a second catalog.
+## Pixel actors and shared park
 
-Three.js `0.185.1` is the only production dependency. Its ES-module builds are copied into `vendor/` so the static PWA remains fully offline and does not depend on a CDN. `three-d-playback.js` owns scene objects, cameras, rendering, controls, and disposal; `three-d-core.js` stays renderer-independent and owns coordinate conversion, optional shot metadata normalization, deterministic trajectories, and the centralized playback clock.
+The main editor uses compact 64px composites of the liked replay body/action artwork, with a stable `(32,54)` foot pivot and a 16/3-foot presentation box. Guided SVG and 3D animate the same authored atlas layers. Eight directional views, both teams and physical handedness preserve the connected sleeve, wrist, grip and paddle; the old centered free-hand artwork is no longer used. The replay court, net, positions and ball flight remain genuinely 3D. No visible volumetric toy athletes remain.
 
-Coordinate mapping is centralized in `boardToWorld()`:
+`three-d-presentation.js` separates world facing, travel, stroke phase and camera-relative artwork selection. Incoming players prepare before contact; both views share contact targets. The elevated SVG projection includes the vertical component of physical ball height, so overhead contacts do not stretch the arm to compensate for an incorrect projection. The ball retains its high-contrast outlined treatment, short past-position trail in replay and projected ground cue.
 
-```text
-Pickleboard x (0..20 ft) → Three.js x, centered at x=10
-Pickleboard y (0..44 ft) → Three.js z, centered at y=22
-physical height in feet   → Three.js y
-1 foot                    → 0.3048 meters
-```
+`court-geometry.js` defines regulation dimensions and two centerline segments, baseline to kitchen only. `park-layout.js` places shared trees, shrubs, bench, sign and path outside the court. Quiet original pixel textures use teal, sage, layered greens and terracotta; geometry and annotations retain exact court coordinates.
 
-The modeled court is 20×44 feet with seven-foot kitchens. The net is modeled at the regulation 34-inch center height; the 36-inch sideline height is retained as a dimension constant for future net shaping. Players are lightweight capsule/head/leg figures with green/orange branding, navy clothing/paddles, team-facing orientation, and paddle placement based on existing handedness.
+## Rendering and lifecycle
 
-Shots may optionally add metadata without affecting the 2D engine:
+Three.js **0.185.1** remains the only production dependency and loads only when 3D is requested. Local vendor modules and all runtime art are cached for offline use. The editor does not import Three.js. Its ground projection and inverse stay in `board-projection.js`; physical feet map to world meters at 0.3048 m/ft.
 
-```javascript
-shot: {
-  from: { x, y },
-  to: { x, y },
-  type: 'drop',
-  trajectory3d: {
-    speedMph: 18,
-    apexFeet: 7.5,
-    netClearanceInches: 16,
-    contactHeightFeet: 2.2,
-    spin: { type: 'backspin', rpm: 550 },
-    bounce: { enabled: true, heightFeet: 1.25 }
-  }
-}
-```
+Replay uses CSS size × DPR (capped at 2), antialiasing, no coarse full-scene pixel pass, and the existing Overhead, Sideline, Behind Green and Behind Orange cameras. Artwork pixels provide the style. Unchanged paused scenes and end holds do not continuously render. One session clock owns playback; hidden-tab return resets its timestamp baseline. Owned render resources and pending park fetches are released on exit, failure or replacement. Recoverable errors leave the board intact.
 
-The Third Shot Drop is the rich proof shot. A deterministic parametric arc derives duration from horizontal distance and a simplified average travel speed, validates net clearance, reaches the shared 2D target, and produces one illustrative bounce. Spin RPM drives visible ball rotation; topspin/backspin/flat currently alter post-bounce forward travel modestly rather than simulating aerodynamic Magnus forces. Other shots use type-based defaults, so every existing Play can load in 3D without duplicated definitions.
-
-One `PlaybackClock` coordinates players, ball rotation, trajectory, pause/restart, and global rates of 1×, 0.5×, or 0.25×. Named cameras are Overhead 3D, Sideline, Behind Green, and Behind Orange. Exiting disposes geometry/materials and the WebGL renderer, stops the frame loop, and returns to the same 2D Play state. The Three.js modules and 3D code are included in the versioned service-worker shell for offline repeat use.
-
-All four Guided Plays now compile and complete in 3D. Shot types provide valid defaults when rich `trajectory3d` metadata is absent, including the drive and compact block used by Third Shot Drive and Fifth Shot Drop.
-
-Procedural players use separate named transforms for hips, torso, head/cap, shoulders, elbows, hands, thighs, knees, lower legs, feet, and a paddle attached beneath the active hand. The athletic ready pose, navy hoodie/cap/paddle language, green/orange accents, and contact shadows establish a lightweight Pickleboard identity while leaving joints directly addressable by future animation code.
-
-The court includes a physical slab, contrasting kitchen surface, neutral surround, raised lines, and a segmented net mesh. A curved top tape uses 36-inch sideline and 34-inch center heights without cloth simulation. Camera presets use explicit position, target, and field of view: overhead remains tactical; behind-team views sit near human coaching height; sideline emphasizes trajectory height and clearance. The ball is rendered 16% larger than its physical collision/trajectory radius solely for replay readability.
-
-This foundation is deliberately illustrative, not validated sports physics. Future physics can replace `createTrajectory()` without replacing the Play catalog, coordinate adapter, renderer, or clock. Natural next steps are calibrated launch velocities, aerodynamic spin, richer bounce surfaces, stroke-state metadata, and animation of the existing procedural joint hierarchy before considering skeletal assets.
-
-## 3D player animation and contact
-
-The 3D viewer now layers deterministic authored poses over the existing named procedural hierarchy. `three-d-animation.js` contains a reusable pose library and absolute-time clip sampling; each render restores immutable rig rest transforms, resolves semantic dominant/non-dominant roles from handedness, blends preparation/contact/follow-through/recovery, and applies lightweight locomotion or split-step motion through the same `PlaybackClock` that drives ball flight and spin.
-
-Shared Guided Play shots may optionally declare `playerId`, `stroke`, and `contact3d`. The four current Plays explicitly identify the Green server (`player1`), Orange returner (`player3`), Green third/fifth-shot player (`player1`), and Orange blocker (`player4`). If ownership is absent, the 3D adapter uses the nearest player to the shared shot origin; invalid explicit IDs, strokes, or contact coordinates fail validation.
-
-Every compiled shot segment has one authoritative `contactTime`. Before it, the striker prepares and plants while the ball waits. At contact the ball is placed at the paddle's world transform and launch becomes active; the unchanged trajectory solver then samples from time zero while follow-through overlaps flight. Rates of 1×, 0.5×, and 0.25×, Pause, and Restart apply to the entire clock, so body pose, locomotion, paddle, ball, spin, and bounce remain synchronized. 3D Previous/Next seek logical step endpoints and support reduced-motion inspection.
-
-The animation vocabulary currently includes ready, split-step, serve, forehand, backhand, soft drop, drive, compact block, follow-through, and recovery poses. Locomotion uses a restrained procedural leg/arm cycle, and strikers finish movement before the contact window. Future strokes can be added by defining rest-relative channels against semantic roles such as `dominantArm`, `dominantElbow`, and `dominantKnee`; no separate left-handed clip is required.
-
-Known limitations remain: contact positioning is an authored visual approximation rather than collision physics, locomotion has no foot IK, return side is currently explicitly forehand, and poses are stylized rather than motion-captured.
+The original standalone trajectory/rig utilities remain for compatibility and tests; the normal visible replay uses the shared compiled rally sampler and pixel actors. No second Play catalog or clock is introduced. See [asset contract](docs/PIXEL_ACTOR_ASSETS.md), [park art](docs/PARK_ART.md), and [mission evidence](docs/PARK_COACHING_VERIFICATION.md).
 
 ## Court coordinate model
 
@@ -183,18 +152,15 @@ These starting positions and team assignments are intentional game behavior.
 
 ## Court appearance
 
-- Dark green: expanded outside planning area
-- Green: general court surface
-- Gray: non-volley zone (kitchen)
-- Navy: four service boxes
-- White: court boundaries and service lines
-- Black: net
-- Green and orange branded player artwork: opposing teams
-- Neon green: ball
+- Muted jade court and sage kitchen, cream lines, navy net
+- Navy faceless athletes with green and orange team bands
+- Yellow-green ball, orange user annotations, golden Play paths
+- Crisp pixel sprites and restrained 3D pixels; readable system-font controls
+- Coordinated cream/day and navy/night panels
 
 ## Public API
 
-The browser exposes the current instance as `window.pickleboard`:
+For compatibility, the browser continues to expose the current instance as `window.pickleboard`. This internal API name is not the product identity:
 
 ```javascript
 window.pickleboard.getTokenPositions()
@@ -215,18 +181,18 @@ The worker maintains an explicitly versioned `pickleboard-static-*` shell cache.
 - Uses the network first when online so changed releases replace cached files
 - Updates the cached shell only from the application root or `index.html`, not arbitrary same-origin pages
 - Falls back to the cached application shell for offline navigation
-- Deletes only obsolete caches in the Pickleboard namespace
+- Deletes only obsolete caches in the retained `pickleboard-` compatibility namespace
 - Activates and claims clients after the complete new shell is cached
 
 Changing a shell asset—including any player PNG—requires incrementing the static cache version in `sw.js`. Browser tests exercise installation, offline repeat visits (including all four player images), upgrades, unrelated-cache preservation, and replacement of stale cached assets.
 
 ## CI
 
-`.github/workflows/quality.yml` installs development dependencies and Chromium, then runs `npm test` on pushes and pull requests to `main`.
+`.github/workflows/quality.yml` runs locked installation, syntax/unit/brand/asset checks, reproducible generation, full Chromium and WebKit suites, and exact-package/offline/production-upgrade checks on pull requests and pushes to `main`. Every required job must succeed for **Quality gate**. Pages publication is manual, selects the tested main artifact, and does not deploy pull requests. See [live testing delivery](docs/LIVE_TESTING_DELIVERY.md).
 
 ## Browser support
 
-The production code targets current evergreen Chrome, Edge, Firefox, and Safari releases with SVG, CSS custom properties, service workers, Cache Storage, and modern JavaScript support. Automated coverage currently runs in Chromium; touch behavior and cross-browser PWA installation should still be manually checked before releases that alter those areas.
+The production code targets current evergreen Chrome, Edge, Firefox, and Safari releases with SVG, CSS custom properties, service workers, Cache Storage, and modern JavaScript support. Chromium is the primary automated quality gate. Supplementary WebKit checks run with `npx playwright test --config playwright.webkit.config.mjs` after `npx playwright install webkit`. See [current verification](docs/REBRAND_VERIFICATION.md) for public evidence scope and browser limitations.
 
 ## Contributing
 
@@ -235,3 +201,19 @@ Keep the production runtime lightweight, isolate Three.js to 3D playback, and pr
 ## License
 
 This repository does not currently include a formal software license. The owner should choose one before relying on reuse or redistribution permissions.
+
+## Visual assets and verification
+
+The default visual language uses original compact game-inspired artwork across the editor, guided Plays and 3D. Run `node tools/generate-art.mjs` to regenerate sprites, icons and density comparisons without external tools or dependencies. Three.js is imported only when 3D is requested; the service worker still caches its local modules in the background for offline replay.
+
+See [visual direction](docs/VISUAL_DIRECTION.md), [asset provenance](docs/ASSET_PROVENANCE.md), [current verification](docs/REBRAND_VERIFICATION.md), and [public release snapshot](docs/RELEASE_PUBLICATION_SUMMARY.md). Reproducible generators and local review tools remain available in the source tree; their historical capture outputs are not part of the public evidence set.
+
+## Pixel replay implementation
+
+3D replay now uses original directional pixel athletes inside the 3D court, with animated paddle contact, a high-contrast ball and stable elevated camera framing. The editable SVG board retains precise dragging/drawing and snapshot restoration. Replay runs one timeline and renders unchanged paused views only when needed.
+
+See [current rebrand verification](docs/REBRAND_VERIFICATION.md) and [reproducible actor asset contract](docs/PIXEL_ACTOR_ASSETS.md). Run `node tools/generate-replay-art.mjs` to regenerate replay art; no additional dependency is needed.
+
+## Rebrand maintenance
+
+Use **Pickleball Park** in prose, **PICKLEBALL PARK** in wordmarks, and `pickleballpark` for new project-owned machine names. Keep existing remote URLs factual until the coordinated rename is authorized. `npm run check:brand` checks active branding and documented compatibility/history exceptions. Regenerate art at its source; do not patch exported pixels alone. Installation identity, the theme key, service-worker path and internal API names deliberately retain continuity; see [rename handoff](docs/RENAME_HANDOFF.md).

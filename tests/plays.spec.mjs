@@ -21,14 +21,18 @@ const expectedPlays = [
   ['serve-and-return', 'Serve & Return'],
   ['third-shot-drop', 'Third Shot Drop'],
   ['third-shot-drive', 'Third Shot Drive'],
-  ['fifth-shot-drop', 'Fifth Shot Drop']
+  ['fifth-shot-drop', 'Fifth Shot Drop'],
+  ['dink-exchange', 'Dink Exchange'],
+  ['volley-block', 'Volley & Block'],
+  ['short-hop-reset', 'Short-Hop Reset'],
+  ['lob-overhead', 'Lob & Overhead']
 ];
 
-test('library exposes exactly the four V1 plays and each can load', async ({ page }) => {
+test('library exposes the four opening Plays and four shot lessons and each can load', async ({ page }) => {
   const errors = await openApp(page);
   expect(await page.evaluate(() => window.pickleboard.plays.list().map(({ id, name }) => [id, name])))
     .toEqual(expectedPlays);
-  await expect(page.locator('#playLibrary .play-library-btn')).toHaveCount(4);
+  await expect(page.locator('#playLibrary .play-library-btn')).toHaveCount(8);
 
   for (const [id, name] of expectedPlays) {
     await page.evaluate(playId => window.pickleboard.plays.load(playId), id);
@@ -52,7 +56,7 @@ test('manual controls advance, go backward, and restart deterministically', asyn
   await page.locator('#playNext').click();
   await page.locator('#playRestart').click();
   expect(await engineState(page)).toMatchObject({ stepIndex: 0, status: 'paused' });
-  expect(await page.evaluate(() => window.pickleboard.getTokenPositions().ball)).toEqual({ x: 18, y: -1 });
+  expect(await page.evaluate(() => window.pickleboard.getTokenPositions().ball)).toEqual({ x: 16.2, y: 0 });
   await expect(page.locator('#playPathLayer')).toBeEmpty();
 });
 
@@ -142,7 +146,8 @@ test('reduced motion applies step endpoints without animated delay', async ({ pa
   await openApp(page);
   await loadPlay(page, 'third-shot-drive');
   await page.locator('#playNext').click();
-  expect(await page.evaluate(() => window.pickleboard.getTokenPositions().ball)).toEqual({ x: 5, y: 38 });
+  const endpoint = await page.evaluate(() => window.pickleboard.getTokenPositions().ball);
+  expect(endpoint.x).toBeCloseTo(5.8, 9); expect(endpoint.y).toBeCloseTo(39, 9);
   expect(await engineState(page)).toMatchObject({ stepIndex: 1, status: 'paused' });
 });
 

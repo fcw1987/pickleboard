@@ -40,5 +40,5 @@ const server = createServer((request, response) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`Pickleboard available at http://${host}:${port}`);
+  console.log(`Pickleball Park available at http://${host}:${port}`);
 });

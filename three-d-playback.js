@@ -1,21 +1,30 @@
+import { createPark3D, disposePark3D, updateParkCamera } from './park-scene.js';
+import { COURT_LINES } from './court-geometry.js';
+import { updateCoachingUI } from './coaching-ui.js';
 import * as THREE from './vendor/three.module.min.js';
 import {
     CAMERA_PRESETS,
     COURT_DIMENSIONS,
     FEET_TO_METERS,
-    PlaybackClock,
+    samplePlayBall,
     boardToWorld,
-    compilePlayTimeline
-} from './three-d-core.js';
-import {
-    POSE_LIBRARY,
-    captureRigRest,
-    dominantAliases,
-    sampleStrokePose
-} from './three-d-animation.js';
 
-const TEAM_COLORS = { team1: 0x66cc33, team2: 0xff7a00 };
-const NAVY = 0x162b5c;
+    fitCameraPreset
+} from './three-d-core.js';
+import { sampleActorPresentation, selectCameraRelativeDirection } from './three-d-presentation.js';
+import { loadPixelActorAssets, PixelActorResources, createPixelActor, updatePixelActor } from './three-d-pixel-actors.js';
+import { ReadableBall } from './three-d-ball.js';
+
+const FALLBACK_PALETTE = Object.freeze({
+    ink: '#263449', navy: '#304762', navyLight: '#526d86', navyDark: '#1c2b40',
+    green: '#83bc65', greenLight: '#b7dc88', greenDark: '#42775a',
+    orange: '#df8b50', orangeLight: '#f4bf78', orangeDark: '#98563e',
+    skin: '#efca9c', skinShade: '#ca9978', shoe: '#f5edd8', court: '#648f86',
+    kitchen: '#b4c8b0', surround: '#7fa375', line: '#fff6db', ball: '#edee73'
+});
+const VISUAL = globalThis.PICKLEBOARD_VISUAL || { palette: FALLBACK_PALETTE, render: { pixelScale: 1, maxPixelRatio: 2 } };
+const PALETTE = { ...FALLBACK_PALETTE, ...VISUAL.palette };
+const DEFAULT_PIXEL_SCALE = [1, 2].includes(Number(VISUAL.render?.pixelScale)) ? Number(VISUAL.render.pixelScale) : 1;
 
 class ThreeDPlaybackViewer {
     constructor(board) {
@@ -24,6 +33,11 @@ class ThreeDPlaybackViewer {
             root: document.getElementById('threeDViewer'),
             canvas: document.getElementById('threeDCanvas'),
             title: document.getElementById('threeDTitle'),
+            loop: document.getElementById('threeDLoop'),
+            progress: document.getElementById('threeDProgress'),
+            stepLabel: document.getElementById('threeDStepLabel'),
+            description: document.getElementById('threeDDescription'),
+            shotCue: document.getElementById('threeDShotCue'),
             status: document.getElementById('threeDStatus'),
             previous: document.getElementById('threeDPrevious'),
             playPause: document.getElementById('threeDPlayPause'),
@@ -32,10 +46,13 @@ class ThreeDPlaybackViewer {
             camera: document.getElementById('threeDCamera'),
             rate: document.getElementById('threeDRate'),
             exit: document.getElementById('threeDExit'),
-            enter: document.getElementById('play3dView')
+            enter: document.getElementById('play3dView'),
+            loadStatus: document.getElementById('threeDLoadStatus')
         };
-        this.clock = new PlaybackClock();
+        this.session = board.plays.session;
+        this.clock = this.session.clock;
         this.active = false;
+        this.loadGeneration = 0;
         this.renderLoopId = null;
         this.renderLoopCount = 0;
         this.currentPlay = null;
@@ -43,7 +60,25 @@ class ThreeDPlaybackViewer {
         this.playerObjects = new Map();
         this.ballObject = null;
         this.lastState = null;
+        this.pixelScale = DEFAULT_PIXEL_SCALE;
+        this.gradientMap = null;
         this.boundResize = () => this.resize();
+        this.boundVisibilityChange = () => {
+            // requestAnimationFrame is suspended in background tabs. Discard its
+            // timestamp baseline on both edges so hidden time never enters play.
+            this.clock.lastTimestamp = null;
+            if (document.hidden) {
+                if (this.renderLoopId !== null) cancelAnimationFrame(this.renderLoopId);
+                this.renderLoopId = null;
+            } else if (this.active) this.startRenderLoop();
+        };
+        this.boundContextLost = event => {
+            event.preventDefault();
+            if(!this.active)return;
+            this.exit();
+            this.elements.loadStatus.textContent='Graphics were interrupted. Your board is safe. Try 3D View again.';
+            this.elements.loadStatus.hidden=false;
+        };
         this.bindControls();
         this.updateEntryAvailability();
     }
@@ -57,52 +92,147 @@ class ThreeDPlaybackViewer {
         this.elements.camera.addEventListener('change', event => this.setCamera(event.target.value));
         this.elements.rate.addEventListener('change', event => this.setPlaybackRate(Number(event.target.value)));
         this.elements.exit.addEventListener('click', () => this.exit());
+        this.elements.loop.addEventListener('click', () => this.board.plays.setLoop(!this.session.loop));
     }
 
     updateEntryAvailability() {
-        this.elements.enter.disabled = !this.board.plays?.activePlay;
+        this.elements.enter.disabled = Boolean(this.loading) || !this.board.plays?.activePlay;
     }
 
-    enter() {
+    cancelLoading() {
+        this.loadGeneration += 1;
+        this.loadAbort?.abort();this.loadAbort=null;
+        this.loading=false;
+        this.elements.enter.removeAttribute('aria-busy');
+        this.updateEntryAvailability();
+    }
+
+    async enter() {
         const play = this.board.plays?.activePlay;
-        if (!play || this.active) return false;
+        if (!play || this.active || this.loading) return false;
+        const snapshot=this.board.plays.snapshot;
+        this.board.plays.pause();
+        const generation=++this.loadGeneration;
+        const controller=new AbortController();this.loadAbort=controller;
+        this.loading=true;
+        this.updateEntryAvailability();
+        this.elements.enter.setAttribute('aria-busy','true');
+        let loadingSubject='Pixel athletes';
+        try {
+            this.pixelAssets=await loadPixelActorAssets();
+            loadingSubject='The park';
+            if(generation!==this.loadGeneration)return false;
+            const park = await createPark3D(THREE,{signal:controller.signal});
+            if(generation!==this.loadGeneration||this.board.plays.activePlay!==play||this.board.plays.snapshot!==snapshot){disposePark3D(park);return false;}
+            this.parkObject=park;
+        } catch(error) {
+            if(generation!==this.loadGeneration)return false;
+            controller.abort();
+            this.elements.loadStatus.textContent=`${loadingSubject} could not load. Your board is safe. Try 3D View again.`;
+            this.elements.loadStatus.hidden=false;
+            return false;
+        } finally {
+            if(generation===this.loadGeneration){this.loading=false;this.loadAbort=null;
+            this.elements.enter.removeAttribute('aria-busy');this.updateEntryAvailability();}
+        }
         this.currentPlay = play;
-        this.timeline = compilePlayTimeline(play);
-        this.clock.restart();
-        this.clock.setRate(Number(this.elements.rate.value));
+        this.timeline = this.board.plays.timeline;
+        this.session.owner = 'replay';
         this.board.plays.pause();
         this.elements.root.hidden = false;
         document.body.classList.add('three-d-active');
-        this.initializeScene();
-        this.applyAtTime(0);
-        this.setCamera(this.elements.camera.value);
+        try {
+            this.initializeScene();
+            this.applyAtTime(this.clock.elapsed);
+            this.setCamera(this.elements.camera.value);
+        } catch (error) {
+            this.disposeScene();
+            this.session.owner = 'guided';
+            this.board.plays.updateUI();
+            this.elements.root.hidden = true;
+            document.body.classList.remove('three-d-active');
+            this.active = false;
+            this.currentPlay = null;
+            this.timeline = null;
+            if (this.elements.loadStatus) {
+                this.elements.loadStatus.textContent = `3D view unavailable: ${error?.message || 'WebGL could not start.'}`;
+                this.elements.loadStatus.hidden = false;
+            }
+            this.elements.enter.disabled = false;
+            this.elements.enter.focus?.();
+            return false;
+        }
         this.active = true;
+        if (this.elements.loadStatus) {
+            this.elements.loadStatus.textContent = '';
+            this.elements.loadStatus.hidden = true;
+        }
         window.addEventListener('resize', this.boundResize);
+        document.addEventListener('visibilitychange', this.boundVisibilityChange);
         this.startRenderLoop();
         this.updateUI();
+        this.elements.playPause.focus?.();
         return true;
     }
 
     initializeScene() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x10251b);
+        this.scene.background = new THREE.Color(PALETTE.surround).multiplyScalar(0.72);
         this.camera = new THREE.PerspectiveCamera(48, 1, 0.05, 100);
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.renderer.shadowMap.enabled = false;
+        this.renderer.shadowMap.type = THREE.BasicShadowMap;
+        this.renderer.setPixelRatio(this.renderPixelRatio());
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.elements.canvas.replaceChildren(this.renderer.domElement);
+        this.renderer.domElement.addEventListener('webglcontextlost',this.boundContextLost);
 
-        this.scene.add(new THREE.HemisphereLight(0xdff3ff, 0x173326, 1.75));
-        const key = new THREE.DirectionalLight(0xfff4dc, 2.2);
-        key.position.set(-6, 9, -5);
+        this.scene.add(new THREE.HemisphereLight(PALETTE.line, PALETTE.greenDark, 0.85));
+        this.scene.add(new THREE.AmbientLight(PALETTE.line, 0.45));
+        const key = new THREE.DirectionalLight(PALETTE.line, 1.35);
+        key.position.set(-5, 10, -4);
+        key.castShadow = false;
+        key.shadow.mapSize.set(1024, 1024);
+        key.shadow.camera.left = -8;
+        key.shadow.camera.right = 8;
+        key.shadow.camera.top = 10;
+        key.shadow.camera.bottom = -10;
+        key.shadow.bias = -0.00035;
         this.scene.add(key);
-        const fill = new THREE.DirectionalLight(0x9fc7ff, 0.7);
-        fill.position.set(5, 4, 7);
-        this.scene.add(fill);
+        this.gradientMap = new THREE.DataTexture(new Uint8Array([72, 164, 255]), 3, 1, THREE.RedFormat);
+        this.gradientMap.minFilter = THREE.NearestFilter;
+        this.gradientMap.magFilter = THREE.NearestFilter;
+        this.gradientMap.generateMipmaps = false;
+        this.gradientMap.needsUpdate = true;
         this.buildCourt();
+        this.scene.add(this.parkObject);
         this.buildPlayers();
         this.buildBall();
+
         this.resize();
+    }
+
+    toonMaterial(color) {
+        return new THREE.MeshToonMaterial({ color, gradientMap: this.gradientMap });
+    }
+
+    flatMaterial(color) {
+        return new THREE.MeshBasicMaterial({ color });
+    }
+
+    renderPixelRatio() {
+        const cap = Number(VISUAL.render?.maxPixelRatio) || 2;
+        return Math.max(0.5, Math.min(window.devicePixelRatio || 1, cap) / this.pixelScale);
+    }
+
+    setPixelScale(scale) {
+        if (![1, 2].includes(scale)) throw new RangeError('Pixel scale must be 1 or 2.');
+        this.pixelScale = scale;
+        if (this.renderer) {
+            this.renderer.setPixelRatio(this.renderPixelRatio());
+            this.resize();
+        }
+        return this.pixelScale;
     }
 
     buildCourt() {
@@ -115,31 +245,34 @@ class ThreeDPlaybackViewer {
 
         const surround = new THREE.Mesh(
             new THREE.PlaneGeometry(width + 10, length + 10),
-            new THREE.MeshStandardMaterial({ color: 0x183b2b, roughness: 1 })
+            this.flatMaterial(PALETTE.surround)
         );
         surround.name = 'CourtSurround';
         surround.rotation.x = -Math.PI / 2;
         surround.position.y = -0.075;
+        surround.receiveShadow = true;
         courtGroup.add(surround);
 
         const slab = new THREE.Mesh(
             new THREE.BoxGeometry(width, 0.11, length),
-            new THREE.MeshStandardMaterial({ color: 0x315f48, roughness: 0.88, metalness: 0.02 })
+            this.flatMaterial(PALETTE.court)
         );
         slab.name = 'CourtSlab';
         slab.position.y = -0.055;
+        slab.receiveShadow = true;
         courtGroup.add(slab);
 
         const kitchen = new THREE.Mesh(
             new THREE.PlaneGeometry(width - 0.04, 14 * FEET_TO_METERS),
-            new THREE.MeshStandardMaterial({ color: 0x65756e, roughness: 0.95 })
+            this.flatMaterial(PALETTE.kitchen)
         );
         kitchen.name = 'KitchenSurface';
         kitchen.rotation.x = -Math.PI / 2;
         kitchen.position.y = 0.004;
+        kitchen.receiveShadow = true;
         courtGroup.add(kitchen);
 
-        const lineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.65 });
+        const lineMaterial = this.flatMaterial(PALETTE.line);
         const lineWidth = 0.045;
         const addLine = (name, x, z, w, d) => {
             const line = new THREE.Mesh(new THREE.BoxGeometry(w, 0.022, d), lineMaterial);
@@ -147,15 +280,22 @@ class ThreeDPlaybackViewer {
             line.position.set(x, 0.018, z);
             courtGroup.add(line);
         };
-        addLine('GreenBaseline', 0, -length / 2, width, lineWidth);
-        addLine('OrangeBaseline', 0, length / 2, width, lineWidth);
-        addLine('LeftSideline', -width / 2, 0, lineWidth, length);
-        addLine('RightSideline', width / 2, 0, lineWidth, length);
-        const kitchenZ = 7 * FEET_TO_METERS;
-        addLine('GreenKitchenLine', 0, -kitchenZ, width, lineWidth);
-        addLine('OrangeKitchenLine', 0, kitchenZ, width, lineWidth);
-        addLine('GreenCenterline', 0, -(length / 2 - 7 * FEET_TO_METERS) / 2, lineWidth, 15 * FEET_TO_METERS);
-        addLine('OrangeCenterline', 0, (length / 2 - 7 * FEET_TO_METERS) / 2, lineWidth, 15 * FEET_TO_METERS);
+        const names = ['GreenBaseline','OrangeBaseline','LeftSideline','RightSideline','GreenKitchenLine','OrangeKitchenLine','GreenCenterline','OrangeCenterline'];
+        COURT_LINES.forEach((line,index) => {
+            const from=boardToWorld(line.from),to=boardToWorld(line.to),thickness=line.lineWidthFeet*FEET_TO_METERS;
+            addLine(names[index],(from.x+to.x)/2,(from.z+to.z)/2,Math.abs(to.x-from.x)||thickness,Math.abs(to.z-from.z)||thickness);
+            const mesh=courtGroup.children.at(-1); mesh.userData.courtLine=line;
+        });
+
+        const shadowReceiver = new THREE.Mesh(
+            new THREE.PlaneGeometry(width + 10, length + 10),
+            new THREE.ShadowMaterial({ color: PALETTE.ink, opacity: 0.13, depthWrite: false })
+        );
+        shadowReceiver.name = 'CourtShadowReceiver';
+        shadowReceiver.rotation.x = -Math.PI / 2;
+        shadowReceiver.position.y = 0.032;
+        shadowReceiver.receiveShadow = true;
+        courtGroup.add(shadowReceiver);
 
         const centerHeight = COURT_DIMENSIONS.netCenterHeightFeet * FEET_TO_METERS;
         const sideHeight = COURT_DIMENSIONS.netSidelineHeightFeet * FEET_TO_METERS;
@@ -165,7 +305,7 @@ class ThreeDPlaybackViewer {
         netGroup.userData = { centerHeight, sideHeight, width: netWidth };
         courtGroup.add(netGroup);
 
-        const netMaterial = new THREE.LineBasicMaterial({ color: 0xd9e2e5, transparent: true, opacity: 0.52 });
+        const netMaterial = new THREE.LineBasicMaterial({ color: PALETTE.ink, transparent: true, opacity: 0.62 });
         const points = [];
         const segments = 16;
         const heightAt = x => centerHeight + (sideHeight - centerHeight) * Math.pow(Math.abs(x) / (netWidth / 2), 1.7);
@@ -194,11 +334,11 @@ class ThreeDPlaybackViewer {
         );
         const tape = new THREE.Mesh(
             new THREE.TubeGeometry(curve, 24, 0.028, 6, false),
-            new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 })
+            this.toonMaterial(PALETTE.line)
         );
         tape.name = 'NetTopTape';
         netGroup.add(tape);
-        const postMaterial = new THREE.MeshStandardMaterial({ color: 0x111820, roughness: 0.5 });
+        const postMaterial = this.toonMaterial(PALETTE.navyDark);
         for (const x of [-netWidth / 2, netWidth / 2]) {
             const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, sideHeight + 0.12, 12), postMaterial);
             post.name = 'NetPost';
@@ -210,239 +350,31 @@ class ThreeDPlaybackViewer {
     }
 
     buildPlayers() {
-        for (let index = 1; index <= 4; index += 1) {
-            const token = this.board.tokens[`player${index}`];
-            const team = token.element.classList.contains('team2-player') ? 'team2' : 'team1';
-            const group = this.createPlayer(team, token.handedness);
-            group.userData.id = token.id;
-            group.userData.team = team;
-            group.userData.handedness = token.handedness;
-            group.userData.restPose = captureRigRest(group.userData.nodes);
-            group.userData.aliases = dominantAliases(token.handedness);
-            group.userData.animation = { pose: 'ready', phase: 'ready', stroke: null, planted: false, locomotion: false };
-            this.scene.add(group);
-            this.playerObjects.set(token.id, group);
+        this.actorResources=new PixelActorResources(this.pixelAssets);
+        for(let index=1;index<=4;index++) {
+            const token=this.board.tokens[`player${index}`];
+            const team=token.element.classList.contains('team2-player')?'team2':'team1';
+            const actor=createPixelActor(this.actorResources,team,token.handedness);
+            actor.userData.id=token.id;this.scene.add(actor);this.playerObjects.set(token.id,actor);
         }
     }
 
-    createPlayer(team, handedness) {
-        const root = new THREE.Group();
-        root.name = 'PlayerRoot';
-        root.scale.setScalar(0.92);
-        const accent = TEAM_COLORS[team];
-        const navyMaterial = new THREE.MeshStandardMaterial({ color: NAVY, roughness: 0.72 });
-        const accentMaterial = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.68 });
-        const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xf0b58a, roughness: 0.82 });
-        const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0xf3f5f7, roughness: 0.7 });
-        const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x0d172d, roughness: 0.58 });
-        const nodes = {};
-        const register = (name, object, parent = root) => {
-            object.name = name;
-            parent.add(object);
-            nodes[name] = object;
-            return object;
-        };
-        const mesh = (geometry, material) => new THREE.Mesh(geometry, material);
-
-        const shadow = mesh(new THREE.CircleGeometry(0.42, 20), new THREE.MeshBasicMaterial({ color: 0x07130d, transparent: true, opacity: 0.34, depthWrite: false }));
-        shadow.rotation.x = -Math.PI / 2;
-        shadow.position.y = 0.006;
-        register('ContactShadow', shadow);
-
-        const hips = register('Hips', new THREE.Group());
-        hips.position.y = 0.79;
-        const pelvis = mesh(new THREE.BoxGeometry(0.38, 0.22, 0.24), navyMaterial);
-        pelvis.rotation.x = -0.12;
-        register('Pelvis', pelvis, hips);
-
-        const torso = register('Torso', new THREE.Group(), hips);
-        torso.position.set(0, 0.37, 0.055);
-        torso.rotation.x = -0.13;
-        const hoodie = mesh(new THREE.CapsuleGeometry(0.27, 0.45, 5, 10), navyMaterial);
-        register('HoodieBody', hoodie, torso);
-        const chestAccent = mesh(new THREE.BoxGeometry(0.3, 0.09, 0.025), accentMaterial);
-        chestAccent.position.set(0, 0.08, -0.27);
-        register('ChestAccent', chestAccent, torso);
-        const pouch = mesh(new THREE.BoxGeometry(0.25, 0.12, 0.06), navyMaterial);
-        pouch.position.set(0, -0.19, -0.27);
-        register('HoodiePouch', pouch, torso);
-        const hood = mesh(new THREE.TorusGeometry(0.19, 0.055, 6, 14, Math.PI), navyMaterial);
-        hood.rotation.set(Math.PI / 2, 0, Math.PI);
-        hood.position.set(0, 0.29, 0.12);
-        register('Hood', hood, torso);
-
-        const neck = mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.12, 8), skinMaterial);
-        neck.position.y = 0.37;
-        register('Neck', neck, torso);
-        const headGroup = register('Head', new THREE.Group(), torso);
-        headGroup.position.set(0, 0.55, 0.01);
-        const head = mesh(new THREE.SphereGeometry(0.18, 16, 12), skinMaterial);
-        head.scale.set(0.9, 1.08, 0.9);
-        register('HeadMesh', head, headGroup);
-        const capCrown = mesh(new THREE.SphereGeometry(0.19, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), accentMaterial);
-        capCrown.position.y = 0.09;
-        register('CapCrown', capCrown, headGroup);
-        const capBrim = mesh(new THREE.BoxGeometry(0.24, 0.025, 0.16), accentMaterial);
-        capBrim.position.set(0, 0.08, -0.17);
-        register('CapBrim', capBrim, headGroup);
-
-        const makeLeg = (side, x) => {
-            const leg = register(`${side}Leg`, new THREE.Group(), hips);
-            leg.position.set(x, -0.1, 0);
-            leg.rotation.z = side === 'Left' ? 0.12 : -0.12;
-            const thigh = mesh(new THREE.CapsuleGeometry(0.085, 0.33, 4, 8), navyMaterial);
-            thigh.position.y = -0.23;
-            thigh.rotation.z = side === 'Left' ? -0.12 : 0.12;
-            register(`${side}Thigh`, thigh, leg);
-            const knee = register(`${side}Knee`, new THREE.Group(), leg);
-            knee.position.set(side === 'Left' ? 0.025 : -0.025, -0.47, -0.025);
-            knee.rotation.x = 0.35;
-            const lower = mesh(new THREE.CapsuleGeometry(0.065, 0.27, 4, 8), skinMaterial);
-            lower.position.set(0, -0.2, -0.055);
-            register(`${side}LowerLeg`, lower, knee);
-            const foot = mesh(new THREE.BoxGeometry(0.16, 0.09, 0.31), shoeMaterial);
-            foot.position.set(0, -0.4, -0.16);
-            register(`${side}Foot`, foot, knee);
-        };
-        makeLeg('Left', -0.16);
-        makeLeg('Right', 0.16);
-
-        const makeArm = (side, x) => {
-            const arm = register(`${side}Arm`, new THREE.Group(), torso);
-            arm.position.set(x, 0.18, -0.04);
-            arm.rotation.z = side === 'Left' ? 0.42 : -0.42;
-            arm.rotation.x = -0.25;
-            const upper = mesh(new THREE.CapsuleGeometry(0.055, 0.27, 4, 8), navyMaterial);
-            upper.position.y = -0.18;
-            register(`${side}UpperArm`, upper, arm);
-            const elbow = register(`${side}Elbow`, new THREE.Group(), arm);
-            elbow.position.set(0, -0.38, -0.02);
-            elbow.rotation.x = -0.68;
-            elbow.rotation.z = side === 'Left' ? -0.12 : 0.12;
-            const forearm = mesh(new THREE.CapsuleGeometry(0.045, 0.23, 4, 8), skinMaterial);
-            forearm.position.set(0, -0.15, -0.08);
-            register(`${side}Forearm`, forearm, elbow);
-            const hand = register(`${side}Hand`, new THREE.Group(), elbow);
-            hand.position.set(0, -0.31, -0.16);
-            const handMesh = mesh(new THREE.SphereGeometry(0.065, 10, 8), skinMaterial);
-            register(`${side}HandMesh`, handMesh, hand);
-            return hand;
-        };
-        const leftHand = makeArm('Left', -0.29);
-        const rightHand = makeArm('Right', 0.29);
-        const paddleHand = handedness === 'right' ? rightHand : leftHand;
-        const paddleAssembly = register('PaddleAttachment', new THREE.Group(), paddleHand);
-        paddleAssembly.rotation.set(-0.25, 0, handedness === 'right' ? -0.14 : 0.14);
-        const handle = mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.27, 8), darkMaterial);
-        handle.position.y = -0.1;
-        register('PaddleHandle', handle, paddleAssembly);
-        const grip = mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.15, 8), new THREE.MeshStandardMaterial({ color: 0x202020, roughness: 0.9 }));
-        grip.position.y = -0.15;
-        register('PaddleGrip', grip, paddleAssembly);
-        const face = mesh(new THREE.CapsuleGeometry(0.16, 0.22, 5, 10), darkMaterial);
-        face.scale.z = 0.12;
-        face.position.y = -0.38;
-        register('PaddleFace', face, paddleAssembly);
-        const trim = mesh(new THREE.TorusGeometry(0.17, 0.015, 5, 16), accentMaterial);
-        trim.scale.set(1, 1.45, 0.22);
-        trim.position.y = -0.38;
-        register('PaddleTrim', trim, paddleAssembly);
-
-        paddleAssembly.userData.side = handedness;
-        root.userData.nodes = nodes;
-        root.userData.paddle = paddleAssembly;
-        root.userData.paddleHand = handedness === 'right' ? 'RightHand' : 'LeftHand';
-        root.userData.groundY = 0;
-        // The procedural model faces local -Z; Green looks toward +Z/Orange and Orange toward -Z/Green.
-        root.rotation.y = team === 'team1' ? Math.PI : 0;
-        return root;
-    }
-
-    resolvePoseChannels(root, poseName) {
-        const pose = POSE_LIBRARY[poseName] || POSE_LIBRARY.ready;
-        const aliases = root.userData.aliases;
-        return Object.fromEntries(Object.entries(pose).map(([role, value]) => [aliases[role] || role, value]));
-    }
-
-    applyPose(root, fromName, toName, progress) {
-        const rest = root.userData.restPose;
-        const from = this.resolvePoseChannels(root, fromName);
-        const to = this.resolvePoseChannels(root, toName);
-        const t = THREE.MathUtils.smoothstep(Math.max(0, Math.min(1, progress)), 0, 1);
-        Object.entries(root.userData.nodes).forEach(([name, node]) => {
-            const base = rest[name];
-            if (!base) return;
-            const fromChannel = from[name] || {};
-            const toChannel = to[name] || {};
-            const fromRotation = fromChannel.rotation || { x: 0, y: 0, z: 0 };
-            const toRotation = toChannel.rotation || { x: 0, y: 0, z: 0 };
-            node.rotation.set(
-                base.rotation.x + THREE.MathUtils.lerp(fromRotation.x, toRotation.x, t),
-                base.rotation.y + THREE.MathUtils.lerp(fromRotation.y, toRotation.y, t),
-                base.rotation.z + THREE.MathUtils.lerp(fromRotation.z, toRotation.z, t)
-            );
-            const fromPosition = fromChannel.position || { x: 0, y: 0, z: 0 };
-            const toPosition = toChannel.position || { x: 0, y: 0, z: 0 };
-            node.position.set(
-                base.position.x + THREE.MathUtils.lerp(fromPosition.x, toPosition.x, t),
-                base.position.y + THREE.MathUtils.lerp(fromPosition.y, toPosition.y, t),
-                base.position.z + THREE.MathUtils.lerp(fromPosition.z, toPosition.z, t)
-            );
-        });
-        root.userData.animation.pose = toName;
-    }
-
-    resetPlayerPoses() {
-        this.playerObjects.forEach(root => {
-            this.applyPose(root, 'ready', 'ready', 1);
-            root.userData.animation = { pose: 'ready', phase: 'ready', stroke: null, planted: false, locomotion: false };
-        });
-    }
-
-    applyLocomotion(root, progress, distance) {
-        if (distance < 0.06) return;
-        const phase = progress * Math.max(1, distance / 0.5) * Math.PI * 2;
-        const nodes = root.userData.nodes;
-        const rest = root.userData.restPose;
-        const swing = Math.sin(phase) * Math.min(0.24, distance * 0.06);
-        nodes.LeftLeg.rotation.x = rest.LeftLeg.rotation.x + swing;
-        nodes.RightLeg.rotation.x = rest.RightLeg.rotation.x - swing;
-        nodes.LeftArm.rotation.x = rest.LeftArm.rotation.x - swing * 0.35;
-        nodes.RightArm.rotation.x = rest.RightArm.rotation.x + swing * 0.35;
-        nodes.Hips.position.y = rest.Hips.position.y + Math.abs(Math.sin(phase)) * 0.025;
-        root.userData.animation.locomotion = true;
-    }
-
-    applySegmentAnimations(segment, localTime, progress) {
-        this.resetPlayerPoses();
-        const semantics = segment.shotSemantics;
-        this.playerObjects.forEach((root, id) => {
-            const from = segment.previous.positions[id];
-            const to = segment.step.positions[id];
-            const distance = from && to ? Math.hypot(to.x - from.x, to.y - from.y) * FEET_TO_METERS : 0;
-            const isStriker = semantics?.playerId === id;
-            if (isStriker) {
-                const plantStart = Math.max(0, segment.contactTime - semantics.profile.duration * 0.13);
-                const movementProgress = segment.contactTime ? Math.min(1, localTime / plantStart) : progress;
-                const planted = localTime >= plantStart && localTime <= segment.contactTime + 0.12;
-                root.userData.animation.planted = planted;
-                root.userData.animation.locomotion = false;
-                const strokeTime = Math.max(0, Math.min(semantics.profile.duration, localTime));
-                const sample = sampleStrokePose(semantics.stroke, semantics.profile, strokeTime);
-                this.applyPose(root, sample.from, sample.to, sample.progress);
-                root.userData.animation.phase = sample.phase;
-                root.userData.animation.stroke = semantics.stroke;
-                root.userData.animation.contactTime = segment.contactTime;
-                root.userData.animation.movementProgress = movementProgress;
-            } else {
-                if (segment.step.shot && localTime < segment.contactTime && distance < 0.25) {
-                    const splitProgress = Math.sin(Math.PI * Math.min(1, localTime / segment.contactTime));
-                    this.applyPose(root, 'ready', 'split-step', splitProgress);
-                    root.userData.animation.phase = 'split-step';
-                }
-                this.applyLocomotion(root, progress, distance);
+    applyPixelActors(segment,localTime) {
+        for(const [id,actor] of this.playerObjects) {
+            let sample;
+            if(segment) sample=sampleActorPresentation({segment,timeline:this.timeline,seconds:segment.startTime+localTime,playerId:id,localTime,cameraPosition:this.camera.position,cameraTarget:this.cameraTarget,handedness:actor.userData.handedness});
+            else {
+                const position=this.currentPlay.steps[0].positions[id],world=boardToWorld(position);
+                const facing={x:0,z:position.y<22?1:-1};
+                sample={handedness:actor.userData.handedness,worldPosition:world,viewDirection:selectCameraRelativeDirection(facing,world,this.camera.position,this.cameraTarget),action:'ready',phase:'ready',locomotionFrame:null,paddle:null};
             }
-        });
+            const isStriker=segment?.shotSemantics?.playerId===id;
+            const isIncoming=segment?.nextShotSemantics?.playerId===id;
+            const distance=isStriker?Math.abs(localTime-segment.contactTime):isIncoming?Math.abs(segment.duration-localTime):Infinity;
+            const window=localTime<segment?.contactTime?0.18:0.22;
+            const t=Math.max(0,1-distance/window),weight=t*t*(3-2*t);
+            updatePixelActor(actor,sample,this.camera,weight);
+        }
     }
 
     segmentEndpointTime(index) {
@@ -458,162 +390,168 @@ class ThreeDPlaybackViewer {
 
     previous() {
         if (!this.active) return false;
-        this.clock.pause();
+        this.board.plays.cancelScheduledWork();
         const target = Math.max(0, this.currentStepIndex() - 1);
-        this.clock.elapsed = this.segmentEndpointTime(target);
+        this.session.seek(this.segmentEndpointTime(target));
         this.applyAtTime(this.clock.elapsed);
         this.updateUI();
+        this.startRenderLoop();
         return true;
     }
 
     next() {
         if (!this.active) return false;
-        this.clock.pause();
+        this.board.plays.cancelScheduledWork();
         const target = Math.min(this.currentPlay.steps.length - 1, this.currentStepIndex() + 1);
-        this.clock.elapsed = this.segmentEndpointTime(target);
+        this.session.seek(this.segmentEndpointTime(target));
         this.applyAtTime(this.clock.elapsed);
         this.updateUI();
+        this.startRenderLoop();
         return true;
     }
 
     buildBall() {
-        const radius = COURT_DIMENSIONS.ballDiameterMeters / 2;
-        const visualRadius = radius * 1.16;
-        const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xeaff16, emissive: 0x5b6800, emissiveIntensity: 0.42, roughness: 0.38 });
-        const ball = new THREE.Mesh(new THREE.SphereGeometry(visualRadius, 18, 12), ballMaterial);
-        ball.userData = { physicalRadius: radius, visualRadius };
-        const stripe = new THREE.Mesh(new THREE.TorusGeometry(visualRadius * 1.01, visualRadius * 0.075, 5, 20), new THREE.MeshBasicMaterial({ color: 0x263214 }));
-        stripe.rotation.x = Math.PI / 2;
-        ball.add(stripe);
-        this.scene.add(ball);
-        this.ballObject = ball;
+        this.readableBall=new ReadableBall(this.scene,PALETTE);
+        this.ballObject=this.readableBall.object;
     }
 
     setCamera(name) {
         if (!CAMERA_PRESETS[name] || !this.camera) return false;
-        const preset = CAMERA_PRESETS[name];
-        this.camera.position.fromArray(preset.position);
-        this.camera.fov = preset.fov;
-        this.camera.updateProjectionMatrix();
-        this.camera.lookAt(...preset.target);
         this.cameraPreset = name;
+        this.applyCameraFraming();
+        if(this.currentPlay&&this.ballObject)this.applyAtTime(this.clock.elapsed);
+        this.startRenderLoop();
         return true;
     }
 
-    setPlaybackRate(rate) {
-        this.clock.setRate(rate);
-        this.updateUI();
+    applyCameraFraming() {
+        if (!this.camera || !this.cameraPreset) return;
+        const width = Math.max(1, this.elements.canvas.clientWidth);
+        const height = Math.max(1, this.elements.canvas.clientHeight);
+        const hudHeight = this.elements.root.hidden ? 0 : (this.elements.root.querySelector('.three-d-hud')?.getBoundingClientRect().height || 0);
+        const reservedPixels = Math.min(height * 0.8, hudHeight + 24);
+        // Include every authored position and shot, so playback never needs camera chasing.
+        // Conservative upright pixel-actor bounds include cap, feet and stroke reach.
+        const envelope = this.sceneEnvelope || [];
+        if (!this.sceneEnvelope) {
+        const halfWidth = COURT_DIMENSIONS.widthFeet * FEET_TO_METERS / 2;
+        const halfLength = COURT_DIMENSIONS.lengthFeet * FEET_TO_METERS / 2;
+        for (const x of [-halfWidth, halfWidth]) for (const z of [-halfLength, halfLength]) envelope.push([x, 0, z]);
+        for (const x of [-halfWidth - 0.3, halfWidth + 0.3]) for (const y of [0, 1.2]) envelope.push([x, y, 0]);
+        for (const step of this.currentPlay.steps) {
+            for (const [id, position] of Object.entries(step.positions)) {
+                if (id === 'ball') continue;
+                const point = boardToWorld(position);
+                for (const x of [-1, 1]) for (const y of [0, 2.4]) for (const z of [-1, 1]) {
+                    envelope.push([point.x + x, y, point.z + z]);
+                }
+            }
+        }
+        for (const segment of this.timeline.segments.filter(item => item.trajectory)) {
+            for (let i = 0; i <= 24; i++) {
+                const point = segment.trajectory.sample(segment.trajectory.totalDuration * i / 24);
+                envelope.push([point.x, point.y + 0.05, point.z]);
+            }
+        }
+        this.sceneEnvelope=envelope;
+        }
+        const framing = fitCameraPreset(this.cameraPreset, width / height, reservedPixels / height, envelope);
+        this.camera.clearViewOffset();
+        this.camera.aspect = width / height;
+        this.camera.fov = framing.fov;
+        this.camera.position.fromArray(framing.position);
+        this.camera.lookAt(...framing.target);
+        this.cameraTarget = {x:framing.target[0],y:framing.target[1],z:framing.target[2]};
+        // Shift the optical center into the usable area above the HUD.
+        this.camera.setViewOffset(width, height, 0, reservedPixels / 2, width, height);
+        this.camera.updateProjectionMatrix();
+        this.camera.updateMatrixWorld(true);
+        updateParkCamera(this.parkObject,this.camera);
+        this.updateBallReadability();
+        this.cameraFraming = {
+            aspect: width / height,
+            usableAspect: width / Math.max(1, height - reservedPixels),
+            reservedPixels,
+            distanceScale: framing.distanceScale,
+            position: [...framing.position],
+            target: [...framing.target]
+        };
     }
 
+    updateBallReadability() {
+        if(!this.readableBall||!this.camera)return;
+        const time=this.lastState?.elapsed||0;
+        this.readableBall.update(this.camera,this.elements.canvas.clientHeight,time,t=>this.sampleBall(t),this.lastState?.launched);
+    }
+
+    sampleBall(seconds) { return samplePlayBall(this.timeline, seconds); }
+
+    setPlaybackRate(rate) { this.board.plays.setPlaybackRate(rate); this.updateUI(); }
     togglePlay() {
         if (!this.active) return;
-        if (this.clock.elapsed >= this.timeline.duration) this.restart();
-        if (this.clock.playing) this.clock.pause();
-        else this.clock.play();
-        this.updateUI();
+        this.board.plays.cancelScheduledWork({preserveTransition:true});
+        if (this.clock.playing) this.session.pause(performance.now(), this.board.plays.timingScale);
+        else this.session.play();
+        this.updateUI(); this.startRenderLoop();
     }
-
     restart() {
-        this.clock.pause();
-        this.clock.restart();
-        this.applyAtTime(0);
-        this.updateUI();
+        this.board.plays.cancelScheduledWork(); this.session.seek(0);
+        this.applyAtTime(0); this.updateUI(); this.startRenderLoop();
     }
 
     startRenderLoop() {
-        if (this.renderLoopId !== null) return;
+        if (!this.active || document.hidden || this.renderLoopId !== null) return;
         this.renderLoopCount += 1;
         const frame = timestamp => {
-            if (!this.active) return;
-            this.renderLoopId = requestAnimationFrame(frame);
-            const elapsed = this.clock.update(timestamp);
-            this.applyAtTime(elapsed);
-            this.renderer.render(this.scene, this.camera);
-            if (elapsed >= this.timeline.duration && this.clock.playing) {
-                this.clock.pause();
-                this.updateUI();
+            this.renderLoopId = null;
+            if (!this.active || document.hidden) return;
+            const elapsed = this.session.tick(timestamp, this.board.plays.timingScale);
+            try {
+                this.applyAtTime(elapsed);
+                this.renderer.render(this.scene, this.camera);
+            } catch(error) {
+                this.exit();
+                this.elements.loadStatus.textContent='Replay could not continue. Your board is safe. Try 3D View again.';
+                this.elements.loadStatus.hidden=false;
+                return;
             }
+            this.updateUI();
+            if (this.session.holding && this.clock.playing) this.board.plays.scheduleHold();
+            else if (this.clock.playing) this.renderLoopId = requestAnimationFrame(frame);
         };
         this.renderLoopId = requestAnimationFrame(frame);
     }
 
     applyAtTime(seconds) {
-        const initial = this.currentPlay.steps[0].positions;
-        if (!this.timeline.segments.length || seconds <= 0) {
-            this.resetPlayerPoses();
-            this.applyPlayerPositions(initial, initial, 0);
-            const p = boardToWorld(initial.ball, 2.5);
-            this.ballObject?.position.set(p.x, p.y, p.z);
-            this.lastState = { phase: 'ready', elapsed: 0, bounced: false, ball: p };
-            return this.lastState;
-        }
-        const segment = this.timeline.segments.find(item => seconds <= item.endTime) || this.timeline.segments.at(-1);
-        const localTime = Math.max(0, Math.min(segment.duration, seconds - segment.startTime));
-        const progress = segment.duration ? localTime / segment.duration : 1;
-        const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-        this.applySegmentAnimations(segment, localTime, eased);
-        this.applyPlayerPositions(segment.previous.positions, segment.step.positions, eased, segment, localTime);
-        let ballState;
-        if (segment.trajectory) {
-            const trajectoryTime = Math.max(0, localTime - segment.trajectoryStartTime);
-            if (localTime + 1e-9 < segment.contactTime) {
-                const start = segment.trajectory.start;
-                ballState = { ...start, phase: 'waiting-contact', bounced: false, launched: false };
-            } else {
-                ballState = { ...segment.trajectory.sample(trajectoryTime), launched: true };
-            }
-            if (localTime + 1e-9 >= segment.contactTime && localTime <= segment.contactTime + 1e-9 && segment.shotSemantics) {
-                const actor = this.playerObjects.get(segment.shotSemantics.playerId);
-                actor.updateMatrixWorld(true);
-                actor.userData.paddle.getWorldPosition(this.ballObject.position);
-                ballState = { x: this.ballObject.position.x, y: this.ballObject.position.y, z: this.ballObject.position.z, phase: 'contact', bounced: false, launched: localTime + 1e-9 >= segment.contactTime };
-            } else {
-                this.ballObject.position.set(ballState.x, ballState.y, ballState.z);
-            }
-            const rotationsPerSecond = segment.trajectory.metadata.spin.rpm / 60;
-            const angle = trajectoryTime * rotationsPerSecond * Math.PI * 2;
-            this.ballObject.rotation.set(angle, angle * 0.35, 0);
-        } else {
-            const from = boardToWorld(segment.previous.positions.ball, 1.2);
-            const to = boardToWorld(segment.step.positions.ball, 1.2);
-            ballState = { x: THREE.MathUtils.lerp(from.x, to.x, eased), y: THREE.MathUtils.lerp(from.y, to.y, eased), z: THREE.MathUtils.lerp(from.z, to.z, eased), phase: 'movement', bounced: false };
-            this.ballObject.position.set(ballState.x, ballState.y, ballState.z);
-        }
-        this.lastState = { ...ballState, elapsed: seconds, stepIndex: segment.index };
-        this.elements.status.textContent = `${segment.step.label} · ${ballState.phase}`;
+        const segment=seconds>0?(this.timeline.segments.find(item=>seconds<=item.endTime)||this.timeline.segments.at(-1)):null;
+        const local=segment?Math.max(0,Math.min(segment.duration,seconds-segment.startTime)):0;
+        this.applyPixelActors(segment,local);
+        const ball=this.sampleBall(seconds);
+        this.ballObject.position.set(ball.x,ball.y,ball.z);
+        this.lastState={...ball,elapsed:seconds,stepIndex:segment?.index||0};
+        this.updateBallReadability();
+        const status=segment?`${segment.step.label} · ${ball.phase}`:'Ready';
+        if(this.elements.status.textContent!==status)this.elements.status.textContent=status;
         return this.lastState;
-    }
-
-    applyPlayerPositions(fromPositions, toPositions, progress, segment = null, localTime = 0) {
-        this.playerObjects.forEach((object, id) => {
-            const from = boardToWorld(fromPositions[id]);
-            const to = boardToWorld(toPositions[id]);
-            let movementProgress = progress;
-            if (segment?.shotSemantics?.playerId === id) {
-                const plantStart = Math.max(0.05, segment.contactTime - segment.shotSemantics.profile.duration * 0.13);
-                movementProgress = localTime >= plantStart ? 1 : Math.min(1, localTime / plantStart);
-            }
-            object.position.set(
-                THREE.MathUtils.lerp(from.x, to.x, movementProgress),
-                0,
-                THREE.MathUtils.lerp(from.z, to.z, movementProgress)
-            );
-        });
     }
 
     resize() {
         if (!this.renderer || !this.camera) return;
         const width = Math.max(1, this.elements.canvas.clientWidth);
         const height = Math.max(1, this.elements.canvas.clientHeight);
-        this.camera.aspect = width / height;
-        this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height, false);
+        this.applyCameraFraming();
+        this.startRenderLoop();
     }
 
     updateUI() {
         if (!this.currentPlay) return;
-        this.elements.title.textContent = `${this.currentPlay.name} · 3D`;
-        this.elements.playPause.textContent = this.clock.playing ? 'Pause' : this.clock.elapsed >= this.timeline.duration ? 'Replay' : 'Play';
+        const index=this.currentStepIndex(),step=this.currentPlay.steps[index];
+        const segment=this.timeline.segments.find(item=>this.clock.elapsed<=item.endTime);
+        const cueStep=this.timeline.segments.find(s=>s.rallyLeg===this.lastState?.rallyLeg)?.step;
+        updateCoachingUI(this.elements,{playId:this.currentPlay.id,title:`${this.currentPlay.name} · 3D`,stepIndex:index,stepCount:this.currentPlay.steps.length,label:step.label,description:step.description,shotType:cueStep?.shot?.type||step.shot?.type,nextShot:Boolean(cueStep&&cueStep.id!==step.id),phase:this.session.holding?'complete':this.lastState?.phase,elapsed:this.clock.elapsed,eventTime:segment?.startTime||0,loop:this.session.loop,reducedMotion:this.board.plays.reducedMotion.matches});
+        this.elements.rate.value=String(this.clock.playbackRate);
+        this.elements.playPause.textContent = this.clock.playing ? 'Pause' : this.session.holding ? 'Resume' : this.clock.elapsed >= this.timeline.duration ? 'Replay' : 'Play';
         this.elements.playPause.setAttribute('aria-pressed', String(this.clock.playing));
         const stepIndex = this.currentStepIndex();
         this.elements.previous.disabled = this.clock.playing || stepIndex === 0;
@@ -624,6 +562,7 @@ class ThreeDPlaybackViewer {
     getState() {
         return {
             active: this.active,
+            loop: this.session.loop, holding: this.session.holding, iteration: this.session.iteration,
             playing: this.clock.playing,
             elapsed: this.clock.elapsed,
             playbackRate: this.clock.playbackRate,
@@ -632,53 +571,59 @@ class ThreeDPlaybackViewer {
             playerCount: this.playerObjects.size,
             hasBall: Boolean(this.ballObject),
             renderLoopCount: this.renderLoopCount,
+            pixelScale: this.pixelScale,
+            framing: this.cameraFraming ? { ...this.cameraFraming } : null,
             lastState: this.lastState
         };
     }
 
-    exit() {
-        if (!this.active) return false;
-        this.clock.pause();
-        this.active = false;
-        if (this.renderLoopId !== null) cancelAnimationFrame(this.renderLoopId);
-        this.renderLoopId = null;
-        window.removeEventListener('resize', this.boundResize);
-        this.scene.traverse(object => {
+    disposeScene() {
+        this.renderer?.domElement.removeEventListener('webglcontextlost',this.boundContextLost);
+        disposePark3D(this.parkObject);this.parkObject=null;
+        this.readableBall?.dispose();this.readableBall=null;
+        this.actorResources?.dispose();this.actorResources=null;
+        this.scene?.traverse(object => {
             object.geometry?.dispose?.();
             if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
             else object.material?.dispose?.();
         });
-        this.renderer.dispose();
-        this.renderer.forceContextLoss?.();
+        this.gradientMap?.dispose?.();
+        this.renderer?.dispose?.();
+        this.renderer?.forceContextLoss?.();
         this.elements.canvas.replaceChildren();
-        this.elements.root.hidden = true;
-        document.body.classList.remove('three-d-active');
         this.playerObjects.clear();
         this.ballObject = null;
+        this.courtObject = null;
+        this.netObject = null;
+        this.gradientMap = null;
         this.scene = null;
         this.renderer = null;
         this.camera = null;
+        this.cameraFraming = null;
+        this.sceneEnvelope=null;
+    }
+
+    exit() {
+        if (!this.active) return false;
+        this.session.pause(performance.now(),this.board.plays.timingScale);
+        this.board.plays.cancelScheduledWork();
+        this.session.owner='guided';
+        this.active = false;
+        if (this.renderLoopId !== null) cancelAnimationFrame(this.renderLoopId);
+        this.renderLoopId = null;
+        window.removeEventListener('resize', this.boundResize);
+        document.removeEventListener('visibilitychange', this.boundVisibilityChange);
+        this.disposeScene();
+        this.elements.root.hidden = true;
+        document.body.classList.remove('three-d-active');
         this.currentPlay = null;
         this.timeline = null;
+        this.board.plays.applyAtTime(this.clock.elapsed);
+        this.board.plays.status = this.session.complete ? 'complete' : 'paused';
         this.board.plays.updateUI();
+        this.elements.enter.focus?.();
         return true;
     }
 }
-
-function initialize() {
-    if (!window.pickleboard?.plays) return;
-    const viewer = new ThreeDPlaybackViewer(window.pickleboard);
-    window.pickleboard.threeD = viewer;
-    const originalUpdateUI = window.pickleboard.plays.updateUI.bind(window.pickleboard.plays);
-    window.pickleboard.plays.updateUI = (...args) => {
-        const result = originalUpdateUI(...args);
-        viewer.updateEntryAvailability();
-        return result;
-    };
-    viewer.updateEntryAvailability();
-}
-
-if (window.pickleboard?.plays) initialize();
-else window.addEventListener('pickleboard:ready', initialize, { once: true });
 
 export { ThreeDPlaybackViewer };
