@@ -139,7 +139,7 @@ test.describe('service worker lifecycle', () => {
     await waitForWorker(page);
 
     await page.context().addCookies([{
-      name: 'test-cache-write-failure', value: '1', url: 'http://127.0.0.1:4173/'
+      name: 'test-cache-write-failure', value: '1', url: new URL('/', page.url()).href
     }]);
     const result = await page.evaluate(async () => {
       const response = await fetch('/script.js');

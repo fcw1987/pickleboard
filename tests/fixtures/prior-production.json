@@ -1,0 +1,149 @@
+{
+  "revision": "e67d060ca44a3c27af346007e619927bc6e3c9a1",
+  "files": [
+    {
+      "file": "assets/players/green-left-handed.png",
+      "sha256": "63b7b7fb8d943bcc4a5e99e4095e6328aeab66887054074ddabbf9fc16f9ecb6",
+      "matchesSource": true,
+      "bytes": 1360405
+    },
+    {
+      "file": "assets/players/green-right-handed.png",
+      "sha256": "a4dd756a180c2d8bb1746a43dbd35299609c42d022af04ee2a0417b84e226b09",
+      "matchesSource": true,
+      "bytes": 1409461
+    },
+    {
+      "file": "assets/players/orange-left-handed.png",
+      "sha256": "1634fd8a0efb88c88df8b67d6b6047eabb0bf626e0d3ad119e231f2df7a1d3fb",
+      "matchesSource": true,
+      "bytes": 717935
+    },
+    {
+      "file": "assets/players/orange-right-handed.png",
+      "sha256": "441d2630b8523cdc995931c0a208a3e6f936467a630208513404a252120d36f9",
+      "matchesSource": true,
+      "bytes": 722033
+    },
+    {
+      "file": "guided-plays.js",
+      "sha256": "63f9dba9f72cdc672030cdb70d56b6f940913c77b6569e649fbbc537a2ecb742",
+      "matchesSource": true,
+      "bytes": 18220
+    },
+    {
+      "file": "icons/apple-icon-180.png",
+      "sha256": "35bcacb5d59a40efeeca9789e5613fefcc23b53984de3d7fe91d330a341c8127",
+      "matchesSource": true,
+      "bytes": 18272
+    },
+    {
+      "file": "icons/icon-128x128.png",
+      "sha256": "e4e895fc5225aa0336f7f2e201dbd8a7a679c5d211b90cc1503214b50ec9a40b",
+      "matchesSource": true,
+      "bytes": 11306
+    },
+    {
+      "file": "icons/icon-144x144.png",
+      "sha256": "3c7d1fe280273cb88b3d47f662a4bfac2703a55541e906251089198b14811cfe",
+      "matchesSource": true,
+      "bytes": 14367
+    },
+    {
+      "file": "icons/icon-152x152.png",
+      "sha256": "741b96879c01041baef36404e216488bb6e502cb4cdf70d62a91a013adb99d09",
+      "matchesSource": true,
+      "bytes": 15537
+    },
+    {
+      "file": "icons/icon-192x192.png",
+      "sha256": "708579c0c1413df3870e1db1096790075ce3cf88b1cf317b10698805d758253b",
+      "matchesSource": true,
+      "bytes": 20781
+    },
+    {
+      "file": "icons/icon-384x384.png",
+      "sha256": "7740923a50f963ada902c5377c90e503adb052b6a68f91669f3e4b267bc8f383",
+      "matchesSource": true,
+      "bytes": 123459
+    },
+    {
+      "file": "icons/icon-512x512.png",
+      "sha256": "b28b432717065e1757adba7fc33ef5afd153595fe9ce4c083f97d00509598401",
+      "matchesSource": true,
+      "bytes": 186550
+    },
+    {
+      "file": "icons/icon-72x72.png",
+      "sha256": "a2c2675ba96e11052e6eaa2345aec2837544240ffb9024783381a9c4a74817f9",
+      "matchesSource": true,
+      "bytes": 4004
+    },
+    {
+      "file": "icons/icon-96x96.png",
+      "sha256": "5facf380488b8afcc9025aaceea2795c285d908498b147e86c2096240cf6527c",
+      "matchesSource": true,
+      "bytes": 5829
+    },
+    {
+      "file": "index.html",
+      "sha256": "ff507ccc8d97a9b459433cd0db725ada54fc59a5df49ed2bed1fad28d944371e",
+      "matchesSource": true,
+      "bytes": 16456
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "9d80106d591dd41a998d63fe4fd6e4ac73118ec868c370ee97a2ff7fd292a316",
+      "matchesSource": true,
+      "bytes": 1370
+    },
+    {
+      "file": "script.js",
+      "sha256": "6c161b703c904fbc426a0e93755a8e0ec4e167da2133eb39177e94fd2f194eef",
+      "matchesSource": true,
+      "bytes": 39906
+    },
+    {
+      "file": "styles.css",
+      "sha256": "ed7c5dca4f3162dc283b870a7d126aefef826b38bcb9343ce2f093568f4da313",
+      "matchesSource": true,
+      "bytes": 21818
+    },
+    {
+      "file": "three-d-animation.js",
+      "sha256": "fec88ef5a815f11e07ab82d38b0a480e1571bf5818514a15ca09327f885263c3",
+      "matchesSource": true,
+      "bytes": 6479
+    },
+    {
+      "file": "three-d-core.js",
+      "sha256": "20332dd4dc6b00635e187117c5e2a80bac67818e76dcb36b63fb9ad152eb05da",
+      "matchesSource": true,
+      "bytes": 11644
+    },
+    {
+      "file": "three-d-playback.js",
+      "sha256": "4bf5351af577a600f82f791f115aa6c50c94e27970c894f041af3b34a6ed0dce",
+      "matchesSource": true,
+      "bytes": 32547
+    },
+    {
+      "file": "vendor/three.core.min.js",
+      "sha256": "05b2609338c76cd65daf74f3ac515bc9a5045e1b3b33edc07d8c9bd55250fa90",
+      "matchesSource": true,
+      "bytes": 385386
+    },
+    {
+      "file": "vendor/three.module.min.js",
+      "sha256": "86bcee248b64f44bcfc23c331ae74619061957d59cab040171dcb6fb5900beb6",
+      "matchesSource": true,
+      "bytes": 365552
+    },
+    {
+      "file": "sw.js",
+      "sha256": "cc76d2bb90aaec6f7641e3200bbf09c0bb4b074f02f0afbba0aaebf50c4df683",
+      "bytes": 3988,
+      "matchesSource": true
+    }
+  ]
+}

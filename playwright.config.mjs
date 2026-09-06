@@ -9,7 +9,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [['line'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: process.env.PICKLEBALLPARK_TEST_URL || process.env.PICKLEBOARD_TEST_URL || 'http://127.0.0.1:4173',
+    baseURL: process.env.PICKLEBALLPARK_TEST_URL || process.env.PICKLEBOARD_TEST_URL || `http://127.0.0.1:${process.env.PORT || 4173}`,
     serviceWorkers: 'allow',
     trace: 'retain-on-failure'
   },
@@ -21,7 +21,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run start',
-    url: 'http://127.0.0.1:4173/index.html',
+    url: `http://127.0.0.1:${process.env.PORT || 4173}/index.html`,
     reuseExistingServer: !process.env.CI,
     stdout: 'ignore',
     stderr: 'pipe'
