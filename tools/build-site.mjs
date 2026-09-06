@@ -28,6 +28,5 @@ const manifest = JSON.stringify({ approvedSource: approved.source, files }, null
 if (hash(manifest) !== approvedManifestSha256) throw Error('Approved manifest changed; a new reviewed baseline is required');
 await writeFile('dist/runtime-manifest.json', manifest);
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-await writeFile('dist/build-info.json', JSON.stringify({ product: 'Pickleball Park', revision, approvedSource: approved.source, runtimeManifestSha256: hash(manifest), runtimeFiles: files.length, runtimeBytes: files.reduce((n, f) => n + f.bytes, 0), publicationMetadata: ['build-info.json', 'runtime-manifest.json', '.nojekyll'] }, null, 2) + '\n');
-await writeFile('dist/.nojekyll', '');
-console.log(`Packaged ${files.length} unchanged approved runtime files (${files.reduce((n, f) => n + f.bytes, 0)} bytes), plus 3 publication metadata files; revision ${revision}`);
+await writeFile('dist/build-info.json', JSON.stringify({ product: 'Pickleball Park', revision, approvedSource: approved.source, runtimeManifestSha256: hash(manifest), runtimeFiles: files.length, runtimeBytes: files.reduce((n, f) => n + f.bytes, 0), publicationMetadata: ['build-info.json', 'runtime-manifest.json'] }, null, 2) + '\n');
+console.log(`Packaged ${files.length} unchanged approved runtime files (${files.reduce((n, f) => n + f.bytes, 0)} bytes), plus 2 publication metadata files; revision ${revision}`);

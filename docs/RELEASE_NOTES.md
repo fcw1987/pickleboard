@@ -10,7 +10,7 @@ The existing install start URL, worker registration and scope, theme preference,
 
 ## Accumulated change from public main
 
-The current public main baseline is `e67d060ca44a3c27af346007e619927bc6e3c9a1`. The visually accepted runtime source is `f89cdfd`; this sanitized snapshot deliberately carries that approved runtime through a clean publication route rather than publishing its original development ancestry.
+The previous public main baseline was `e67d060ca44a3c27af346007e619927bc6e3c9a1`. The visually accepted runtime source is `f89cdfd`; this sanitized snapshot deliberately carries that approved runtime through a clean publication route rather than publishing its original development ancestry.
 
 Compared with public main, the accepted runtime includes an elevated editable SVG court with precise inverse dragging and drawing projection; original directional pixel athletes in the editor and spatial replay with connected grips; a textured park and consistent landmarks; one canonical court definition with service centerlines outside the kitchens; continuous rally flight and camera-independent facing; and a high-contrast outlined ball with restrained tracking cues.
 
@@ -20,7 +20,7 @@ The shared timeline supplies eight illustrative lessons: Serve & Return, Third S
 
 The worker remains at `sw.js` with the existing scope and `./index.html` start URL. The accepted runtime uses cache version v15 in the retained compatibility namespace; the existing theme key remains compatible. Only theme preference persists across reloads; player arrangements, drawings, and handedness are session-only.
 
-Local rebrand checks recorded 122 Chromium browser tests, 49 unit tests, and 77 asset checks. WebKit recorded 115 passes and seven documented offline-emulation/cache failures. These historical local counts are context only; hosted CI and the actual public-main-to-snapshot migration still require verification. Native Safari, installation, and physical phone/tablet behavior are outside the claims made here. No universal performance guarantee is made.
+Local rebrand checks recorded 122 Chromium browser tests, 49 unit tests, and 77 asset checks. WebKit recorded 115 passes and seven documented offline-emulation/cache failures. These historical local counts are context only; those were historical results, superseded by the executed hosted checks in [live delivery verification](LIVE_TESTING_DELIVERY.md). The actual public v8-to-v15 package upgrade passed in Chromium and WebKit. Native Safari, installation, and physical phone/tablet behavior are outside the claims made here. No universal performance guarantee is made.
 
 The public evidence intentionally excludes recordings, raw test logs, browser metadata, local machine paths, and redundant historical evidence. The retained stills establish the visible board, guided, 3D replay, menu, and help states; they do not claim frame-accurate video behavior or physical-device coverage.
 
