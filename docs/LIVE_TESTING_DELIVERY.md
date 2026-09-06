@@ -2,7 +2,7 @@
 
 ## Source and publication safety
 
-The approved desktop source is `f89cdfd6b7a0a9cbf4e1662c192634d6b794460f`, based on the pixel park milestone `dd0c3fa`. The sanitized candidate starts from the existing public main `e67d060ca44a3c27af346007e619927bc6e3c9a1`; it does not import unpublished development ancestry. Original branches, the private audit checkpoint `b7d0c87`, and the original accepted-source tag remain local. **Never merge those archived branches into public history.** Future development starts from published main.
+The approved desktop source is `f89cdfd6b7a0a9cbf4e1662c192634d6b794460f`, based on the pixel park milestone `dd0c3fa`. The sanitized candidate starts from the existing public main `e67d060ca44a3c27af346007e619927bc6e3c9a1`; it does not import unpublished development ancestry. Original branches, the private audit checkpoint, and the original accepted-source tag remain local. **Never merge those archived branches into public history.** Future development starts from published main.
 
 All 81 application/runtime files (1,437,276 bytes) are enumerated in `tests/fixtures/approved-runtime.json`, with SHA-256 hashes from the approved source. `npm run build:site` requires exact path-set and byte equivalence, compares the two vendor modules with the installed locked Three.js package, and excludes docs, tests, source previews, generators, dependencies and agent memory. The only added deployment files are `.nojekyll`, `runtime-manifest.json` and `build-info.json`. They are publication metadata, not application changes or offline-cache additions.
 

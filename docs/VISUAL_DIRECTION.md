@@ -32,7 +32,7 @@ High resolution and motion quality are measured separately. Callback cadence is 
 
 The replay's visible athletes are authored pixel body/paddle layers, matching the board's faceless navy caps/hoodies, broad team panels, white soles, and square paddles. Eight camera-relative views remain upright in the genuine 3D world. Stable foot pivots and contact shadows ground them; physical handedness is authored rather than mirrored branding. The canonical Play clock and ball trajectory remain authoritative. The paddle layer meets the ball, not the reverse.
 
-The ball is citron/cream with a navy edge and 10 CSS pixel minimum visible diameter, a short past-position trail, and a hollow occlusion cue. Default Overhead is elevated/angled with portrait-specific framing; Sideline is elevated but remains a sideline. No coarse full-scene pixel filter. Native DPR up to 2 and antialiasing remain. Detailed contract and final evidence: `PIXEL_ACTOR_ASSETS.md` and `PIXEL_REPLAY_VERIFICATION.md`.
+The ball is citron/cream with a navy edge and 10 CSS pixel minimum visible diameter, a short past-position trail, and a hollow occlusion cue. Default Overhead is elevated/angled with portrait-specific framing; Sideline is elevated but remains a sideline. No coarse full-scene pixel filter. Native DPR up to 2 and antialiasing remain. Detailed contract and final evidence: `PIXEL_ACTOR_ASSETS.md` and `PARK_COACHING_VERIFICATION.md`.
 
 ## Current unified park contract
 
