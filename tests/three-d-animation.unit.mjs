@@ -14,6 +14,32 @@ test('dominant side maps semantic roles without mirroring player root', () => {
   assert.equal(dominantAliases('left').dominantHand, 'LeftHand');
 });
 
+test('stroke families are visually distinct and block preparation stays compact', () => {
+  const serve = POSE_LIBRARY['serve-contact'];
+  const forehand = POSE_LIBRARY['forehand-contact'];
+  const drive = POSE_LIBRARY['drive-contact'];
+  const drop = POSE_LIBRARY['drop-contact'];
+  const blockPrepare = POSE_LIBRARY['block-prepare'];
+  const forehandPrepare = POSE_LIBRARY['forehand-prepare'];
+  assert.notDeepEqual(serve, forehand);
+  assert.notDeepEqual(drive, drop);
+  assert.ok(Math.abs(blockPrepare.dominantArm.rotation.z) < Math.abs(forehandPrepare.dominantArm.rotation.z));
+  assert.ok(drop.Hips.position.y < drive.Hips.position.y);
+});
+
+test('ready and contact poses stay within conservative balance bounds', () => {
+  assert.ok(Math.abs(POSE_LIBRARY.ready.Hips.rotation.x) <= 0.3);
+  assert.ok(Math.abs(POSE_LIBRARY.ready.Torso.rotation.x) <= 0.38);
+  for (const name of ['serve-contact', 'forehand-contact', 'drive-contact', 'drop-contact', 'block-contact', 'backhand-contact']) {
+    const pose = POSE_LIBRARY[name];
+    assert.ok(Math.abs(pose.Hips.rotation.x) <= 0.3, `${name} hip pitch`);
+    assert.ok(Math.abs(pose.Torso.rotation.x) <= 0.38, `${name} torso pitch`);
+    for (const key of ['dominantKnee', 'nonDominantKnee', 'LeftKnee', 'RightKnee']) {
+      if (pose[key]) assert.ok(pose[key].rotation.x >= 0 && pose[key].rotation.x <= 0.36, `${name} ${key}`);
+    }
+  }
+});
+
 test('stroke samples contain preparation, contact, follow-through, and recovery', () => {
   const profile = STROKE_PROFILES.forehand;
   assert.equal(sampleStrokePose('forehand', profile, 0).phase, 'prepare');

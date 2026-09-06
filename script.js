@@ -1,4 +1,7 @@
-// Pickleboard - Interactive Pickleball Court Planner
+import { populateParkSVG } from './park-scene.js';
+import './guided-plays.js';
+import { COURT_LINES } from './court-geometry.js';
+// Pickleball Park - Interactive Pickleball Coaching and Strategy
 
 // Register Service Worker for PWA support
 if ('serviceWorker' in navigator) {
@@ -15,6 +18,12 @@ if ('serviceWorker' in navigator) {
 class Pickleboard {
     constructor() {
         this.court = document.getElementById('court');
+        this.projection = window.PickleboardProjection;
+        if (!this.projection) throw new Error('Pickleball Park projection is unavailable');
+        this.actorLayer = document.getElementById('actorLayer');
+        this.tracerLayer = document.getElementById('tracerLayer');
+        const touchLayer = document.getElementById('touchLayer');
+        if (touchLayer && this.actorLayer) this.court.insertBefore(touchLayer, this.actorLayer);
         this.resetBtn = document.getElementById('resetBtn');
         this.clearTracersBtn = document.getElementById('clearTracersBtn');
         this.themeToggle = document.getElementById('themeToggle');
@@ -34,6 +43,9 @@ class Pickleboard {
         this.infoClose = document.getElementById('infoClose');
         this.drawControls = document.getElementById('drawControls');
         this.playInteractionLocked = false;
+        this.keyboardMovementStep = 0.5;
+        this.minimumTouchTargetCssSize = 44;
+        this.maximumTouchTargetRadius = 4;
         
         // Court boundaries (SVG coordinates in feet) - expanded to allow movement outside court
         this.courtBounds = {
@@ -90,8 +102,8 @@ class Pickleboard {
             minDistance: 0.5 // Minimum distance between tracer dots
         };
         
-        // Player artwork uses the logical token position as a body-center anchor.
-        this.playerArtworkSize = { width: 4, height: 3 };
+        // Numeric image attributes remain canonical; the render transform anchors the visible soles.
+        this.playerArtworkSize = { width: PICKLEBOARD_VISUAL.sprite.worldWidth, height: PICKLEBOARD_VISUAL.sprite.worldHeight };
         this.playerArtworkColors = { team1: 'green', team2: 'orange' };
 
         // Drawing system
@@ -109,17 +121,60 @@ class Pickleboard {
     }
     
     init() {
+        this.setupProjectedScene();
         this.setupEventListeners();
+        this.setupAdaptiveTouchTargets();
         this.setDrawingMode(false);
         this.loadTheme();
         this.setGameMode('doubles'); // Start with doubles
         this.initializeGuidedPlays();
     }
 
+    setupProjectedScene() {
+        const viewBox = this.projection.COURT_VIEWBOX;
+        this.court.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        const groundPlane = document.getElementById('groundPlane');
+        if (groundPlane) groundPlane.setAttribute('transform', this.projection.svgMatrix());
+        populateParkSVG(this.court, groundPlane);
+        const markings = document.getElementById('courtMarkings');
+        markings.replaceChildren(...COURT_LINES.map(line => {
+            const node = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            node.dataset.courtLine = line.name;
+            for (const [key, value] of Object.entries({x1:line.from.x,y1:line.from.y,x2:line.to.x,y2:line.to.y,'stroke-width':line.lineWidthFeet,stroke:'var(--pb-line)'})) node.setAttribute(key,value);
+            return node;
+        }));
+
+        const bounds = [
+            this.projection.courtToView(-8, -8),
+            this.projection.courtToView(28, -8),
+            this.projection.courtToView(28, 52),
+            this.projection.courtToView(-8, 52)
+        ];
+        const points = (values) => values.map(point => `${point.x},${point.y}`).join(' ');
+        const shadow = document.getElementById('courtCastShadow');
+        if (shadow) shadow.setAttribute('points', points(bounds.map(point => ({ x: point.x + 1, y: point.y + 1.1 }))));
+        const slab = document.getElementById('courtSlabEdge');
+        if (slab) slab.setAttribute('points', points([
+            bounds[3], bounds[2],
+            { x: bounds[2].x, y: bounds[2].y + 1.1 },
+            { x: bounds[3].x, y: bounds[3].y + 1.1 }
+        ]));
+
+        const net = document.getElementById('netActor');
+        const netGround = this.projection.courtToView(0, 22);
+        if (net) {
+            net.setAttribute('transform', `translate(0 ${netGround.y})`);
+            net.dataset.depth = String(netGround.y);
+        }
+    }
+
     initializeGuidedPlays() {
         if (!window.GuidedPlayEngine || !window.PICKLEBOARD_PLAYS) return;
         this.plays = new window.GuidedPlayEngine(this, window.PICKLEBOARD_PLAYS, {
             library: document.getElementById('playLibrary'),
+            loop: document.getElementById('playLoop'),
+            rate: document.getElementById('playRate'),
+            shotCue: document.getElementById('playShotCue'),
             pathLayer: document.getElementById('playPathLayer'),
             controls: document.getElementById('playbackControls'),
             title: document.getElementById('playbackTitle'),
@@ -148,6 +203,7 @@ class Pickleboard {
                     type: 'player',
                     element: visualElement,
                     touchElement: touchElement,
+                    baseTouchRadius: parseFloat(touchElement.getAttribute('r')),
                     x: parseFloat(visualElement.dataset.cx),
                     y: parseFloat(visualElement.dataset.cy),
                     handedness: visualElement.dataset.handedness === 'left' ? 'left' : 'right'
@@ -164,6 +220,7 @@ class Pickleboard {
                 type: 'ball',
                 element: ballVisual,
                 touchElement: ballTouch,
+                baseTouchRadius: parseFloat(ballTouch.getAttribute('r')),
                 x: parseFloat(ballVisual.getAttribute('cx')),
                 y: parseFloat(ballVisual.getAttribute('cy'))
             };
@@ -235,6 +292,13 @@ class Pickleboard {
         // Use touch target for better touch interaction, fallback to visual element
         const touchElement = token.touchElement || token.element;
         const visualElement = token.element;
+
+        touchElement.setAttribute('tabindex', '0');
+        touchElement.setAttribute('role', 'button');
+        touchElement.setAttribute('aria-roledescription', 'movable court token');
+        touchElement.addEventListener('keydown', event => this.handleTokenKeydown(event, token));
+        visualElement.setAttribute('aria-hidden', 'true');
+        this.updateTokenAccessibility(token);
         
         // Mouse events on both touch element and visual element
         touchElement.addEventListener('mousedown', (e) => this.startDrag(e, token));
@@ -300,6 +364,87 @@ class Pickleboard {
             document.addEventListener('touchcancel', (e) => this.endDrag(e));
             this.globalEventsSetup = true;
         }
+    }
+
+    handleTokenKeydown(event, token) {
+        const directions = {
+            ArrowLeft: [-this.keyboardMovementStep, 0],
+            ArrowRight: [this.keyboardMovementStep, 0],
+            ArrowUp: [0, -this.keyboardMovementStep],
+            ArrowDown: [0, this.keyboardMovementStep]
+        };
+        const movement = directions[event.key];
+        const handednessToggle = token.type === 'player' && (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar');
+        if (!movement && !handednessToggle) return;
+
+        event.preventDefault();
+        if (this.drawingMode || this.playInteractionLocked) return;
+
+        if (movement) {
+            this.setTokenPosition(token.id, token.x + movement[0], token.y + movement[1]);
+            return;
+        }
+        this.togglePlayerHandedness(token);
+    }
+
+    updateTokenAccessibility(token) {
+        if (!token.touchElement) return;
+        const disabled = this.drawingMode || this.playInteractionLocked;
+        token.touchElement.setAttribute('aria-disabled', String(disabled));
+        const position = `${Number(token.x.toFixed(1))}, ${Number(token.y.toFixed(1))} feet`;
+        if (token.type === 'player') {
+            const teamColor = this.getPlayerTeamColor(token);
+            const playerName = token.id.replace('player', 'Player ');
+            token.touchElement.setAttribute(
+                'aria-label',
+                `${playerName}, ${teamColor} team, ${token.handedness}-handed, at ${position}. Arrow keys move; Enter or Space switches handedness.`
+            );
+            token.touchElement.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space');
+        } else {
+            token.touchElement.setAttribute('aria-label', `Ball at ${position}. Arrow keys move.`);
+            token.touchElement.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown ArrowLeft ArrowRight');
+        }
+    }
+
+    updateTokenAccessibilityStates() {
+        Object.values(this.tokens).forEach(token => this.updateTokenAccessibility(token));
+    }
+
+    setupAdaptiveTouchTargets() {
+        let scheduledFrame = null;
+        const scheduleUpdate = () => {
+            if (scheduledFrame !== null) return;
+            scheduledFrame = requestAnimationFrame(() => {
+                scheduledFrame = null;
+                this.updateTouchTargetSizes();
+            });
+        };
+
+        this.updateTouchTargetSizes();
+        window.addEventListener('resize', scheduleUpdate);
+        if ('ResizeObserver' in window) {
+            this.touchTargetResizeObserver = new ResizeObserver(scheduleUpdate);
+            this.touchTargetResizeObserver.observe(this.court);
+        }
+    }
+
+    updateTouchTargetSizes() {
+        const matrix = this.court.getScreenCTM();
+        if (!matrix) return;
+        const scaleX = Math.hypot(matrix.a, matrix.b);
+        const scaleY = Math.hypot(matrix.c, matrix.d);
+        const pixelsPerUnit = Math.min(scaleX, scaleY);
+        if (!Number.isFinite(pixelsPerUnit) || pixelsPerUnit <= 0) return;
+
+        const minimumRadius = (this.minimumTouchTargetCssSize / 2) / pixelsPerUnit;
+        Object.values(this.tokens).forEach(token => {
+            if (!token.touchElement) return;
+            const radius = Math.min(
+                this.maximumTouchTargetRadius,
+                Math.max(token.baseTouchRadius, minimumRadius)
+            );
+            token.touchElement.setAttribute('r', String(Math.round(radius * 1000) / 1000));
+        });
     }
     
     startDrag(event, token) {
@@ -426,14 +571,15 @@ class Pickleboard {
     
     screenToSVG(screenX, screenY) {
         const svg = this.court;
-        const rect = svg.getBoundingClientRect();
-        const viewBox = svg.viewBox.baseVal;
-        
-        // Convert screen coordinates to SVG coordinates
-        const x = ((screenX - rect.left) / rect.width) * viewBox.width + viewBox.x;
-        const y = ((screenY - rect.top) / rect.height) * viewBox.height + viewBox.y;
-        
-        return { x, y };
+        const screenMatrix = svg.getScreenCTM();
+        if (!screenMatrix) return { x: 0, y: 0 };
+        // SVGMatrix.inverse() may round its coefficients to float32. Invert the
+        // reported affine coefficients in JS doubles so subpixel input round-trips.
+        const { a, b, c, d, e, f } = screenMatrix;
+        const determinant = a * d - b * c;
+        const px = screenX - e, py = screenY - f;
+        const viewPoint = { x: (d * px - c * py) / determinant, y: (a * py - b * px) / determinant };
+        return this.projection.viewToCourt(viewPoint);
     }
     
     updateTokenPosition(token, x, y) {
@@ -446,26 +592,66 @@ class Pickleboard {
         token.y = y;
         this.renderTokenPosition(token);
         
-        // Also update touch target position if it exists
+        // Canonical coordinates remain on the hit target; projection is render-only.
         if (token.touchElement) {
             token.touchElement.setAttribute('cx', x);
             token.touchElement.setAttribute('cy', y);
         }
+        if (token.type === 'ball') this.updateTokenAccessibility(token);
     }
 
     renderTokenPosition(token) {
+        const view = this.projection.courtToView(token.x, token.y);
+        const dx = view.x - token.x;
+        const dy = view.y - token.y;
+        const actor = document.getElementById(`${token.id}-actor`);
+
         if (token.type === 'player') {
             const { width, height } = this.playerArtworkSize;
+            const soleOffset = height * (PICKLEBOARD_VISUAL.sprite.anchorY / PICKLEBOARD_VISUAL.sprite.height - 0.5);
+            token.element.setAttribute('width', width);
+            token.element.setAttribute('height', height);
             token.element.setAttribute('x', token.x - width / 2);
             token.element.setAttribute('y', token.y - height / 2);
             token.element.dataset.cx = token.x;
             token.element.dataset.cy = token.y;
+            if (actor) {
+                actor.setAttribute('transform', `translate(${dx} ${dy - soleOffset})`);
+                actor.dataset.depth = String(view.y);
+                const shadow = actor.querySelector('.actor-shadow');
+                if (shadow) {
+                    shadow.setAttribute('cx', token.x);
+                    shadow.setAttribute('cy', token.y + soleOffset);
+                }
+            }
+            if (token.touchElement) token.touchElement.setAttribute('transform', `translate(${dx} ${dy})`);
             this.renderPlayerArtwork(token);
+            this.sortActorsByDepth();
             return;
         }
 
         token.element.setAttribute('cx', token.x);
         token.element.setAttribute('cy', token.y);
+        token.element.setAttribute('transform', `translate(0 ${-this.projection.projectHeight(this.playBallHeight || 0)})`);
+        if (actor) {
+            actor.setAttribute('transform', `translate(${dx} ${dy})`);
+            actor.dataset.depth = String(view.y);
+            const shadow = actor.querySelector('.ball-shadow');
+            if (shadow) {
+                shadow.setAttribute('cx', token.x);
+                shadow.setAttribute('cy', token.y + 0.35);
+            }
+        }
+        if (token.touchElement) token.touchElement.setAttribute('transform', `translate(${dx} ${dy})`);
+        this.sortActorsByDepth();
+    }
+
+    sortActorsByDepth() {
+        if (!this.actorLayer) return;
+        const current = [...this.actorLayer.children];
+        const sorted = [...current].sort((a, b) => Number(a.dataset.depth || 0) - Number(b.dataset.depth || 0));
+        if (current.every((actor, index) => actor === sorted[index])) return;
+        sorted.forEach(actor => this.actorLayer.appendChild(actor));
     }
 
     getPlayerTeamColor(token) {
@@ -479,6 +665,7 @@ class Pickleboard {
         token.element.setAttribute('href', `assets/players/${teamColor}-${token.handedness}-handed.png`);
         token.element.dataset.handedness = token.handedness;
         token.element.setAttribute('aria-label', `${token.id}, ${teamColor} team, ${token.handedness}-handed`);
+        this.updateTokenAccessibility(token);
     }
 
     togglePlayerHandedness(token) {
@@ -516,6 +703,10 @@ class Pickleboard {
         if (this.tokens.player3 && this.tokens.player4) {
             this.tokens.player3.element.style.display = isDoubles ? 'block' : 'none';
             this.tokens.player4.element.style.display = isDoubles ? 'block' : 'none';
+            const player3Actor = document.getElementById('player3-actor');
+            const player4Actor = document.getElementById('player4-actor');
+            if (player3Actor) player3Actor.style.display = isDoubles ? 'block' : 'none';
+            if (player4Actor) player4Actor.style.display = isDoubles ? 'block' : 'none';
             
             // Also show/hide touch targets
             if (this.tokens.player3.touchElement) {
@@ -625,8 +816,7 @@ class Pickleboard {
             element.setAttribute('cy', data.cy);
             element.setAttribute('r', data.r);
             element.setAttribute('class', data.className);
-            const touchTarget = this.court.querySelector('.touch-target');
-            this.court.insertBefore(element, touchTarget);
+            (this.tracerLayer || this.court).appendChild(element);
             const tracer = { element, createdTime: Date.now(), timeout: null };
             tracer.timeout = setTimeout(() => this.removeTracerDot(tracer), this.tracerSettings.fadeTime);
             this.tracerDots.push(tracer);
@@ -649,12 +839,18 @@ class Pickleboard {
         this.undoBtn.disabled = this.playInteractionLocked;
         this.clearDrawingsBtn.disabled = this.playInteractionLocked;
         this.gameModeInputs.forEach(input => { input.disabled = this.playInteractionLocked; });
+        this.updateTokenAccessibilityStates();
     }
 
     applyPlayPositions(positions) {
         Object.entries(positions).forEach(([id, position]) => {
             if (this.tokens[id]) this.updateTokenPosition(this.tokens[id], position.x, position.y);
         });
+    }
+
+    updateThemeControl(theme) {
+        this.themeToggle.textContent = theme === 'dark' ? 'Day' : 'Night';
+        this.themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
     }
 
     toggleTheme() {
@@ -665,7 +861,7 @@ class Pickleboard {
         body.setAttribute('data-theme', newTheme);
         
         // Update theme toggle button
-        this.themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        this.updateThemeControl(newTheme);
         
         // Save theme preference
         localStorage.setItem('pickleboard-theme', newTheme);
@@ -679,7 +875,7 @@ class Pickleboard {
         const theme = savedTheme || (prefersDark ? 'dark' : 'light');
         
         document.body.setAttribute('data-theme', theme);
-        this.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        this.updateThemeControl(theme);
         
         console.log(`Theme loaded: ${theme}`);
     }
@@ -765,13 +961,8 @@ class Pickleboard {
         
         console.log('Tracer element classes:', tracerElement.classList.toString());
         
-        // Add to SVG (insert before the touch targets so tracers appear behind interactive elements)
-        const touchTarget = this.court.querySelector('.touch-target');
-        if (touchTarget) {
-            this.court.insertBefore(tracerElement, touchTarget);
-        } else {
-            this.court.appendChild(tracerElement);
-        }
+        // Ground marks share the same projection as lines, drawings, and Play paths.
+        (this.tracerLayer || this.court).appendChild(tracerElement);
         
         console.log('Tracer element added to DOM');
         
@@ -849,6 +1040,7 @@ class Pickleboard {
             }
         }, { passive: false });
         
+        this.court.addEventListener('touchcancel', () => this.endDrawing());
         this.court.addEventListener('touchend', (e) => {
             if (this.drawingMode) {
                 e.preventDefault();
@@ -863,6 +1055,7 @@ class Pickleboard {
         this.drawToggle.setAttribute('aria-pressed', String(this.drawingMode));
         this.court.classList.toggle('drawing-mode', this.drawingMode);
         this.drawControls.hidden = !this.drawingMode;
+        this.updateTokenAccessibilityStates();
 
         if (!this.drawingMode && this.isDrawing) {
             this.endDrawing();
@@ -948,6 +1141,8 @@ class Pickleboard {
     
     // New UI methods
     setupUIEventListeners() {
+        this.setupDialogSemantics();
+
         // Menu toggle
         this.menuToggle.addEventListener('click', () => this.toggleMenu());
         this.menuClose.addEventListener('click', () => this.closeMenu());
@@ -969,14 +1164,77 @@ class Pickleboard {
             }
         });
         
-        // Close with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.closeMenu();
-                this.closeInfoModal();
+        document.addEventListener('keydown', event => this.handleDialogKeydown(event));
+    }
+
+    setupDialogSemantics() {
+        const menuTitle = this.menuOverlay.querySelector('h2');
+        const infoTitle = this.infoModal.querySelector('h2');
+        if (menuTitle && !menuTitle.id) menuTitle.id = 'menuTitle';
+        if (infoTitle && !infoTitle.id) infoTitle.id = 'infoTitle';
+
+        this.menuOverlay.setAttribute('role', 'dialog');
+        this.menuOverlay.setAttribute('aria-modal', 'true');
+        this.menuOverlay.setAttribute('aria-labelledby', menuTitle?.id || 'menuTitle');
+        this.infoModal.setAttribute('role', 'dialog');
+        this.infoModal.setAttribute('aria-modal', 'true');
+        this.infoModal.setAttribute('aria-labelledby', infoTitle?.id || 'infoTitle');
+        this.menuToggle.setAttribute('aria-expanded', 'false');
+        this.menuToggle.setAttribute('aria-haspopup', 'dialog');
+        this.infoToggle.setAttribute('aria-expanded', 'false');
+        this.infoToggle.setAttribute('aria-haspopup', 'dialog');
+        this.menuClose.setAttribute('aria-label', 'Close menu');
+        this.infoClose.setAttribute('aria-label', 'Close help and information');
+    }
+
+    getDialogFocusables(dialog) {
+        return [...dialog.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+        )].filter(element => !element.hidden && getComputedStyle(element).visibility !== 'hidden' && element.getClientRects().length > 0);
+    }
+
+    focusDialogWhenVisible(dialog, preferredElement) {
+        const tryFocus = (attempt = 0) => {
+            if (!dialog.classList.contains('active')) return;
+            if (getComputedStyle(dialog).visibility !== 'hidden' &&
+                getComputedStyle(preferredElement).visibility !== 'hidden') {
+                preferredElement.focus({ preventScroll: true });
+                return;
             }
-        });
-        
+            if (attempt < 60) requestAnimationFrame(() => tryFocus(attempt + 1));
+        };
+        requestAnimationFrame(() => tryFocus(0));
+    }
+
+    handleDialogKeydown(event) {
+        const dialog = this.infoModal.classList.contains('active')
+            ? this.infoModal
+            : this.menuOverlay.classList.contains('active') ? this.menuOverlay : null;
+        if (!dialog) return;
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            if (dialog === this.infoModal) this.closeInfoModal();
+            else this.closeMenu();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+
+        const focusables = this.getDialogFocusables(dialog);
+        if (focusables.length === 0) {
+            event.preventDefault();
+            return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const focusIsInside = dialog.contains(document.activeElement);
+        if (event.shiftKey && (!focusIsInside || document.activeElement === first)) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && (!focusIsInside || document.activeElement === last)) {
+            event.preventDefault();
+            first.focus();
+        }
     }
     
     toggleMenu() {
@@ -989,25 +1247,37 @@ class Pickleboard {
     }
     
     openMenu() {
+        if (this.infoModal.classList.contains('active')) this.closeInfoModal({ restoreFocus: false });
         this.menuOverlay.classList.add('active');
         this.menuToggle.classList.add('active');
+        this.menuToggle.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        this.focusDialogWhenVisible(this.menuOverlay, this.menuClose);
     }
     
-    closeMenu() {
+    closeMenu({ restoreFocus = true } = {}) {
+        const wasActive = this.menuOverlay.classList.contains('active');
         this.menuOverlay.classList.remove('active');
         this.menuToggle.classList.remove('active');
+        this.menuToggle.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = ''; // Restore scrolling
+        if (wasActive && restoreFocus) this.menuToggle.focus({ preventScroll: true });
     }
     
     openInfoModal() {
+        if (this.menuOverlay.classList.contains('active')) this.closeMenu({ restoreFocus: false });
         this.infoModal.classList.add('active');
+        this.infoToggle.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        this.focusDialogWhenVisible(this.infoModal, this.infoClose);
     }
     
-    closeInfoModal() {
+    closeInfoModal({ restoreFocus = true } = {}) {
+        const wasActive = this.infoModal.classList.contains('active');
         this.infoModal.classList.remove('active');
+        this.infoToggle.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = ''; // Restore scrolling
+        if (wasActive && restoreFocus) this.infoToggle.focus({ preventScroll: true });
     }
 }
 
@@ -1017,7 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.pickleboard = new Pickleboard();
     window.dispatchEvent(new CustomEvent('pickleboard:ready', { detail: window.pickleboard }));
     
-    console.log('Pickleboard initialized successfully');
+    console.log('Pickleball Park initialized successfully');
 });
 
 // Handle browser back/forward navigation

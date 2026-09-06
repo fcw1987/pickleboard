@@ -1,11 +1,11 @@
 {
-  "name": "Pickleboard",
-  "short_name": "Pickleboard",
-  "description": "Pickleball Court Planner and Strategy Tool",
+  "name": "Pickleball Park",
+  "short_name": "Pickleball Park",
+  "description": "Pickleball Park is an interactive pickleball coaching and strategy app with an editable tactical board, guided lessons, and spatial replay in one original pixel art park.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2c3e50",
+  "background_color": "#f4f0dc",
+  "theme_color": "#304762",
   "orientation": "any",
   "icons": [
     {

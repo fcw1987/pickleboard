@@ -1,15 +1,70 @@
 const CACHE_PREFIX = 'pickleboard-';
-const STATIC_CACHE = `${CACHE_PREFIX}static-v8`;
+const STATIC_CACHE = `${CACHE_PREFIX}static-v15`;
 const LEGACY_CACHES = new Set(['pickleboard-cache-v1']);
 const APP_SHELL_URL = new URL('./index.html', self.location).href;
 const STATIC_ASSETS = [
   './',
   './index.html',
   './script.js',
+  './visual-theme.js',
+  './board-projection.js',
+  './three-d-loader.js',
   './guided-plays.js',
+  './guided-pixel-actors.js',
+  './pixel-actor-assets.js',
+  './play-catalog.js',
+  './court-geometry.js',
+  './coaching-session.js',
+  './coaching-ui.js',
+  './park-layout.js',
+  './park-scene.js',
+  './assets/park/quiet-court.png',
+  './assets/park/grass.png',
+  './assets/park/path.png',
+  './assets/park/tree.png',
+  './assets/park/shrub.png',
+  './assets/park/bench.png',
+  './assets/park/sign.png',
+
   './three-d-core.js',
   './three-d-animation.js',
   './three-d-playback.js',
+  './three-d-presentation.js',
+  './three-d-pixel-actors.js',
+  './three-d-ball.js',
+  './assets/replay/metadata.json',
+  './assets/replay/green-left-back-body.png',
+  './assets/replay/green-left-back-left-body.png',
+  './assets/replay/green-left-back-right-action.png',
+  './assets/replay/green-left-back-right-body.png',
+  './assets/replay/green-left-front-action.png',
+  './assets/replay/green-left-front-body.png',
+  './assets/replay/green-left-front-right-body.png',
+  './assets/replay/green-left-left-body.png',
+  './assets/replay/green-right-back-body.png',
+  './assets/replay/green-right-back-left-body.png',
+  './assets/replay/green-right-back-right-action.png',
+  './assets/replay/green-right-back-right-body.png',
+  './assets/replay/green-right-front-action.png',
+  './assets/replay/green-right-front-body.png',
+  './assets/replay/green-right-front-right-body.png',
+  './assets/replay/green-right-left-body.png',
+  './assets/replay/orange-left-back-body.png',
+  './assets/replay/orange-left-back-left-body.png',
+  './assets/replay/orange-left-back-right-action.png',
+  './assets/replay/orange-left-back-right-body.png',
+  './assets/replay/orange-left-front-action.png',
+  './assets/replay/orange-left-front-body.png',
+  './assets/replay/orange-left-front-right-body.png',
+  './assets/replay/orange-left-left-body.png',
+  './assets/replay/orange-right-back-body.png',
+  './assets/replay/orange-right-back-left-body.png',
+  './assets/replay/orange-right-back-right-action.png',
+  './assets/replay/orange-right-back-right-body.png',
+  './assets/replay/orange-right-front-action.png',
+  './assets/replay/orange-right-front-body.png',
+  './assets/replay/orange-right-front-right-body.png',
+  './assets/replay/orange-right-left-body.png',
   './vendor/three.module.min.js',
   './vendor/three.core.min.js',
   './styles.css',
@@ -55,7 +110,7 @@ async function updateStaticCache(request, response) {
     const cache = await caches.open(STATIC_CACHE);
     await cache.put(request, response);
   } catch (error) {
-    console.warn('Unable to refresh the Pickleboard static cache:', error);
+    console.warn('Unable to refresh the Pickleball Park static cache:', error);
   }
 }
 

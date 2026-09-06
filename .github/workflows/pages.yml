@@ -1,0 +1,140 @@
+name: Deploy verified Pages artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character commit SHA currently at main
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  select-artifact:
+    name: Select verified artifact
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      quality_run_id: ${{ steps.quality.outputs.run_id }}
+    steps:
+      - name: Check out requested commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+      - name: Require the current main commit
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+        run: |
+          if ! printf '%s' "$COMMIT_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo 'commit_sha must be a lowercase, full 40-character SHA' >&2
+            exit 1
+          fi
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$COMMIT_SHA"
+          test "$(git rev-parse origin/main)" = "$COMMIT_SHA"
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
+      - name: Find the successful main push quality run
+        id: quality
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+        run: |
+          run_id="$(gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/workflows/quality.yml/runs" \
+            -f branch=main -f event=push -f status=success -f head_sha="$COMMIT_SHA" -f per_page=20 \
+            --jq '[.workflow_runs[] | select(.head_sha == env.COMMIT_SHA and .event == "push" and .head_branch == "main" and .conclusion == "success")][0].id // empty')"
+          if ! printf '%s' "$run_id" | grep -Eq '^[0-9]+$'; then
+            echo 'No successful Quality push run exists for the requested main commit' >&2
+            exit 1
+          fi
+          printf 'run_id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy exact verified artifact
+    needs: select-artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Reconfirm current main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+        run: |
+          current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$current" = "$COMMIT_SHA"
+      - name: Download the verified Pages artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.select-artifact.outputs.quality_run_id }}
+          name: github-pages
+          path: verified-artifact
+      - name: Validate artifact identity and manifest digest
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          APPROVED_SOURCE: f89cdfd6b7a0a9cbf4e1662c192634d6b794460f
+          APPROVED_MANIFEST_SHA256: 07d70d8216a078b8c83b2d0f03810f76b76a95b9ea2d8b68a94c3fd02e284cc5
+        run: |
+          test -f verified-artifact/artifact.tar
+          mkdir verified-contents
+          if tar -tf verified-artifact/artifact.tar | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo 'Artifact contains an unsafe path' >&2
+            exit 1
+          fi
+          tar -xf verified-artifact/artifact.tar -C verified-contents
+          node -e '
+            const fs = require("node:fs");
+            const path = require("node:path");
+            const crypto = require("node:crypto");
+            const root = "verified-contents";
+            const manifestBytes = fs.readFileSync(path.join(root, "runtime-manifest.json"));
+            const info = JSON.parse(fs.readFileSync(path.join(root, "build-info.json")));
+            const manifest = JSON.parse(manifestBytes);
+            const expected = process.env.COMMIT_SHA;
+            const sha = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
+            const walk = (dir, prefix = "") => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
+              entry.isDirectory() ? walk(path.join(dir, entry.name), `${prefix}${entry.name}/`) : `${prefix}${entry.name}`);
+            if (info.revision !== expected) throw new Error("artifact revision mismatch");
+            if (info.product !== "Pickleball Park") throw new Error("artifact product mismatch");
+            if (info.approvedSource !== process.env.APPROVED_SOURCE) throw new Error("approved source mismatch");
+            if (sha(manifestBytes) !== process.env.APPROVED_MANIFEST_SHA256) throw new Error("unapproved runtime manifest");
+            if (info.runtimeManifestSha256 !== sha(manifestBytes)) throw new Error("runtime manifest digest mismatch");
+            if (manifest.approvedSource !== info.approvedSource) throw new Error("manifest source mismatch");
+            const metadata = [".nojekyll", "build-info.json", "runtime-manifest.json"];
+            const expectedPaths = [...manifest.files.map(file => file.path), ...metadata].sort();
+            if (JSON.stringify(walk(root).sort()) !== JSON.stringify(expectedPaths)) throw new Error("artifact path set mismatch");
+            for (const file of manifest.files) {
+              if (!/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$)).+/.test(file.path)) throw new Error("unsafe manifest path");
+              const bytes = fs.readFileSync(path.join(root, file.path));
+              if (bytes.length !== file.bytes || sha(bytes) !== file.sha256) throw new Error(`runtime file mismatch: ${file.path}`);
+            }
+            if (info.runtimeFiles !== manifest.files.length) throw new Error("runtime file count mismatch");
+            if (info.runtimeBytes !== manifest.files.reduce((sum, file) => sum + file.bytes, 0)) throw new Error("runtime byte count mismatch");
+          '
+      - name: Re-upload the unchanged verified artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: github-pages
+          path: verified-artifact/artifact.tar
+          if-no-files-found: error
+          retention-days: 7
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
