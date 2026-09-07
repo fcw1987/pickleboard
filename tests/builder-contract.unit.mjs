@@ -20,7 +20,7 @@ class MemoryStorage {
 function assistedDocument() {
   const document = createStarterDocument();
   document.assistance = { autoShading: true, showGuides: true, team: 'both' };
-  document.shots[0].movement.pinned = true;
+  document.shots[0].movement = {intent:'manual',pinned:true,target:{x:15,y:5.25}};
   document.shots[1].movement.pinned = true;
   return document;
 }
@@ -29,6 +29,7 @@ test('real compiler and coverage preserve authored pins and every intended targe
   const document = assistedDocument();
   const authoredBefore = copy(document);
   const compiled = compileDocument(document);
+  assert.equal(compiled.validShotCount, 3);
   const compiledBefore = copy(compiled.play);
   const result = applyCoverageAssistance(compiled.play, document, compiled.timeline);
 

@@ -1323,7 +1323,8 @@ class Pickleboard {
         if (wasActive && restoreFocus) this.menuToggle.focus({ preventScroll: true });
     }
     
-    openInfoModal() {
+    openInfoModal({ returnFocus = this.infoToggle } = {}) {
+        this.infoReturnFocus = returnFocus;
         if (this.menuOverlay.classList.contains('active')) this.closeMenu({ restoreFocus: false });
         this.infoModal.classList.add('active');
         this.infoToggle.setAttribute('aria-expanded', 'true');
@@ -1336,7 +1337,10 @@ class Pickleboard {
         this.infoModal.classList.remove('active');
         this.infoToggle.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = ''; // Restore scrolling
-        if (wasActive && restoreFocus) this.infoToggle.focus({ preventScroll: true });
+        if (wasActive && restoreFocus) {
+            const target = this.infoReturnFocus?.isConnected && this.infoReturnFocus !== document.body && this.infoReturnFocus !== document.documentElement && !this.infoModal.contains(this.infoReturnFocus) && this.infoReturnFocus.getClientRects().length ? this.infoReturnFocus : this.infoToggle;
+            target.focus({ preventScroll: true });
+        }
     }
 }
 

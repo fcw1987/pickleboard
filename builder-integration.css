@@ -70,3 +70,41 @@ body.builder-workspace .modal {z-index:6000}
  .builder-transport {grid-column:1/-1;grid-row:2}
 }
 @media(max-height:500px) and (orientation:landscape){.builder-selected-summary{display:none}.builder-inspector .builder-field{margin:.25rem 0}.builder-inspector-header{font-size:.8rem}.builder-collapse{min-height:30px;font-size:.72rem}}
+.builder-inspector-header {position:sticky;top:0;background:var(--play-panel,#fffbea);z-index:2;padding-bottom:4px}
+@media(max-width:700px){
+ .builder-inspector-collapsed {left:calc(50% - 45px);right:auto;bottom:4px;width:90px;height:42px;padding:0;border:0;box-shadow:none;background:transparent;overflow:visible}
+ .builder-inspector-collapsed .builder-inspector-header {padding:0;background:transparent}.builder-inspector-collapsed .builder-inspector-header>div,.builder-inspector-collapsed .builder-inspector-header>span{display:none}
+ .builder-inspector-collapsed .builder-collapse {width:90px;min-height:42px}
+ .builder-camera {max-width:calc(50% - 51px)}.builder-camera select{width:100%}
+ .builder-inspector:not(.builder-inspector-collapsed){bottom:50px}
+}
+.builder-ui > * {min-width:0}
+/* At enlarged text sizes, readable controls take a scrollable document flow.
+   Ordinary viewports still fit without page scrolling. */
+.builder-large-text .builder-ui {display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+.builder-large-text .builder-ui > * {flex-shrink:0}
+.builder-large-text .builder-layout {flex:0 0 65dvh;min-height:350px}
+.builder-large-text .builder-topbar {flex-wrap:wrap;gap:8px}
+.builder-large-text .builder-brand {flex-basis:100%}
+.builder-large-text .builder-top-actions {flex-wrap:wrap;overflow:visible;max-width:100%}
+.builder-large-text .builder-top-actions .builder-button {white-space:normal}
+.builder-large-text .builder-meta {display:grid;grid-template-columns:minmax(0,1fr);height:auto}
+.builder-large-text .builder-meta > * {grid-column:1;max-width:100%;text-align:left}
+.builder-large-text .builder-cue {display:grid}
+.builder-large-text .builder-transport {display:block}
+.builder-large-text .builder-transport-buttons,.builder-large-text .builder-secondary-actions {display:flex;flex-wrap:wrap;overflow:visible}
+.builder-large-text .builder-transport-buttons input[type=range] {flex-basis:100%;width:100%}
+.builder-large-text .builder-button {height:auto;white-space:normal}
+.builder-large-text .builder-inspector-collapsed {height:auto}
+.builder-large-text .builder-inspector-collapsed .builder-collapse {font-size:.6rem;min-height:42px}
+.builder-large-text .builder-title {font-size:1rem}
+.builder-ui .builder-inspector.builder-inspector-collapsed > :not(.builder-inspector-header) {display:none}
+
+/* Keep append reachable when the sequence scrolls. */
+.builder-add-shot {position:sticky;right:0;z-index:2;background:var(--play-panel,#fffbea);box-shadow:-4px 0 0 var(--play-panel,#fffbea)}
+.builder-large-text .builder-cue {width:100%;margin:0;grid-template-columns:minmax(0,1fr)}
+.builder-large-text .builder-cue > * {min-width:0;white-space:normal;overflow-wrap:anywhere}
+.builder-add-shot {color:var(--text-primary,#182b3a)}
+.builder-button-primary {color:#182b3a}
+.builder-message {color:var(--text-primary,#182b3a);font-weight:600}
+.builder-button-accent {color:#182b3a}

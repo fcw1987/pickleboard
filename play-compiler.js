@@ -266,7 +266,7 @@ export function recompileAssistedDocument(document, compiled, assistedPlay, cove
   try { assistedTimeline = compilePlayTimeline(assistedPlay); }
   catch (error) {
     findings.push(finding('feasibility', 'warning', null, `Suggested coverage was not applied because the assisted plan could not compile: ${error.message}`));
-    return Object.freeze({ ...compiled, findings: Object.freeze(findings), coverage: Object.freeze(copy(coverage)) });
+    return Object.freeze({ ...compiled, findings: Object.freeze(findings), coverage: Object.freeze(copy(coverage).map(guide => ({...guide, explanation:'Suggested coverage only — movement was not applied because the assisted plan is infeasible.'}))) });
   }
   for (const segment of assistedTimeline.segments) {
     for (const id of PLAYER_IDS) {
@@ -274,7 +274,7 @@ export function recompileAssistedDocument(document, compiled, assistedPlay, cove
       if (distance(from, to) > segment.duration * 14 + 3) {
         const shotId = segment.step.shot?.authoring?.recipeId ?? null;
         findings.push(finding('feasibility', 'warning', shotId, `Suggested coverage was not applied because ${id} could not reach the derived position in the available time.`));
-        return Object.freeze({ ...compiled, findings: Object.freeze(findings), coverage: Object.freeze(copy(coverage)) });
+        return Object.freeze({ ...compiled, findings: Object.freeze(findings), coverage: Object.freeze(copy(coverage).map(guide => ({...guide, explanation:'Suggested coverage only — movement was not applied because the assisted plan is infeasible.'}))) });
       }
     }
   }

@@ -19,6 +19,7 @@ export class PlayBuilder {
         this.document = document || createStarterDocument();
         this.history = new EditHistory(this.document); this.selectedShotId = this.document.shots[0]?.id || null;
         this.ui = mountBuilderUI({ onAction: (action, value) => this.action(action, value) });
+        this.ui.element.addEventListener('scroll',()=>{this.fitCourt();this.courtTools?.render();},{passive:true});
         this.courtTools = new BuilderCourtTools(this);
         this.board.onCoachingState = () => {if(this.view==='3d'&&!this.busy&&this.workspace==='builder'&&!this.board.threeD?.active){this.view='2d';this.message='3D stopped. Your draft and playhead are safe in 2D; retry 3D when ready.';}this.scheduleRender();};
         this.frame = null;
@@ -49,11 +50,12 @@ export class PlayBuilder {
         this.fitCourt(); this.courtTools.render();
     }
     fitCourt() {
+        document.body.classList.toggle('builder-large-text',parseFloat(getComputedStyle(document.documentElement).fontSize)>24);
         const region=this.ui.element.querySelector(".builder-court-region");
         if(region!==this.observedRegion){this.regionObserver?.disconnect();this.observedRegion=region;if(region){this.regionObserver=new ResizeObserver(()=>this.fitCourt());this.regionObserver.observe(region);}}
         const surfaces=[document.querySelector(".court-container-fullscreen"),document.getElementById("threeDViewer")];
         if(this.workspace!=="builder"){for(const surface of surfaces)surface?.style.removeProperty("css-text");for(const surface of surfaces)if(surface)surface.style.cssText="";return;}
-        if(!region)return;const rect=region.getBoundingClientRect();const reserve=innerWidth<=700?100:48;const sceneHeight=Math.max(80,rect.height-reserve);const key=[rect.x,rect.y,rect.width,sceneHeight].join(":");
+        if(!region)return;const rect=region.getBoundingClientRect();const controls=[...region.querySelectorAll('.builder-camera,.builder-view-toggle')].map(node=>node.getBoundingClientRect().height+12);const collapsed=this.ui.element.querySelector('.builder-inspector-collapsed');if(innerWidth<=700&&collapsed)controls.push(collapsed.getBoundingClientRect().height+12);const reserve=Math.max(48,...controls);const sceneHeight=Math.max(80,rect.height-reserve);const key=[rect.x,rect.y,rect.width,sceneHeight].join(":");
         for(const surface of surfaces)if(surface)Object.assign(surface.style,{position:"fixed",inset:"auto",left:`${rect.x}px`,top:`${rect.y}px`,width:`${rect.width}px`,height:`${sceneHeight}px`,padding:"0"});
         const stage=document.getElementById("parkStage");if(stage){stage.style.width="100%";stage.style.height="100%";}
         if(key!==this.courtRect){this.courtRect=key;this.board.threeD?.resize?.();this.board.scheduleProjectionUpdate?.();}
@@ -115,7 +117,7 @@ export class PlayBuilder {
             if(generation!==this.generation||this.workspace!=='builder')return;
             this.busy=false;
             if(!opened){this.view='2d';this.message='3D is unavailable. Your draft is safe and editable in 2D. You can retry the view toggle.';this.render();return;}
-            this.view='3d'; this.message='';
+            this.view='3d'; this.message='';this.board.threeD.ballObject.userData.minimumCSSDiameter=12;
             this.board.threeD.applyAtTime(seconds);
         }
         if(wasPlaying) this.play(); this.courtTools.bind(); this.render();
@@ -158,7 +160,7 @@ export class PlayBuilder {
             if(action==='message'){this.message=String(value);this.render();return;}
             if(action==='view')return await this.switchView(value);
             if(action==='workspace')return await this.setWorkspace(value);
-            if(action==='help'){this.board.openInfoModal();return;}
+            if(action==='help'){const trigger=this.ui.element.querySelector('[data-action=help]');trigger?.focus({preventScroll:true});this.board.openInfoModal({returnFocus:trigger});return;}
             if(action==='playPause'){this.session.clock.playing?this.pause():this.play();}
             else if(action==='restart')this.seek(0);
             else if(action==='seek')this.seek(Number(value));

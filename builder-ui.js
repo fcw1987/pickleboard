@@ -73,7 +73,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     if (!templateDialog.open) templateDialog.showModal();
   }
   function openImportDialog() {
-    importDialog.replaceChildren(el('h2', '', 'Import / Export'), el('p', 'builder-dialog-copy', 'Paste a versioned play JSON backup or choose a local file.'), labelled('JSON backup', Object.assign(document.createElement('textarea'), { rows: 8, spellcheck: false })));
+    importDialog.replaceChildren(el('h2', '', 'Import / Export'), el('p', 'builder-dialog-copy', 'Paste a versioned play JSON backup or choose a local file, then select Import JSON.'), labelled('JSON backup', Object.assign(document.createElement('textarea'), { rows: 8, spellcheck: false })));
     const file = document.createElement('input'); file.type = 'file'; file.accept = 'application/json,.json'; file.setAttribute('aria-label', 'Choose JSON file'); file.dataset.action = 'import-file'; importDialog.appendChild(labelled('JSON file', file));
     const actions = el('div', 'builder-dialog-actions'); actions.append(button('Import JSON', 'import-json', 'builder-button builder-button-primary')); actions.append(button('Export current play', 'export', 'builder-button')); actions.append(button('Close', 'dialog-close', 'builder-button')); importDialog.appendChild(actions);
     if (!importDialog.open) importDialog.showModal();
@@ -100,7 +100,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const play = root.querySelector('[data-action="play-pause"]'); if (play) { play.textContent = current.playing ? 'Pause' : 'Play'; play.setAttribute('aria-pressed', String(Boolean(current.playing))); }
       root.classList.toggle('builder-busy', Boolean(current.busy));
       const loop = root.querySelector('[data-action="loop"]'); if (loop) { loop.textContent = current.loop ? 'Loop on' : 'Loop'; loop.setAttribute('aria-pressed', String(Boolean(current.loop))); }
-      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(current.targetPlacement || (inspectorManualCollapsed ?? ((current.playing || matchMedia('(max-width: 700px)').matches) && userInspectorExpanded !== true))); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"]'); if (collapseButton) { collapseButton.textContent = collapsed ? 'Expand' : 'Collapse'; collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
+      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(current.targetPlacement || (inspectorManualCollapsed ?? ((current.playing || matchMedia('(max-width: 700px)').matches) && userInspectorExpanded !== true))); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"]'); if (collapseButton) { collapseButton.textContent = collapsed ? 'Edit shot' : 'Collapse'; collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
       root.appendChild(templateDialog); root.appendChild(importDialog);
       return;
     }
@@ -151,7 +151,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       inspector.append(button('Use as starting layout', 'use-planner', 'builder-button builder-button-accent'));
       inspector.append(el('p', 'builder-selected-summary', 'Planner arrows and markup stay in the planner. They are not interpreted as rally shots.'));
     } else if (selected) {
-      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1}` : 'No shot selected')); const collapse = button(inspectorAutoCollapsed ? 'Expand' : 'Collapse', 'collapse-inspector', 'builder-button builder-collapse'); collapse.setAttribute('aria-expanded', String(!inspectorAutoCollapsed)); inspectorHeader.append(collapse); inspector.appendChild(inspectorHeader);
+      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1}` : 'No shot selected')); const collapse = button(inspectorAutoCollapsed ? 'Edit shot' : 'Collapse', 'collapse-inspector', 'builder-button builder-collapse'); collapse.setAttribute('aria-expanded', String(!inspectorAutoCollapsed)); inspectorHeader.append(collapse); inspector.appendChild(inspectorHeader);
       const summary = el('p', 'builder-selected-summary', 'Choose a hitter, shot family, target, and movement. The compiler will explain limits.'); inspector.appendChild(summary);
       const familySelect = select('Shot family', 'edit-family', FAMILIES); familySelect.querySelector('select').value = selected.family; inspector.appendChild(familySelect);
       const hitterSelect = select('Hitter', 'edit-hitter', PLAYERS); hitterSelect.querySelector('select').value = selected.hitter; inspector.appendChild(hitterSelect);
@@ -175,7 +175,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const handed = el('details', 'builder-handedness'); handed.open = false; handed.append(el('summary', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); inspector.appendChild(handed);
       if (current.findings?.length) { const find = el('div', 'builder-findings'); find.append(el('strong', '', 'Review')); current.findings.forEach(f => { const item = typeof f === 'string' ? { message: f } : f; const label = [item.shotId || item.stepId, item.kind].filter(Boolean).join(' · '); find.append(el('p', '', `${label ? `${label}: ` : ''}${item.message || 'Review this shot'}`)); }); inspector.appendChild(find); }
     } else {
-      const header=el('div','builder-inspector-header');header.append(el('span','','Play settings'),button(inspectorAutoCollapsed?'Expand':'Collapse','collapse-inspector','builder-button builder-collapse'));inspector.append(header,el('p','builder-empty','Add a shot to start authoring.'));
+      const header=el('div','builder-inspector-header');header.append(el('span','','Play settings'),button(inspectorAutoCollapsed?'Edit play':'Collapse','collapse-inspector','builder-button builder-collapse'));inspector.append(header,el('p','builder-empty','Add a shot to start authoring.'));
       const global = el('div', 'builder-global-settings'); global.append(el('h2', '', 'Play settings')); [['autoShading', 'Auto Shading'], ['showGuides', 'Show Coverage Guides']].forEach(([field, label]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; row.append(input, el('span', '', label)); global.append(row); }); global.append(select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']])); global.append(select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']])); inspector.append(global);
     }
     layout.appendChild(inspector); root.appendChild(layout);
@@ -192,6 +192,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   function handleClick(event) {
     const target = event.target.closest('[data-action]'); if (!target || !root.contains(target)) return;
     const action = target.dataset.action;
+    const input=document.activeElement;if(input&&root.contains(input)&&input.matches('input:not([type=range]),textarea'))input.blur();
     if (action === 'select-shot') rerenderAction('selectShot', target.dataset.shotId);
     else if (action === 'view') rerenderAction('view', target.dataset.view);
     else if (action === 'workspace-planner') rerenderAction('workspace', 'planner');
@@ -227,13 +228,14 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (target.dataset.action === 'camera') fire('camera', target.value);
     else if (target.dataset.action === 'handedness') fire('handedness', { id: target.dataset.playerId, value: target.value });
     else if (target.dataset.action === 'import-file') {
-      const file = target.files?.[0]; if (file) { if (file.size > MAX_IMPORT_BYTES) { fire('message', `Import is limited to ${Math.round(MAX_IMPORT_BYTES / 1024)} KiB.`); return; } file.text().then(raw => fire('import', raw)); }
+      const file = target.files?.[0]; if (file) { if (file.size > MAX_IMPORT_BYTES) { fire('message', `Import is limited to ${Math.round(MAX_IMPORT_BYTES / 1024)} KiB.`); return; } file.text().then(raw => { if (!importDialog.open) return; const area=importDialog.querySelector('textarea'); if(area)area.value=raw; }).catch(() => fire('message','The selected file could not be read. Try another JSON backup.'));  }
     }
     else if (target.dataset.action === 'opening' || target.dataset.action === 'ending') fire(target.dataset.action, target.value);
     else if (target.dataset.action === 'intentionalFault') fire('intentionalFault', target.checked);
     else if (target.dataset.action === 'seek') fire('seek', Number(target.value));
   }
   function handleInput(event) { if (event.target.dataset.action === 'seek') fire('seek', Number(event.target.value)); }
+  root.addEventListener('pointerdown',event=>{if(event.target.closest('button')&&root.contains(document.activeElement)&&document.activeElement.matches('input:not([type=range]),textarea'))event.preventDefault();});
   root.addEventListener('click', handleClick); root.addEventListener('change', handleChange); root.addEventListener('input', handleInput);
   render();
   return { render, destroy() { destroyed = true; root.remove(); document.body.classList.remove('builder-workspace', 'planner-workspace'); }, element: root };

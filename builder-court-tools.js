@@ -40,11 +40,11 @@ export class BuilderCourtTools {
         if(!this.placing&&!near)return;
         const point=this.unproject(event);if(!point)return;
         this.builder.pause();event.preventDefault();event.stopPropagation();this.surface.setPointerCapture(event.pointerId);
-        this.drag={pointer:event.pointerId,offset:near?{x:point.x-shot.target.x,y:point.y-shot.target.y}:{x:0,y:0},target:{...shot.target}};
+        this.drag={pointer:event.pointerId,offset:near&&!this.placing?{x:point.x-shot.target.x,y:point.y-shot.target.y}:{x:0,y:0},target:{...shot.target}};
         this.move(event);
     }
     move(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;const p=this.unproject(event);if(!p)return;this.drag.target={x:Math.max(0,Math.min(20,p.x-this.drag.offset.x)),y:Math.max(0,Math.min(44,p.y-this.drag.offset.y))};this.render();}
-    up(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;const target=this.drag.target;this.drag=null;this.placing=false;this.surface.releasePointerCapture(event.pointerId);this.builder.action('editShot',{field:'target',value:target});}
+    up(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;this.move(event);const target=this.drag.target;this.drag=null;this.placing=false;this.surface.releasePointerCapture(event.pointerId);this.builder.action('editShot',{field:'target',value:target});}
     cancel(event){if(this.drag&&event.pointerId===this.drag.pointer){this.drag=null;this.placing=false;this.render();}}
     clear(){this.drag=null;this.placing=false;this.layer.replaceChildren();}
     render(){
