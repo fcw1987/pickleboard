@@ -85,12 +85,12 @@ Automatic forehand/backhand selection uses physical handedness and the contact's
 templateSource: {
   templateId,
   recipeSignatures,
-  documentSignature, // layout/players/annotations/assistance/opening/ending/fault state
+  documentSignature, // layout/players/opening/ending/fault state
   play // embedded immutable-by-convention source snapshot
 }
 ```
 
-This is inspectable document data. Validation requires the ID, recipe signatures, document signature, and embedded play to exactly match one of the eight trusted built-in lessons; imported data cannot forge a compatibility snapshot or add runtime fields. While every recipe and compatibility-significant document field is unchanged, compilation returns the embedded approved steps exactly, preserving lesson timing, intermediate movement-only steps, contact metadata, and trajectory semantics. Changing a recipe, initial layout, player properties, annotations, assistance settings, opening, ending, or intentional-fault state leaves this compatibility path and genuinely recompiles all recipes from authoring intent. No lesson ID is secretly substituted.
+This is inspectable document data. Validation requires the ID, recipe signatures, document signature, and embedded play to exactly match one of the eight trusted built-in lessons; imported data cannot forge a compatibility snapshot or add runtime fields. While every recipe and compatibility-significant document field is unchanged, compilation returns the embedded approved steps exactly, preserving lesson timing, intermediate movement-only steps, contact metadata, and trajectory semantics. Changing a recipe, initial layout, player properties, opening, ending, or intentional-fault state leaves this compatibility path and genuinely recompiles all recipes from authoring intent. Annotations and Show Coverage Guides remain presentation data and preserve the exact lesson timeline. Auto Shading is applied afterward through the guarded coverage boundary, where it may change eligible player positions but cannot change ball flight. No lesson ID is secretly substituted.
 
 Persisted template snapshots require the same size limit as imports. Future migrations that alter either schema or trajectory interpretation must increment the corresponding version and retain explicit migration behavior; they must not silently reinterpret older drafts.
 

@@ -206,8 +206,8 @@ function templateRecipes(play) {
 
 export function documentCompatibilitySignature(document) {
   return JSON.stringify({
-    initialLayout: document.initialLayout, players: document.players, annotations: document.annotations,
-    assistance: document.assistance, opening: document.opening, ending: document.ending,
+    initialLayout: document.initialLayout, players: document.players,
+    opening: document.opening, ending: document.ending,
     intentionalFault: document.intentionalFault
   });
 }

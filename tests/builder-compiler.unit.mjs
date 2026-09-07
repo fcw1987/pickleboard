@@ -256,8 +256,7 @@ test('changes to non-shot template source fields cannot use stale approved steps
     document => { document.initialLayout.player2.x = 6; },
     document => { document.players.player1.handedness = 'left'; },
     document => { document.opening = 'midrally'; },
-    document => { document.ending = 'winner'; },
-    document => { document.assistance.showGuides = true; }
+    document => { document.ending = 'winner'; }
   ];
   for (const mutate of mutations) {
     const document = documentFromTemplate(source);
@@ -267,6 +266,20 @@ test('changes to non-shot template source fields cannot use stale approved steps
     assert.deepEqual(result.play.assistance, document.assistance);
     assert.equal(result.play.ending, document.ending);
     assert.equal(result.play.rally.openingBouncesSatisfied, document.opening === 'midrally');
+  }
+});
+
+test('guide-only assistance and annotations preserve every approved template timeline', () => {
+  for (const source of PICKLEBOARD_PLAYS) {
+    const baselineDocument = documentFromTemplate(source);
+    const baseline = compileDocument(baselineDocument);
+    const guidedDocument = documentFromTemplate(source);
+    guidedDocument.assistance.showGuides = true;
+    guidedDocument.annotations.push({ type: 'label', text: 'Guide-only note' });
+    const guided = compileDocument(guidedDocument);
+    assert.deepEqual(guided.play.steps, baseline.play.steps, source.id);
+    assert.equal(guided.timeline.duration, baseline.timeline.duration, source.id);
+    assert.deepEqual(guided.timeline.events, baseline.timeline.events, source.id);
   }
 });
 
@@ -310,6 +323,9 @@ test('coverage recompilation preserves semantics, pins, targets, and stable even
   assert.equal(result.play.steps[1].positions.player2.x, compiled.play.steps[1].positions.player2.x + .35);
   assert.deepEqual(result.play.steps.map(step => step.shot?.intendedTarget), compiled.play.steps.map(step => step.shot?.intendedTarget));
   assert.deepEqual(result.timeline.events.map(event => event.id), compiled.timeline.events.map(event => event.id));
+  for (const time of compiled.timeline.events.map(event => event.time)) {
+    assert.deepEqual(samplePlayBall(result.timeline, time), samplePlayBall(compiled.timeline, time), `ball flight at ${time}`);
+  }
   assert.deepEqual(result.coverage, coverage);
 
   const guideDocument = createStarterDocument();
