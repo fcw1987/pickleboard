@@ -133,9 +133,14 @@ test('compiler does not mutate source targets, manual movement, or pins', () => 
   const before = clone(document);
   Object.freeze(document.shots[2].movement);
   Object.freeze(document.shots[2]);
-  compileDocument(document);
+  const result = compileDocument(document);
   assert.deepEqual(document, before);
   assert.deepEqual(document.shots[2].movement, before.shots[2].movement);
+  assert.deepEqual(result.play.steps[3].shot.authoring.movement, before.shots[2].movement);
+  assert.deepEqual(result.findings.find(item => item.kind === 'unsupported'), {
+    kind: 'unsupported', severity: 'warning', shotId: 'drop-3',
+    message: 'Movement waypoints are preserved, but trajectory model version 1 uses the final movement target only.'
+  });
 });
 
 test('all eight templates preserve approved timing, positions, contacts, and bounce semantics exactly', () => {
@@ -163,6 +168,43 @@ test('editing a template recipe leaves the exact-source path and recompiles auth
   assert.deepEqual(result.play.steps[3].shot.intendedTarget, { x: 11.25, y: 28.5 });
   assert.equal(result.play.steps[3].shot.type, 'drive');
   assert.notDeepEqual(result.play.steps, source.steps);
+});
+
+test('changes to non-shot template source fields cannot use stale approved steps', () => {
+  const source = PICKLEBOARD_PLAYS.find(play => play.id === 'third-shot-drop');
+  const mutations = [
+    document => { document.initialLayout.player2.x = 6; },
+    document => { document.players.player1.handedness = 'left'; },
+    document => { document.opening = 'midrally'; },
+    document => { document.ending = 'winner'; },
+    document => { document.assistance.showGuides = true; }
+  ];
+  for (const mutate of mutations) {
+    const document = documentFromTemplate(source);
+    mutate(document);
+    const result = compileDocument(document);
+    assert.notDeepEqual(result.play.steps, source.steps);
+    assert.deepEqual(result.play.assistance, document.assistance);
+    assert.equal(result.play.ending, document.ending);
+    assert.equal(result.play.rally.openingBouncesSatisfied, document.opening === 'midrally');
+  }
+});
+
+test('template source cannot smuggle modified runtime steps or forged compatibility signatures', () => {
+  const source = PICKLEBOARD_PLAYS.find(play => play.id === 'dink-exchange');
+  const changedStep = documentFromTemplate(source);
+  changedStep.templateSource.play.steps[0].label = '<img src=x onerror=alert(1)>';
+  assert.throws(() => validateDocument(changedStep), /plain text|trusted built-in lesson snapshot/);
+
+  const forgedRecipes = documentFromTemplate(source);
+  forgedRecipes.templateSource.recipeSignatures[0] = JSON.stringify({ ...forgedRecipes.shots[0], target: { x: 19, y: 43 } });
+  assert.throws(() => validateDocument(forgedRecipes), /trusted lesson recipes/);
+
+  const forgedDocument = documentFromTemplate(source);
+  forgedDocument.templateSource.documentSignature = JSON.stringify({});
+  assert.throws(() => validateDocument(forgedDocument), /trusted lesson document fields/);
+
+  assert.throws(() => documentFromTemplate({ ...source, id: 'untrusted-copy' }), /trusted built-in lessons/);
 });
 
 test('one sampled ball remains continuous at every generated event boundary', () => {

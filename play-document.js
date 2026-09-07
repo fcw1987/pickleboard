@@ -1,4 +1,5 @@
 // Versioned, renderer-independent source data for the visual play builder.
+import { PICKLEBOARD_PLAYS } from './play-catalog.js';
 export const SCHEMA_VERSION = 1;
 export const MAX_SHOTS = 64;
 
@@ -49,6 +50,7 @@ function validateTemplateSource(value) {
   string(value.templateId, 'templateSource.templateId', 128);
   if (!Array.isArray(value.recipeSignatures) || value.recipeSignatures.length > MAX_SHOTS) fail('templateSource.recipeSignatures', `must be an array of at most ${MAX_SHOTS} strings.`);
   value.recipeSignatures.forEach((signature, index) => string(signature, `templateSource.recipeSignatures[${index}]`, 4096));
+  string(value.documentSignature, 'templateSource.documentSignature', 32768);
   object(value.play, 'templateSource.play');
   string(value.play.id, 'templateSource.play.id', 128);
   if (!Array.isArray(value.play.steps) || !value.play.steps.length || value.play.steps.length > MAX_SHOTS + 8) fail('templateSource.play.steps', 'must contain a bounded source play.');
@@ -61,6 +63,12 @@ function validateTemplateSource(value) {
       point(step.shot.to, `templateSource.play.steps[${index}].shot.to`);
     }
   });
+  const trusted = PICKLEBOARD_PLAYS.find(play => play.id === value.templateId);
+  if (!trusted) fail('templateSource.templateId', 'must identify a trusted built-in lesson.');
+  if (JSON.stringify(value.play) !== JSON.stringify(trusted)) fail('templateSource.play', 'must exactly match the trusted built-in lesson snapshot.');
+  const expected = templateRecipes(trusted);
+  if (JSON.stringify(value.recipeSignatures) !== JSON.stringify(expected.map(signature))) fail('templateSource.recipeSignatures', 'must exactly describe the trusted lesson recipes.');
+  if (value.documentSignature !== documentCompatibilitySignature(templateBaseFields(trusted))) fail('templateSource.documentSignature', 'must exactly describe the trusted lesson document fields.');
 }
 
 export function validateDocument(value) {
@@ -123,6 +131,15 @@ export function validateDocument(value) {
 }
 
 const movement = () => ({ intent: 'hold', pinned: false });
+const defaultPlayers = () => ({
+  player1: { team: 'green', handedness: 'right' }, player2: { team: 'green', handedness: 'right' },
+  player3: { team: 'orange', handedness: 'right' }, player4: { team: 'orange', handedness: 'right' }
+});
+const templateBaseFields = play => ({
+  initialLayout: copy(play.steps[0].positions), players: defaultPlayers(), annotations: [],
+  assistance: { autoShading: false, showGuides: false, team: 'both' },
+  opening: play.rally?.openingBouncesSatisfied ? 'midrally' : 'serve', ending: 'stop', intentionalFault: false
+});
 
 export function createStarterDocument() {
   const document = {
@@ -170,13 +187,9 @@ function inferPace(shot) {
 }
 const signature = shot => JSON.stringify(shot);
 
-export function documentFromTemplate(play) {
-  object(play, 'play');
-  if (!Array.isArray(play.steps) || !play.steps.length) fail('play.steps', 'must contain a setup step.');
-  const setup = play.steps[0];
-  object(setup.positions, 'play.steps[0].positions');
+function templateRecipes(play) {
   const shotSteps = play.steps.filter(step => step.shot);
-  const shots = shotSteps.map((step, index) => {
+  return shotSteps.map((step, index) => {
     const source = step.shot;
     const family = inferFamily(source);
     const contactStyle = source.type === 'short-hop' ? 'short-hop' : (source.contact?.strokeSide ?? (source.stroke === 'backhand' ? 'backhand' : 'forehand'));
@@ -187,17 +200,33 @@ export function documentFromTemplate(play) {
       ...(family === 'serve' ? { serveMethod: 'volley' } : {})
     };
   });
+}
+
+export function documentCompatibilitySignature(document) {
+  return JSON.stringify({
+    initialLayout: document.initialLayout, players: document.players, annotations: document.annotations,
+    assistance: document.assistance, opening: document.opening, ending: document.ending,
+    intentionalFault: document.intentionalFault
+  });
+}
+
+export function documentFromTemplate(play) {
+  object(play, 'play');
+  if (!Array.isArray(play.steps) || !play.steps.length) fail('play.steps', 'must contain a setup step.');
+  const setup = play.steps[0];
+  object(setup.positions, 'play.steps[0].positions');
+  const trusted = PICKLEBOARD_PLAYS.find(item => item.id === play.id);
+  if (!trusted || JSON.stringify(play) !== JSON.stringify(trusted)) fail('play', 'must exactly match one of the trusted built-in lessons.');
+  const shots = templateRecipes(play);
   const document = {
     schemaVersion: SCHEMA_VERSION, modelVersion: 1, id: `${play.id}-copy`, title: `${play.name || play.id} Copy`,
     initialLayout: copy(setup.positions),
-    players: {
-      player1: { team: 'green', handedness: 'right' }, player2: { team: 'green', handedness: 'right' },
-      player3: { team: 'orange', handedness: 'right' }, player4: { team: 'orange', handedness: 'right' }
-    },
+    players: defaultPlayers(),
     shots, annotations: [], assistance: { autoShading: false, showGuides: false, team: 'both' },
     opening: play.rally?.openingBouncesSatisfied ? 'midrally' : 'serve', ending: 'stop', intentionalFault: false,
-    templateSource: { templateId: play.id, recipeSignatures: shots.map(signature), play: copy(play) }
+    templateSource: { templateId: play.id, recipeSignatures: shots.map(signature), documentSignature: '', play: copy(play) }
   };
+  document.templateSource.documentSignature = documentCompatibilitySignature(document);
   validateDocument(document);
   return document;
 }

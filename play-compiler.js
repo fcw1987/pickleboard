@@ -2,7 +2,7 @@
 import { compilePlayTimeline } from './three-d-core.js';
 import { isInServiceBox, serviceBoxForServer, isInNonVolleyZone } from './court-geometry.js';
 import { validateRallyRules } from './rally-rules.js';
-import { validateDocument } from './play-document.js';
+import { documentCompatibilitySignature, validateDocument } from './play-document.js';
 
 const copy = value => globalThis.structuredClone ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 const PLAYER_IDS = ['player1', 'player2', 'player3', 'player4'];
@@ -33,7 +33,8 @@ const contactKind = shot => shot.family === 'serve' ? 'serve' : shot.contactStyl
 function exactTemplate(document) {
   const source = document.templateSource;
   return source && source.recipeSignatures.length === document.shots.length &&
-    document.shots.every((shot, index) => sameRecipe(shot, source.recipeSignatures[index]));
+    document.shots.every((shot, index) => sameRecipe(shot, source.recipeSignatures[index])) &&
+    documentCompatibilitySignature(document) === source.documentSignature;
 }
 
 function templateResult(document) {
@@ -149,6 +150,7 @@ function makePlay(document) {
 
   for (let index = 0; index < document.shots.length; index++) {
     const recipe = document.shots[index];
+    if (recipe.movement.waypoints?.length) findings.push(finding('unsupported', 'warning', recipe.id, 'Movement waypoints are preserved, but trajectory model version 1 uses the final movement target only.'));
     const prior = accepted[index - 1];
     const priorOrigin = contacts[index - 1];
     const contact = shotContact(recipe, prior, priorOrigin, prior?.target, document.initialLayout, document.players);
@@ -189,7 +191,7 @@ function makePlay(document) {
     Object.assign(positions, endPositions);
     if (terminalFault) break;
   }
-  return { play: { id: document.id, name: document.title, description: 'Custom visual play', mode: 'doubles', rally: { openingBouncesSatisfied: document.opening === 'midrally' }, steps, ending: document.ending }, findings, accepted };
+  return { play: { id: document.id, name: document.title, description: 'Custom visual play', mode: 'doubles', rally: { openingBouncesSatisfied: document.opening === 'midrally' }, steps, ending: document.ending, assistance: copy(document.assistance) }, findings, accepted };
 }
 
 export function compileDocument(document) {
