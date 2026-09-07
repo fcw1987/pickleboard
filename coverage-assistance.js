@@ -3,7 +3,7 @@ const COURT_MAX_X = 19;
 const MAX_LATERAL_SPEED_FPS = 13;
 
 const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
-const clone = value => JSON.parse(JSON.stringify(value));
+const clone = value => structuredClone(value);
 
 function readAssistance(document) {
   const source = document?.assistance || {};

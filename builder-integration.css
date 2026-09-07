@@ -1,0 +1,10 @@
+body.builder-workspace .playback-controls,body.builder-workspace .three-d-hud {display:none !important}
+body.builder-workspace .park-control,body.builder-workspace .park-banner {display:none !important}
+body.builder-workspace .court-container-fullscreen {padding:0 !important; min-height:0; z-index:10}
+body.builder-workspace .park-stage {width:100%;height:100%;max-width:none;aspect-ratio:auto}
+body.builder-workspace #court {width:100%;height:100%}
+body.builder-workspace .modal {z-index:6000}
+.builder-layout {pointer-events:none}
+.builder-inspector {pointer-events:auto}
+.builder-ui :focus-visible {outline:3px solid #cf743b;outline-offset:3px}
+.builder-ui button:disabled {opacity:.5;cursor:default}
