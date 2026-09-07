@@ -16,7 +16,7 @@ expect(walk(artifact).sort()).toEqual([...manifest.files.map(f => f.path), ...in
 for (const f of manifest.files) expect(sha(readFileSync(`${artifact}/${f.path}`)), f.path).toBe(f.sha256);
 const prior = JSON.parse(readFileSync('tests/fixtures/prior-production.json'));
 const previousCache = prior.cacheName;
-const candidateCache = 'pickleboard-static-v16';
+const candidateCache = 'pickleboard-static-v17';
 const oldFiles = new Map();
 for (const f of prior.files) {
   const b = execFileSync('git', ['show', `${prior.revision}:${f.file}`], { maxBuffer: 20 * 1024 * 1024 });
@@ -67,7 +67,7 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
         expect(await page.evaluate(() => ({ theme: localStorage.getItem('pickleboard-theme'), body: document.body.dataset.theme }))).toEqual({ theme: 'dark', body: 'dark' });
         expect(await page.evaluate(async () => (await (await caches.open('unrelated-application-cache')).match('/keep')).text())).toBe('preserve');
       }
-      await expect(page).toHaveTitle('Pickleball Park - Pickleball Court Planner');
+      await expect(page).toHaveTitle('Pickleball Park - Build a Play');
       const currentManifest = await page.evaluate(async () => (await fetch('./manifest.json')).json());
       expect(currentManifest.name).toBe('Pickleball Park');
       expect({ id: currentManifest.id, start_url: currentManifest.start_url }).toEqual({ id: oldManifest.id, start_url: oldManifest.start_url });
@@ -95,38 +95,50 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
       const declaredCachePaths = [...readFileSync(`${artifact}/sw.js`, 'utf8').split('const STATIC_ASSETS = [')[1].split('];')[0].matchAll(/'\.\/([^']*)'/g)].map(m => m[1] || 'index.html');
       expect(checks.cached.map(f => f.path).sort()).toEqual(declaredCachePaths.sort());
       const missing = await context.request.get(`${base}missing-asset.png`); expect(missing.status()).toBe(404);
-      // Exercise actual pointer mapping, drawing, transport and snapshot restoration.
-      const target = await page.locator('#player1-touch').boundingBox();
-      await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2); await page.mouse.down(); await page.mouse.move(target.x + target.width / 2 + 20, target.y + target.height / 2 + 20, { steps: 4 }); await page.mouse.up();
-      await page.evaluate(() => pickleboard.setDrawingMode(true));
-      const court = await page.locator('#court').boundingBox();
-      await page.mouse.move(court.x + court.width * .35, court.y + court.height * .35); await page.mouse.down(); await page.mouse.move(court.x + court.width * .4, court.y + court.height * .4, { steps: 4 }); await page.mouse.up();
-      await expect(page.locator('#drawingLayer .drawing-stroke')).toHaveCount(1);
-      const saved = await page.evaluate(() => pickleboard.captureBoardState());
-      await page.evaluate(() => pickleboard.plays.load('serve-and-return'));
-      await page.locator('#playPlayPause').click();
-      await expect.poll(() => page.evaluate(() => pickleboard.plays.getState().elapsed)).toBeGreaterThan(0.1);
-      await page.locator('#playPlayPause').click(); await page.locator('#playLoop').click();
-      await page.locator('#play3dView').click(); await page.waitForFunction(() => pickleboard.threeD.active);
-      await expect(page.locator('#threeDLoop')).toHaveAttribute('aria-pressed', 'true');
-      await page.locator('#threeDCamera').selectOption('sideline'); await page.locator('#threeDRate').selectOption('0.5');
-      await page.locator('#threeDExit').click(); await page.locator('#playExit').click();
-      expect(await page.evaluate(() => pickleboard.captureBoardState())).toEqual(saved);
+      // Exercise the shipped default builder with one saved custom edit and both renderers.
+      await page.waitForFunction(() => window.playBuilder && !playBuilder.busy);
+      const builderProof = await page.evaluate(async () => {
+        const b = playBuilder;
+        await b.action('title', 'Package offline custom rally');
+        await b.action('editShot', { field: 'target.x', value: 6.5 });
+        const source = JSON.stringify(b.document);
+        b.seek(Math.min(1.25, b.session.duration));
+        await b.switchView('2d');
+        await b.switchView('3d');
+        await b.setWorkspace('planner');
+        b.board.updateTokenPosition(b.board.tokens.player1, 8.25, 12.75);
+        const planner = b.board.captureBoardState();
+        await b.setWorkspace('builder');
+        return { source: JSON.stringify(b.document), time: b.session.clock.elapsed, planner, view: b.view };
+      });
+      expect(builderProof.source).toBe(await page.evaluate(() => JSON.stringify(playBuilder.document)));
+      expect(JSON.parse(builderProof.source).title).toBe('Package offline custom rally');
+      expect(builderProof.time).toBeCloseTo(1.25, 8);
+      expect(builderProof.view).toBe('3d');
       await page.screenshot({ path: `release-results/package-${browserName}-${mode}.png` });
       // Real offline: close only this test's server. Do not use setOffline emulation.
       server.closeAllConnections(); await new Promise(r => server.close(r)); stopped = true;
-      await page.reload(); await page.waitForFunction(() => window.pickleboard?.plays);
-      await page.evaluate(() => pickleboard.setTokenPosition('player1', 9, 12));
-      const offlineSaved = await page.evaluate(() => pickleboard.captureBoardState());
+      await page.reload(); await page.waitForFunction(() => window.playBuilder && !playBuilder.busy);
+      expect(await page.evaluate(() => ({ title: playBuilder.document.title, target: playBuilder.document.shots[0].target.x }))).toEqual({ title: 'Package offline custom rally', target: 6.5 });
       const ids = await page.evaluate(() => pickleboard.plays.list().map(p => p.id)); expect(ids).toHaveLength(8);
       for (const id of ids) {
-        await page.evaluate(id => pickleboard.plays.load(id), id);
-        await page.locator('#play3dView').click(); await page.waitForFunction(() => pickleboard.threeD.active);
-        await page.locator('#threeDExit').click(); await page.locator('#playExit').click();
-        expect(await page.evaluate(() => pickleboard.captureBoardState())).toEqual(offlineSaved);
+        const lesson = await page.evaluate(async id => {
+          const b = playBuilder;
+          await b.setWorkspace('planner');
+          const planner = b.board.captureBoardState();
+          await b.action('template', id);
+          await b.switchView('3d');
+          const proof = { id: b.document.templateSource?.templateId, active: b.board.threeD.active, shots: b.document.shots.length };
+          await b.switchView('2d');
+          await b.setWorkspace('planner');
+          proof.plannerRestored = JSON.stringify(b.board.captureBoardState()) === JSON.stringify(planner);
+          return proof;
+        }, id);
+        expect(lesson).toMatchObject({ id, active: true, plannerRestored: true });
+        expect(lesson.shots).toBeGreaterThan(0);
       }
       await expect(page.locator('#threeDCanvas canvas')).toHaveCount(0); expect(errors).toEqual([]);
-      results.push({ browser: browserName, mode, status: 'PASS', runtimeHashes: checks.all.length, cacheEntries: checks.cached.length, offlineLessons: ids.length, offlineMethod: 'owned server stopped', source: info.revision, previousPublicSource: mode === 'upgrade' ? prior.revision : null });
+      results.push({ browser: browserName, mode, status: 'PASS', runtimeHashes: checks.all.length, cacheEntries: checks.cached.length, offlineCustomReload: true, offlineLessons: ids.length, offlineMethod: 'owned server stopped', source: info.revision, previousPublicSource: mode === 'upgrade' ? prior.revision : null });
     } catch (e) { results.push({ browser: browserName, mode, status: 'FAIL', error: e.message }); throw e; }
     finally { await browser.close(); if (!stopped) { server.closeAllConnections(); await new Promise(r => server.close(r)); } mkdirSync('release-results', { recursive: true }); writeFileSync('release-results/package-verification.json', JSON.stringify(results, null, 2)); }
   }
