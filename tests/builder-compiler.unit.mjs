@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PICKLEBOARD_PLAYS } from '../play-catalog.js';
-import { samplePlayBall } from '../three-d-core.js';
+import { compilePlayTimeline, samplePlayBall } from '../three-d-core.js';
 import { validateRallyRules } from '../rally-rules.js';
 import { MAX_SHOTS, SCHEMA_VERSION, createStarterDocument, documentFromTemplate, validateDocument } from '../play-document.js';
 import { compileDocument, recompileAssistedDocument } from '../play-compiler.js';
@@ -27,6 +27,8 @@ test('validation rejects malformed, unbounded, duplicate, and non-finite authori
   assert.throws(() => validateDocument(nan), /non-finite|finite x and y/);
   const manual = clone(base); manual.shots[1].movement = { intent: 'manual', pinned: true };
   assert.throws(() => validateDocument(manual), /target is required/);
+  const reassigned = clone(base); reassigned.players.player1.team = 'orange';
+  assert.throws(() => validateDocument(reassigned), /must remain green/);
 });
 
 test('custom recipes compile through production steps and timeline with stable recipe event ids', () => {
@@ -127,13 +129,42 @@ test('opening sequence protects the two-bounce rule and treats the kitchen line 
   assert.equal(returnFault.play.steps[1].shot.flight.bounces, 1);
 });
 
-test('drop serves are preserved but explicitly unsupported by the current motion model', () => {
+test('drop serves include a distinct preparatory bounce before contact and the legal rally bounce', () => {
   const document = createStarterDocument();
   document.shots[0].serveMethod = 'drop';
   const result = compileDocument(document);
   assert.equal(result.validShotCount, 3);
   assert.equal(result.play.steps[1].shot.authoring.serveMethod, 'drop');
-  assert.match(result.findings.find(item => item.kind === 'unsupported').message, /preparatory bounce/);
+  assert.deepEqual(result.findings, []);
+  assert.deepEqual(result.play.steps[1].shot.servePreparation, { method: 'drop', releaseHeightFeet: 3.5, reboundDuration: .34 });
+  const first = result.timeline.segments.find(segment => segment.rallyLeg === 1);
+  assert.equal(first.servePreparation.method, 'drop');
+  assert.ok(first.contactTime > .7);
+  const preparation = result.timeline.events.filter(event => event.type === 'preparation-bounce');
+  const rallyBounces = result.timeline.events.filter(event => event.type === 'bounce' && event.rallyLeg === 1);
+  assert.equal(preparation.length, 1);
+  assert.equal(rallyBounces.length, 1);
+  assert.ok(preparation[0].time < result.timeline.events.find(event => event.type === 'contact').time);
+  assert.ok(rallyBounces[0].time > result.timeline.events.find(event => event.type === 'contact').time);
+  assert.match(preparation[0].id, /serve-1:preparation-bounce$/);
+
+  const atRelease = samplePlayBall(result.timeline, 0);
+  const falling = samplePlayBall(result.timeline, preparation[0].time - .05);
+  const atBounce = samplePlayBall(result.timeline, preparation[0].time);
+  const rising = samplePlayBall(result.timeline, preparation[0].time + .05);
+  const atContact = samplePlayBall(result.timeline, first.startTime + first.contactTime);
+  assert.ok(atRelease.y > atContact.y && atContact.y > atBounce.y);
+  assert.ok(falling.y > atBounce.y && rising.y > atBounce.y);
+  assert.equal(atBounce.phase, 'preparation-bounce');
+  assert.ok(atBounce.y >= 0);
+  assert.deepEqual(atRelease.board, atBounce.board, '2D projection remains at the authored release/contact location');
+  assert.ok(Math.hypot(atContact.x - first.trajectory.start.x, atContact.y - first.trajectory.start.y, atContact.z - first.trajectory.start.z) < 1e-9);
+  assert.deepEqual(samplePlayBall(result.timeline, preparation[0].time), atBounce);
+  assert.deepEqual(validateRallyRules(result.play, result.timeline).violations, []);
+
+  const invalidPlay = clone(result.play);
+  invalidPlay.steps[1].shot.servePreparation.releaseHeightFeet = 4;
+  assert.throws(() => compilePlayTimeline(invalidPlay), /fixed 3\.5ft release height/);
 });
 
 test('a pinned prior movement stops a dependent contact instead of being overwritten', () => {

@@ -160,7 +160,6 @@ function makePlay(document) {
   for (let index = 0; index < document.shots.length; index++) {
     const recipe = document.shots[index];
     if (recipe.movement.waypoints?.length) findings.push(finding('unsupported', 'warning', recipe.id, 'Movement waypoints are preserved, but trajectory model version 1 uses the final movement target only.'));
-    if (recipe.family === 'serve' && recipe.serveMethod === 'drop') findings.push(finding('unsupported', 'warning', recipe.id, 'The drop-serve choice is preserved, but trajectory model version 1 does not animate or validate the preparatory bounce.'));
     const prior = accepted[index - 1];
     const priorOrigin = contacts[index - 1];
     const contact = shotContact(recipe, prior, priorOrigin, prior?.target, document.initialLayout, document.players);
@@ -201,6 +200,7 @@ function makePlay(document) {
       contact: { kind, heightFeet: recipe.family === 'overhead' ? 7 : kind === 'short-hop' ? .8 : kind === 'volley' ? 3 : recipe.family === 'serve' ? 2.8 : 2.2, strokeSide, feet: kind === 'serve' ? serveFeetAt(contact) : feetAt(contact), momentumEntersNonVolleyZone: false },
       flight: { bounces, ...metadata }, authoring: { recipeId: recipe.id, family: recipe.family, receiver: recipe.receiver, movement: copy(recipe.movement), serveMethod: recipe.serveMethod }
     };
+    if (recipe.family === 'serve' && recipe.serveMethod === 'drop') shot.servePreparation = { method: 'drop', releaseHeightFeet: 3.5, reboundDuration: .34 };
     endPositions.ball = copy(actualTarget);
     steps.push({ id: recipe.id, label: `${index + 1}. ${FAMILY_LABEL[recipe.family]}`, description: `Authored ${recipe.family} to (${recipe.target.x.toFixed(1)}, ${recipe.target.y.toFixed(1)}).`, durationMs: 850, positions: endPositions, shot });
     accepted.push(recipe);

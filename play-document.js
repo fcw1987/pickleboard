@@ -86,6 +86,8 @@ export function validateDocument(value) {
     object(value.players[id], `players.${id}`);
     choice(value.players[id].team, TEAMS, `players.${id}.team`);
     choice(value.players[id].handedness, HANDS, `players.${id}.handedness`);
+    const requiredTeam = ['player1', 'player2'].includes(id) ? 'green' : 'orange';
+    if (value.players[id].team !== requiredTeam) fail(`players.${id}.team`, `must remain ${requiredTeam} in schema version 1 so player identity agrees with the approved artwork and renderers.`);
   }
   if (!Array.isArray(value.shots)) fail('shots', 'must be an array.');
   if (value.shots.length > MAX_SHOTS) fail('shots', `must contain at most ${MAX_SHOTS} recipes.`);
