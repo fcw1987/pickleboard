@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 async function open3d(page) {
-  await page.goto('/index.html?three-d-visual=1');
+  await page.goto('/index.html?workspace=planner&three-d-visual=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   await page.evaluate(() => window.pickleboard.plays.load('third-shot-drop'));
   await page.locator('#play3dView').click();
@@ -12,7 +12,7 @@ async function open3d(page) {
 // Supersedes the rejected volumetric rig-node assertion: acceptance follows
 // the layers and authored anchors that are actually visible in the replay.
 test('visible pixel actors expose independent body/action layers and physical handedness', async ({ page }) => {
-  await page.goto('/index.html?three-d-visual-hands=1');
+  await page.goto('/index.html?workspace=planner&three-d-visual-hands=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   await page.evaluate(() => { window.pickleboard.tokens.player2.handedness = 'left'; window.pickleboard.plays.load('third-shot-drop'); });
   await page.locator('#play3dView').click();

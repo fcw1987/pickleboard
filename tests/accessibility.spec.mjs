@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 async function openApp(page) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/index.html?accessibility=1');
+  await page.goto('/index.html?workspace=planner&accessibility=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.plays))).toBe(true);
 }
 
@@ -139,7 +139,7 @@ for (const viewport of [
 test('DPR2 touch dragging retains exact SVG coordinates and replay restoration', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
   const page = await context.newPage();
-  await page.goto(baseURL);
+  await page.goto(`${baseURL}/?workspace=planner`);
   await page.waitForFunction(() => window.pickleboard?.plays);
   const target = page.locator('#player1-touch');
   const box = await target.boundingBox();

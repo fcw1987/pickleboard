@@ -8,7 +8,7 @@ const fixture = { title: 'Starter rally', shots: [
 
 test.describe('court first builder UI harness', () => {
   test('mounts an accessible starter rally and reports authored controls', async ({ page }) => {
-    await page.goto('/index.html?builder-ui-harness=1');
+    await page.goto('/index.html?workspace=planner&builder-ui-harness=1');
     await page.evaluate(async fixtureValue => {
       const { mountBuilderUI } = await import('/builder-ui.js');
       window.__builderActions = [];
@@ -30,7 +30,7 @@ test.describe('court first builder UI harness', () => {
   });
 
   test('keeps a single session while switching planner and assistance controls', async ({ page }) => {
-    await page.goto('/index.html?builder-ui-harness=1');
+    await page.goto('/index.html?workspace=planner&builder-ui-harness=1');
     await page.evaluate(async fixtureValue => {
       const { mountBuilderUI } = await import('/builder-ui.js');
       window.__builderActions = [];
@@ -40,7 +40,7 @@ test.describe('court first builder UI harness', () => {
       } });
       window.__builder.render({ document: fixtureValue, selectedShotId: 'shot-serve' });
     }, fixture);
-    await page.getByRole('button', { name: 'Court Planner' }).click();
+    await page.getByRole('button', { name: 'Planner', exact: true }).click();
     await expect(page.locator('.builder-planner')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Use as starting layout' })).toBeVisible();
     await page.getByRole('button', { name: 'Return to builder' }).first().click();
@@ -51,16 +51,16 @@ test.describe('court first builder UI harness', () => {
   });
 
   test('opens templates, imports raw JSON, and keeps title focus free of click actions', async ({ page }) => {
-    await page.goto('/index.html?builder-ui-harness=1');
+    await page.goto('/index.html?workspace=planner&builder-ui-harness=1');
     await page.evaluate(async fixtureValue => {
       const { mountBuilderUI } = await import('/builder-ui.js');
       window.__builderActions = [];
       window.__builder = mountBuilderUI({ onAction: (type, payload) => window.__builderActions.push({ type, payload }) });
       window.__builder.render({ document: fixtureValue, selectedShotId: 'shot-serve', templates: [{ id: 'lesson-one', name: 'Lesson One' }], library: [{ id: 'saved-one', title: 'Saved One' }] });
     }, fixture);
-    await page.getByRole('button', { name: 'Learn / Templates' }).click();
+    await page.getByRole('button', { name: 'Learn', exact: true }).click();
     await page.getByRole('button', { name: 'Lesson One' }).click();
-    await page.getByRole('button', { name: 'Learn / Templates' }).click();
+    await page.getByRole('button', { name: 'Learn', exact: true }).click();
     await page.getByRole('button', { name: 'Saved One' }).click();
     await page.getByLabel('Play title').click();
     await page.getByLabel('Play title').fill('Focused title');
@@ -72,12 +72,12 @@ test.describe('court first builder UI harness', () => {
   });
 
   test('keeps zero-shot settings and bounds file imports', async ({ page }) => {
-    await page.goto('/index.html?builder-ui-harness=1');
+    await page.goto('/index.html?workspace=planner&builder-ui-harness=1');
     await page.evaluate(async () => { const { mountBuilderUI } = await import('/builder-ui.js'); window.__builderActions = []; window.__builder = mountBuilderUI({ onAction: (type, payload) => window.__builderActions.push({ type, payload }) }); window.__builder.render({ document: { title: 'Empty', shots: [], players: {}, assistance: {} } }); });
-    await expect(page.getByText('Auto Shading')).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'Auto Shading', exact: true })).toBeVisible();
     await expect(page.getByLabel('Starting condition')).toBeVisible();
     await page.getByRole('button', { name: 'Import / Export' }).click();
-    await page.getByLabel('Choose JSON file').setInputFiles({ name: 'oversize.json', mimeType: 'application/json', buffer: Buffer.alloc(524 * 1024 + 1) });
-    await expect.poll(() => page.evaluate(() => window.__builderActions.at(-1))).toEqual({ type: 'message', payload: 'Import is limited to 524 KiB.' });
+    await page.getByLabel('Choose JSON file').setInputFiles({ name: 'oversize.json', mimeType: 'application/json', buffer: Buffer.alloc(512 * 1024 + 1) });
+    await expect.poll(() => page.evaluate(() => window.__builderActions.at(-1))).toEqual({ type: 'message', payload: 'Import is limited to 512 KiB.' });
   });
 });

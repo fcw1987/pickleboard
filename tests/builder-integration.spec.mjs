@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-const start=async page=>{await page.goto('/builder.html');await page.waitForFunction(()=>window.playBuilder&&!window.playBuilder.busy);};
+const start=async page=>{await page.goto('/index.html');await page.waitForFunction(()=>window.playBuilder&&!window.playBuilder.busy);};
 test('genuine custom recipes, deterministic shared playhead and authored undo',async({page})=>{
  await start(page);const proof=await page.evaluate(async()=>{const b=playBuilder;const before=JSON.stringify(b.compiled.play);b.seek(1.2);const time=b.session.clock.elapsed;await b.switchView('2d');const two=b.session.clock.elapsed;await b.switchView('3d');const three=b.session.clock.elapsed;await b.action('editShot',{field:'target.x',value:7});const changed=JSON.stringify(b.compiled.play)!==before;await b.action('selectShot',b.document.shots[2].id);await b.action('editShot',{field:'family',value:'drive'});const drive=b.compiled.play.steps[3].shot.type;await b.action('undo');return{time,two,three,changed,drive,restored:b.document.shots[2].family,valid:b.compiled.validShotCount};});
  expect(proof).toEqual({time:1.2,two:1.2,three:1.2,changed:true,drive:'drive',restored:'drop',valid:3});

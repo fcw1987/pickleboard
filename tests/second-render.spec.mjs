@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 async function openViewer(page) {
-  await page.goto('/index.html?second-render=1');
+  await page.goto('/index.html?workspace=planner&second-render=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   await page.evaluate(() => window.pickleboard.plays.load('fifth-shot-drop'));
   await page.locator('#play3dView').click();

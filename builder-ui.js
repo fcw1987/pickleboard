@@ -12,7 +12,7 @@ const FAMILIES = [
   ['lob', 'Lob'], ['overhead', 'Overhead']
 ];
 const PLAYERS = [['player1', 'Green 1'], ['player2', 'Green 2'], ['player3', 'Orange 1'], ['player4', 'Orange 2']];
-const MAX_IMPORT_BYTES = 524 * 1024;
+const MAX_IMPORT_BYTES = 512 * 1024;
 
 const text = (element, value) => { element.textContent = value == null ? '' : String(value); return element; };
 const el = (tag, className, label) => {
@@ -100,7 +100,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const play = root.querySelector('[data-action="play-pause"]'); if (play) { play.textContent = current.playing ? 'Pause' : 'Play'; play.setAttribute('aria-pressed', String(Boolean(current.playing))); }
       root.classList.toggle('builder-busy', Boolean(current.busy));
       const loop = root.querySelector('[data-action="loop"]'); if (loop) { loop.textContent = current.loop ? 'Loop on' : 'Loop'; loop.setAttribute('aria-pressed', String(Boolean(current.loop))); }
-      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(inspectorManualCollapsed ?? ((current.playing || current.targetPlacement) && userInspectorExpanded !== true)); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"]'); if (collapseButton) { collapseButton.textContent = collapsed ? 'Expand' : 'Collapse'; collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
+      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(current.targetPlacement || (inspectorManualCollapsed ?? ((current.playing || matchMedia('(max-width: 700px)').matches) && userInspectorExpanded !== true))); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"]'); if (collapseButton) { collapseButton.textContent = collapsed ? 'Expand' : 'Collapse'; collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
       root.appendChild(templateDialog); root.appendChild(importDialog);
       return;
     }
@@ -114,8 +114,8 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     top.appendChild(brand);
     const topActions = el('div', 'builder-top-actions');
     topActions.append(button('New Play', 'new', 'builder-button builder-button-primary'));
-    topActions.append(button('Learn / Templates', 'templates', 'builder-button'));
-    topActions.append(button(current.workspace === 'planner' ? 'Return to builder' : 'Court Planner', current.workspace === 'planner' ? 'workspace-builder' : 'workspace-planner', 'builder-button'));
+    topActions.append(button('Learn', 'templates', 'builder-button'));
+    topActions.append(button(current.workspace === 'planner' ? 'Return to builder' : 'Planner', current.workspace === 'planner' ? 'workspace-builder' : 'workspace-planner', 'builder-button'));
     topActions.append(button('Help', 'help', 'builder-button'));
     top.appendChild(topActions); root.appendChild(top);
 
@@ -143,7 +143,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       camera.className = 'builder-camera'; camera.querySelector('select').value = current.camera || 'overhead'; court.appendChild(camera);
     }
 
-    const inspectorAutoCollapsed = inspectorManualCollapsed ?? ((current.playing || current.targetPlacement) && userInspectorExpanded !== true);
+    const inspectorAutoCollapsed = inspectorManualCollapsed ?? ((current.playing || current.targetPlacement || matchMedia('(max-width: 700px)').matches) && userInspectorExpanded !== true);
     const inspector = el('aside', `builder-inspector ${inspectorAutoCollapsed ? 'builder-inspector-collapsed' : ''}`); inspector.setAttribute('aria-label', 'Selected shot settings');
     if (current.workspace === 'planner') {
       inspector.append(el('h2', '', 'Court Planner')); inspector.append(el('p', 'builder-selected-summary', 'Your planner layout is preserved. Use it as the starting layout for a new or selected play.'));
@@ -156,7 +156,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const familySelect = select('Shot family', 'edit-family', FAMILIES); familySelect.querySelector('select').value = selected.family; inspector.appendChild(familySelect);
       const hitterSelect = select('Hitter', 'edit-hitter', PLAYERS); hitterSelect.querySelector('select').value = selected.hitter; inspector.appendChild(hitterSelect);
       const targetRow = el('div', 'builder-target-row'); targetRow.append(el('div', 'builder-target-readout', `Target ${Number(selected.target?.x || 0).toFixed(1)}, ${Number(selected.target?.y || 0).toFixed(1)}`)); targetRow.append(button('Place target on court', 'place-target', 'builder-button builder-button-accent')); inspector.appendChild(targetRow);
-      const coords = el('div', 'builder-grid-fields'); coords.appendChild(numberField('Target width', 'edit-target.x', selected.target?.x ?? 10, 0, 20)); coords.appendChild(numberField('Target depth', 'edit-target.y', selected.target?.y ?? 20, -8, 52)); inspector.appendChild(coords);
+      const coords = el('div', 'builder-grid-fields'); coords.appendChild(numberField('Target width', 'edit-target.x', selected.target?.x ?? 10, 0, 20)); coords.appendChild(numberField('Target depth', 'edit-target.y', selected.target?.y ?? 20, 0, 44)); inspector.appendChild(coords);
       const presets = el('div', 'builder-presets'); presets.append(el('span', 'builder-field-label', 'Target presets · viewpoint: green side')); [['wide', 3], ['middle', 10], ['centerline', 10]].forEach(([label, x]) => { const b = button(label, 'target-preset', 'builder-chip'); b.dataset.x = x; b.dataset.y = selected.target?.y || 20; b.dataset.direction = label; presets.appendChild(b); }); inspector.appendChild(presets);
       const tuning = el('div', 'builder-grid-fields'); const arc = select('Arc', 'edit-arc', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]); const pace = select('Pace', 'edit-pace', [['soft', 'Soft'], ['medium', 'Medium'], ['firm', 'Firm']]); arc.querySelector('select').value = selected.arc || 'medium'; pace.querySelector('select').value = selected.pace || 'medium'; tuning.append(arc, pace); inspector.appendChild(tuning);
       inspector.appendChild(select('Receiver', 'edit-receiver', [['auto', 'Automatic'], ...PLAYERS])); inspector.querySelector('[data-action="edit-receiver"]').value = selected.receiver || 'auto';
@@ -167,7 +167,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const pinned = el('label', 'builder-switch'); const pin = el('input'); pin.type = 'checkbox'; pin.checked = Boolean(selected.movement?.pinned); pin.dataset.action = 'edit-movement.pinned'; pinned.append(pin, el('span', '', 'Pin movement target')); inspector.appendChild(pinned);
       const actions = el('div', 'builder-shot-actions'); actions.append(button('Duplicate', 'duplicate-shot', 'builder-button')); actions.append(button('Delete', 'delete-shot', 'builder-button builder-button-danger')); actions.append(button('Move earlier', 'move-earlier', 'builder-button')); actions.append(button('Move later', 'move-later', 'builder-button')); inspector.appendChild(actions);
       const assistance = el('details', 'builder-assistance'); assistance.open = true; assistance.append(el('summary', '', 'Coaching assistance'));
-      [['autoShading', 'Auto Shading', 'Adjust eligible generated movement'], ['showGuides', 'Show Coverage Guides', 'Explain suggested positions only']].forEach(([field, label, description]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; row.append(input, el('span', '', label), el('small', '', description)); assistance.append(row); }); inspector.appendChild(assistance);
+      [['autoShading', 'Auto Shading', 'Adjust eligible generated movement'], ['showGuides', 'Show Coverage Guides', 'Explain suggested positions only']].forEach(([field, label, description]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; row.append(input, el('span', '', label), el('small', '', description)); assistance.append(row); }); const scope=select('Shade team','shade-team',[['both','Both teams'],['green','Green'],['orange','Orange']]);scope.querySelector('select').value=doc.assistance.team||'both';assistance.append(scope);inspector.appendChild(assistance);
       const advanced = el('details', 'builder-advanced'); advanced.open = true; advanced.append(el('summary', '', 'Rally details'));
       const opening = select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']]); opening.querySelector('select').value = doc.opening || 'serve'; advanced.append(opening);
       const ending = select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']]); ending.querySelector('select').value = doc.ending || 'stop'; advanced.append(ending);
@@ -175,17 +175,17 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const handed = el('details', 'builder-handedness'); handed.open = false; handed.append(el('summary', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); inspector.appendChild(handed);
       if (current.findings?.length) { const find = el('div', 'builder-findings'); find.append(el('strong', '', 'Review')); current.findings.forEach(f => { const item = typeof f === 'string' ? { message: f } : f; const label = [item.shotId || item.stepId, item.kind].filter(Boolean).join(' · '); find.append(el('p', '', `${label ? `${label}: ` : ''}${item.message || 'Review this shot'}`)); }); inspector.appendChild(find); }
     } else {
-      inspector.appendChild(el('p', 'builder-empty', 'Add a shot to start authoring.'));
+      const header=el('div','builder-inspector-header');header.append(el('span','','Play settings'),button(inspectorAutoCollapsed?'Expand':'Collapse','collapse-inspector','builder-button builder-collapse'));inspector.append(header,el('p','builder-empty','Add a shot to start authoring.'));
       const global = el('div', 'builder-global-settings'); global.append(el('h2', '', 'Play settings')); [['autoShading', 'Auto Shading'], ['showGuides', 'Show Coverage Guides']].forEach(([field, label]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; row.append(input, el('span', '', label)); global.append(row); }); global.append(select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']])); global.append(select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']])); inspector.append(global);
     }
     layout.appendChild(inspector); root.appendChild(layout);
 
     const transport = el('footer', 'builder-transport');
     const transportButtons = el('div', 'builder-transport-buttons');
-    const undo = button('↶', 'undo', 'builder-button builder-icon-button'); undo.setAttribute('aria-label', 'Undo authored edit'); undo.disabled = !current.canUndo; const redo = button('↷', 'redo', 'builder-button builder-icon-button'); redo.setAttribute('aria-label', 'Redo authored edit'); redo.disabled = !current.canRedo; transportButtons.append(undo, redo); transportButtons.append(button('Previous', 'previous', 'builder-button')); const play = button(current.playing ? 'Pause' : 'Play', 'play-pause', 'builder-button builder-button-primary'); play.setAttribute('aria-pressed', String(Boolean(current.playing))); transportButtons.append(play); transportButtons.append(button('Next', 'next', 'builder-button')); transportButtons.append(button('Restart', 'restart', 'builder-button'));
+    const undo = button('↶', 'undo', 'builder-button builder-icon-button'); undo.setAttribute('aria-label', 'Undo authored edit'); undo.disabled = !current.canUndo; const redo = button('↷', 'redo', 'builder-button builder-icon-button'); redo.setAttribute('aria-label', 'Redo authored edit'); redo.disabled = !current.canRedo;  transportButtons.append(button('Previous', 'previous', 'builder-button')); const play = button(current.playing ? 'Pause' : 'Play', 'play-pause', 'builder-button builder-button-primary'); play.setAttribute('aria-pressed', String(Boolean(current.playing))); transportButtons.append(play); transportButtons.append(button('Next', 'next', 'builder-button')); transportButtons.append(button('Restart', 'restart', 'builder-button'));
     const range = el('input'); range.type = 'range'; range.min = 0; range.max = current.duration || 1; range.step = .01; range.value = current.time || 0; range.dataset.action = 'seek'; range.setAttribute('aria-label', 'Playhead'); transportButtons.append(range);
     const loop = button(current.loop ? 'Loop on' : 'Loop', 'loop', 'builder-button'); loop.setAttribute('aria-pressed', String(Boolean(current.loop))); transportButtons.append(loop); const rate = select('Speed', 'rate', [['0.25', '0.25×'], ['0.5', '0.5×'], ['1', '1×']]); rate.querySelector('select').value = String(current.rate || 1); transportButtons.append(rate); transport.appendChild(transportButtons);
-    const secondary = el('div', 'builder-secondary-actions'); secondary.append(button('Save As', 'save-as', 'builder-button')); secondary.append(button('Open', 'open', 'builder-button')); secondary.append(button('Import / Export', 'import-export', 'builder-button')); secondary.append(button('Use planner layout', 'use-planner', 'builder-button')); transport.appendChild(secondary); root.appendChild(transport);
+    const secondary = el('div', 'builder-secondary-actions'); secondary.append(undo,redo); secondary.append(button('Save As', 'save-as', 'builder-button')); secondary.append(button('Open', 'open', 'builder-button')); secondary.append(button('Import / Export', 'import-export', 'builder-button'));  transport.appendChild(secondary); root.appendChild(transport);
     root.append(templateDialog, importDialog);
   }
   function rerenderAction(type, payload) { fire(type, payload); }
@@ -222,6 +222,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     if (target.dataset.assistance) fire('assistance', { field: target.dataset.assistance, value: target.checked });
     else if (target.dataset.action === 'title') fire('title', target.value);
     else if (target.dataset.action.startsWith('edit-')) fire('editShot', { field: target.dataset.action.slice(5), value: target.type === 'checkbox' ? target.checked : (target.type === 'number' ? Number(target.value) : target.value) });
+    else if (target.dataset.action === 'shade-team') fire('assistance',{field:'team',value:target.value});
     else if (target.dataset.action === 'rate') fire('rate', Number(target.value));
     else if (target.dataset.action === 'camera') fire('camera', target.value);
     else if (target.dataset.action === 'handedness') fire('handedness', { id: target.dataset.playerId, value: target.value });

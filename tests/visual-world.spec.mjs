@@ -16,7 +16,7 @@ test('camera fitting expands narrow views without changing preset sight lines', 
 
 async function openWorld(page, viewport) {
   await page.setViewportSize(viewport);
-  await page.goto('/index.html?visual-world=1');
+  await page.goto('/index.html?workspace=planner&visual-world=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   await page.evaluate(() => window.pickleboard.plays.load('fifth-shot-drop'));
   await page.locator('#play3dView').click();

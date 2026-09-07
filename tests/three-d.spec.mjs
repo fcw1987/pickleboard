@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 async function openApp(page) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/index.html?three-d-e2e=1');
+  await page.goto('/index.html?workspace=planner&three-d-e2e=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   return errors;
 }

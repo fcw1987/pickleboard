@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const start = async page => {
-  await page.goto('/builder.html?lifecycle-review=1');
+  await page.goto('/index.html?lifecycle-review=1');
   await page.waitForFunction(() => window.playBuilder && !window.playBuilder.busy);
 };
 

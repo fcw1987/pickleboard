@@ -9,7 +9,7 @@ const viewports = [
 for (const viewport of viewports) {
   test(`court fits the usable ${viewport.name} viewport`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await page.goto('/index.html?viewport=1');
+    await page.goto('/index.html?workspace=planner&viewport=1');
 
     const layout = await page.evaluate(() => {
       const rect = document.querySelector('#court').getBoundingClientRect();

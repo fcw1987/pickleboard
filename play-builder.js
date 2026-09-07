@@ -1,10 +1,9 @@
 import { createStarterDocument, validateDocument, documentFromTemplate, MAX_SHOTS } from './play-document.js';
-import { compileDocument } from './play-compiler.js';
+import { compileDocument, recompileAssistedDocument } from './play-compiler.js';
 import { DraftStore, EditHistory } from './builder-storage.js';
 import { mountBuilderUI } from './builder-ui.js';
 import { BuilderCourtTools } from './builder-court-tools.js';
 import { applyCoverageAssistance } from './coverage-assistance.js';
-import { compilePlayTimeline } from './three-d-core.js';
 import { PICKLEBOARD_PLAYS } from './play-catalog.js';
 const copy = value => structuredClone(value);
 const id = () => crypto.randomUUID();
@@ -22,7 +21,10 @@ export class PlayBuilder {
         this.ui = mountBuilderUI({ onAction: (action, value) => this.action(action, value) });
         this.courtTools = new BuilderCourtTools(this);
         this.board.onCoachingState = () => {if(this.view==='3d'&&!this.busy&&this.workspace==='builder'&&!this.board.threeD?.active){this.view='2d';this.message='3D stopped. Your draft and playhead are safe in 2D; retry 3D when ready.';}this.scheduleRender();};
-        this.frame = null; this.plannerSnapshot = board.captureBoardState(); this.savedPlayhead = 0;
+        this.frame = null;
+        this.keyboard=event=>{if(event.key==='Escape'&&this.courtTools.placing){this.courtTools.clear();this.message='Target placement cancelled.';this.render();return;}if(this.workspace==='builder'&&(event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'&&!event.target.closest('input,textarea,select,[contenteditable]')){event.preventDefault();this.action(event.shiftKey?'redo':'undo');}};
+        globalThis.document.addEventListener('keydown',this.keyboard);
+        this.plannerSnapshot = board.captureBoardState(); this.savedPlayhead = 0;
         document = null;
         globalThis.document.body.classList.add('builder-workspace');
         this.installPlay(true); this.render();
@@ -42,7 +44,7 @@ export class PlayBuilder {
             playing:this.session.clock.playing, time:this.session.clock.elapsed, duration:this.session.duration,
             view:this.view, workspace:this.workspace, saveStatus:this.saveStatus, library,
             templates:PICKLEBOARD_PLAYS.map(({id,name})=>({id,name})), loop:this.session.loop, rate:this.session.clock.playbackRate,
-            busy:this.busy, message:this.message, canUndo:this.history.canUndo, canRedo:this.history.canRedo,
+            busy:this.busy, targetPlacement:this.courtTools.placing, message:this.message, canUndo:this.history.canUndo, canRedo:this.history.canRedo,
             camera:this.board.threeD?.cameraPreset || 'overhead'});
         this.fitCourt(); this.courtTools.render();
     }
@@ -51,8 +53,8 @@ export class PlayBuilder {
         if(region!==this.observedRegion){this.regionObserver?.disconnect();this.observedRegion=region;if(region){this.regionObserver=new ResizeObserver(()=>this.fitCourt());this.regionObserver.observe(region);}}
         const surfaces=[document.querySelector(".court-container-fullscreen"),document.getElementById("threeDViewer")];
         if(this.workspace!=="builder"){for(const surface of surfaces)surface?.style.removeProperty("css-text");for(const surface of surfaces)if(surface)surface.style.cssText="";return;}
-        if(!region)return;const rect=region.getBoundingClientRect(),key=[rect.x,rect.y,rect.width,rect.height].join(":");
-        for(const surface of surfaces)if(surface)Object.assign(surface.style,{position:"fixed",inset:"auto",left:`${rect.x}px`,top:`${rect.y}px`,width:`${rect.width}px`,height:`${rect.height}px`,padding:"0"});
+        if(!region)return;const rect=region.getBoundingClientRect();const reserve=innerWidth<=700?100:48;const sceneHeight=Math.max(80,rect.height-reserve);const key=[rect.x,rect.y,rect.width,sceneHeight].join(":");
+        for(const surface of surfaces)if(surface)Object.assign(surface.style,{position:"fixed",inset:"auto",left:`${rect.x}px`,top:`${rect.y}px`,width:`${rect.width}px`,height:`${sceneHeight}px`,padding:"0"});
         const stage=document.getElementById("parkStage");if(stage){stage.style.width="100%";stage.style.height="100%";}
         if(key!==this.courtRect){this.courtRect=key;this.board.threeD?.resize?.();this.board.scheduleProjectionUpdate?.();}
     }
@@ -64,8 +66,7 @@ export class PlayBuilder {
         this.compiled = {...compileDocument(this.document)};
         if(this.compiled.play) {
             const assisted=applyCoverageAssistance(this.compiled.play,this.document,this.compiled.timeline);
-            this.compiled.coverage=assisted.coverage;
-            if(this.document.assistance.autoShading){const original=this.compiled.timeline;this.compiled.play=assisted.play;const timeline=compilePlayTimeline(assisted.play);this.compiled.timeline={...timeline,events:timeline.events.map((event,index)=>({...event,id:original.events[index]?.id||event.id}))};}
+            this.compiled=this.document.assistance.autoShading?{...recompileAssistedDocument(this.document,this.compiled,assisted.play,assisted.coverage)}:{...this.compiled,coverage:assisted.coverage};
         }
         const play = this.compiled.play || {id:this.document.id,name:this.document.title,description:'Incomplete draft',mode:'doubles',steps:[{id:'start',label:'Starting layout',description:'Add a shot to preview this draft.',durationMs:0,positions:copy(this.document.initialLayout)}]};
         const engine=this.board.plays;
@@ -101,7 +102,9 @@ export class PlayBuilder {
         if(this.busy) { this.board.threeD?.cancelLoading?.(); this.busy=false; this.view='2d'; }
     }
     async switchView(view) {
-        if(this.workspace!=='builder'||this.busy||view===this.view)return;
+        if(this.workspace!=='builder')return;
+        if(this.busy&&view==='2d'){this.cancelPendingView();this.pause();this.message='3D loading cancelled. Continue editing in 2D.';this.render();return;}
+        if(this.busy||view===this.view)return;
         const generation=++this.generation, wasPlaying=this.session.clock.playing;
         this.pause(); const seconds=this.session.clock.elapsed;
         if(view==='2d') {
@@ -152,6 +155,7 @@ export class PlayBuilder {
     }
     async action(action,value) {
         try {
+            if(action==='message'){this.message=String(value);this.render();return;}
             if(action==='view')return await this.switchView(value);
             if(action==='workspace')return await this.setWorkspace(value);
             if(action==='help'){this.board.openInfoModal();return;}
@@ -183,7 +187,7 @@ export class PlayBuilder {
             else if(action==='new'){if(this.workspace==='planner')await this.setWorkspace('builder');const fresh=createStarterDocument();fresh.id=id();this.loadDocument(fresh);this.message='New starter draft. Choose targets or remove shots to begin from an empty sequence.';}
             else if(action==='saveAs'){const draft=copy(this.document);draft.id=id();draft.title=`${draft.title} — copy`.slice(0,120);this.loadDocument(draft);}
             else if(action==='open'){if(this.workspace==='planner')await this.setWorkspace('builder');this.loadDocument(this.store.open(value));}
-            else if(action==='template'){if(this.workspace==='planner')await this.setWorkspace('builder');const template=PICKLEBOARD_PLAYS.find(p=>p.id===value);if(template)this.loadDocument(documentFromTemplate(template));}
+            else if(action==='template'){if(this.workspace==='planner')await this.setWorkspace('builder');const template=PICKLEBOARD_PLAYS.find(p=>p.id===value);if(template){const draft=documentFromTemplate(template);draft.id=id();this.loadDocument(draft);}}
             else if(action==='import'){if(this.workspace==='planner')await this.setWorkspace('builder');this.loadDocument(this.store.importJSON(value));}
             else if(action==='export'){const url=URL.createObjectURL(new Blob([this.store.exportJSON(this.document)],{type:'application/json'}));const a=globalThis.document.createElement('a');a.href=url;a.download='pickleballpark-play.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
             else if(action==='usePlanner') {

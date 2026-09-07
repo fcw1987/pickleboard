@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#304762">
     <meta name="description" content="Pickleball Park is an interactive pickleball coaching and strategy app with an editable tactical board, guided lessons, and spatial replay in one original pixel art park.">
-    <title>Pickleball Park - Pickleball Court Planner</title>
+    <title>Pickleball Park - Build a Play</title>
     <script src="visual-theme.js"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" type="image/png" href="icons/icon-192x192.png">
@@ -14,7 +14,7 @@
     <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-icon-180.png">
     <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
-</head>
+<link rel="stylesheet" href="builder-ui.css"><link rel="stylesheet" href="builder-integration.css"></head>
 <body>
     <div class="app">
         <main class="court-container-fullscreen">
@@ -215,6 +215,7 @@
                     <button id="infoClose" class="close-btn">×</button>
                 </div>
                 <div class="modal-body">
+<section><h2>Build a Play</h2><p>Choose a shot, hitter and landing target. Drag the target or use its numeric controls. Arc and pace are illustrative preferences; Review explains rule or movement limits. Play previews the valid portion of your rally.</p><p>2D and 3D share one draft and playhead. Planner keeps a separate arrangement; Use as starting layout explicitly copies it. Edits autosave on this browser. Export JSON for a backup: local storage can be cleared by the browser and is not cloud storage.</p><p>Auto Shading adjusts eligible generated movement. Coverage Guides only explain suggested positions. These are coaching approximations, not optimal-strategy predictions.</p></section>
                     <!-- Instructions -->
                     <section class="info-section">
                         <h3>How to Use</h3>
@@ -284,5 +285,5 @@
     <script type="module" src="script.js"></script>
     <script type="module" src="coaching-ui.js"></script>
     <script src="three-d-loader.js"></script>
-</body>
+<script type="module" src="play-builder.js"></script></body>
 </html>

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 async function openBoard(page) {
-  await page.goto('/index.html?projection=1');
+  await page.goto('/index.html?workspace=planner&projection=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.projection))).toBe(true);
 }
 

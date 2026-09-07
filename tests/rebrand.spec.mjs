@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 test('publishes Pickleball Park metadata and visible identity', async ({ page }) => {
-  await page.goto('/');
-  await expect(page).toHaveTitle('Pickleball Park - Pickleball Court Planner');
+  await page.goto('/?workspace=planner');
+  await expect(page).toHaveTitle('Pickleball Park - Build a Play');
 
   const manifest = await page.evaluate(async () => (await fetch('manifest.json')).json());
   expect(manifest).toMatchObject({
@@ -22,7 +22,7 @@ test('publishes Pickleball Park metadata and visible identity', async ({ page })
 
 test('keeps the legacy theme and public API compatible across the rebrand', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('pickleboard-theme', 'dark'));
-  await page.goto('/');
+  await page.goto('/?workspace=planner');
   await page.waitForFunction(() => Boolean(window.pickleboard));
 
   const before = await page.evaluate(() => window.pickleboard.captureBoardState());
@@ -44,7 +44,7 @@ for (const width of [320, 390, 768]) {
       await page.route('**/styles.css', route => route.fulfill({ contentType: 'text/css', body: oldCSS }));
     }
     await page.setViewportSize({ width, height: 844 });
-    await page.goto('/');
+    await page.goto('/?workspace=planner');
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
     const brand = page.locator('h1.park-banner');
     await expect(brand).toHaveAccessibleName('Pickleball Park');

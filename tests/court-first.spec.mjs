@@ -13,14 +13,14 @@ async function audit(page){return page.evaluate(()=>{
 });}
 
 for(const [width,height] of viewports)test(`court-first layout ${width}x${height}`,async({page})=>{
- await page.setViewportSize({width,height});await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);
+ await page.setViewportSize({width,height});await page.goto('/?workspace=planner');await page.waitForFunction(()=>window.pickleboard?.plays);
  const a=await audit(page);expect(polygonArea(a.court)).toBeGreaterThan(width===1440?200000:1000);
  for(const point of a.apron){expect(point.x).toBeGreaterThanOrEqual(a.svg.x-1);expect(point.x).toBeLessThanOrEqual(a.svg.right+1);expect(point.y).toBeGreaterThanOrEqual(a.svg.y-1);expect(point.y).toBeLessThanOrEqual(a.svg.bottom+1);}
  for(const control of[a.menu,a.help]){expect(control.width).toBeGreaterThanOrEqual(44);expect(control.height).toBeGreaterThanOrEqual(44);expect(control.x).toBeGreaterThanOrEqual(0);expect(control.right).toBeLessThanOrEqual(width);expect(control.y).toBeGreaterThanOrEqual(0);expect(control.bottom).toBeLessThanOrEqual(height);}
 });
 
 test('resize preserves guided playback while controls remain operable',async({page})=>{
- await page.setViewportSize({width:390,height:844});await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);
+ await page.setViewportSize({width:390,height:844});await page.goto('/?workspace=planner');await page.waitForFunction(()=>window.pickleboard?.plays);
  await page.evaluate(()=>{pickleboard.plays.load('serve-and-return');pickleboard.plays.session.seek(.5);pickleboard.plays.applyAtTime(.5);});
  const before=await page.evaluate(()=>({elapsed:pickleboard.plays.clock.elapsed,play:pickleboard.plays.activePlay.id}));
  await page.setViewportSize({width:844,height:390});await expect.poll(()=>page.evaluate(()=>PickleboardProjection.name)).toBe('wide');
@@ -30,7 +30,7 @@ test('resize preserves guided playback while controls remain operable',async({pa
 });
 
 test('guided layout keeps border controls on their projected park anchors',async({page})=>{
- await page.setViewportSize({width:1440,height:900});await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);
+ await page.setViewportSize({width:1440,height:900});await page.goto('/?workspace=planner');await page.waitForFunction(()=>window.pickleboard?.plays);
  await page.evaluate(()=>pickleboard.plays.load('serve-and-return'));
  await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.body).getPropertyValue('--coaching-hud-height'))).not.toBe('');
  const positions=await page.evaluate(()=>{const matrix=document.querySelector('#court').getScreenCTM();
@@ -43,14 +43,14 @@ test('guided layout keeps border controls on their projected park anchors',async
 });
 
 test('active shot cue keeps the banner inside a 1024x768 viewport',async({page})=>{
- await page.setViewportSize({width:1024,height:768});await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);
+ await page.setViewportSize({width:1024,height:768});await page.goto('/?workspace=planner');await page.waitForFunction(()=>window.pickleboard?.plays);
  await page.evaluate(()=>pickleboard.plays.load('lob-overhead'));await page.locator('#playNext').click();
  await expect(page.locator('#playShotCue')).toBeVisible();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  const banner=await page.locator('.park-banner').boundingBox();expect(banner.y).toBeGreaterThanOrEqual(0);expect(banner.y+banner.height).toBeLessThanOrEqual(768);
 });
 
 for(const [width,height] of [[390,844],[844,390]])test(`200 percent text keeps border controls clear at ${width}x${height}`,async({page})=>{
- await page.setViewportSize({width,height});await page.goto('/');await page.addStyleTag({content:'html{font-size:200%}'});
+ await page.setViewportSize({width,height});await page.goto('/?workspace=planner');await page.addStyleTag({content:'html{font-size:200%}'});
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  const geometry=await page.evaluate(()=>{const matrix=document.querySelector('#court').getScreenCTM(),project=([x,y])=>{const view=PickleboardProjection.courtToView(x,y),p=new DOMPoint(view.x,view.y).matrixTransform(matrix);return{x:p.x,y:p.y};};
   const rect=id=>{const r=document.getElementById(id).getBoundingClientRect();return[{x:r.left,y:r.top},{x:r.right,y:r.top},{x:r.right,y:r.bottom},{x:r.left,y:r.bottom}];};
