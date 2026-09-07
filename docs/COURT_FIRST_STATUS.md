@@ -23,6 +23,11 @@ At 1440×900 the original painted court polygon occupies 169,438 CSS px² in edi
 
 - Original banner/HELP assets generated and visually inspected; weak first banner contrast corrected to navy on ivory.
 - Shared banner placement replaces top tree; SVG projection refresh hook added without recreating textures.
-- Layout/control integration, complete browser checks, visual correction, cache upgrade and package contract refresh remain in progress.
+- Complete: CTM-based native border controls, scene-scaled banner, responsive court projection and all corrective regressions.
+- Complete: 133 Chromium passes; 78 unit passes; 63 generated paths; 78 asset references. WebKit has 126 passes and the same seven baseline failures.
+- Complete: exact 82-file artifact and four Chromium/WebKit fresh/actual-v15-upgrade cases, including all eight lessons with the server stopped.
+- Complete: independent visual/technical review and final corrective image inspection. No material findings remain.
+- Runtime checkpoint `195dd49`; package checkpoint `69e56fa`. See [verification and gallery](COURT_FIRST_VERIFICATION.md).
+- Only the integration preview on port 4173 remains intentional. Workers are finished. Production is unchanged.
 
 Any updated package hash fixture will identify this new local candidate explicitly; it will not claim unchanged runtime equivalence to the previous release or authorize deployment.
