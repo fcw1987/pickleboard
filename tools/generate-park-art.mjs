@@ -108,7 +108,7 @@ const sign = () => {
   c.rect(26, 23, 12, 34, C.parkWood); c.rect(29, 21, 6, 36, C.parkShadow);
   c.rect(8, 8, 48, 23, C.navyDark); c.rect(12, 12, 40, 15, C.parkSign);
   // The border sign is a readable help affordance; product identity lives in banner().
-  text(c, 'HELP', 16, 15, C.grassDeep, 2);
+  text(c, 'HELP', 16, 15, C.navyDark, 2);
   c.rect(19, 57, 26, 3, [...C.parkShadow.slice(0, 3), 90]);
   return c;
 };
@@ -116,10 +116,10 @@ const banner = () => {
   const c = new Canvas(128, 32);
   c.rect(1, 1, 126, 30, C.navyDark);
   c.rect(4, 4, 120, 24, C.parkSign);
-  c.rect(6, 6, 116, 20, C.orangeDark);
+  c.rect(6, 6, 116, 20, C.line);
   // A compact two-line wordmark keeps every doubled pixel legible in the park border.
-  text(c, 'PICKLEBALL', 24, 7, C.grassDeep, 2);
-  text(c, 'PARK', 48, 18, C.parkShadow, 2);
+  text(c, 'PICKLEBALL', 24, 7, C.navyDark, 2);
+  text(c, 'PARK', 48, 18, C.navyDark, 2);
   return c;
 };
 
