@@ -1,6 +1,11 @@
 {
-  "source": "f89cdfd6b7a0a9cbf4e1662c192634d6b794460f",
+  "source": "195dd49da319d3ca5c41eb97105270badeae2a8d",
   "files": [
+    {
+      "path": "assets/park/banner.png",
+      "bytes": 280,
+      "sha256": "769f4f576989b0f1637d55bd79c354d63f0c9074df6c4d5a368dace7b80ad66c"
+    },
     {
       "path": "assets/park/bench.png",
       "bytes": 200,
@@ -28,8 +33,8 @@
     },
     {
       "path": "assets/park/sign.png",
-      "bytes": 306,
-      "sha256": "2c240cb309280fa9dc786cc48f44c40d548cc988558238cd0d0728488fb443b2"
+      "bytes": 248,
+      "sha256": "3b210a502b6a0431e87f76ce7ed1e9c575924dd1ee992ec1120af1d8468ef12b"
     },
     {
       "path": "assets/park/tree.png",
@@ -223,8 +228,8 @@
     },
     {
       "path": "board-projection.js",
-      "bytes": 1529,
-      "sha256": "8a85a0ba9a1fd2d32c9b06a9eceb5c3a8664d55e1a82499437994ef2da874563"
+      "bytes": 2463,
+      "sha256": "ec1ae76b9241c4f570b58d167e26c6b6c67e65a0a327b5f1451905ad7b5cbd0a"
     },
     {
       "path": "coaching-session.js",
@@ -308,8 +313,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 18619,
-      "sha256": "0e2a033522a53b70e3e9bf639f929d9d7e2dafa5a1077861f6c6de64ca975abb"
+      "bytes": 18737,
+      "sha256": "fbfa14f5e12477e8427e7a7f22e52667b98abe24d14c574ad9394dea15e6c4d8"
     },
     {
       "path": "manifest.json",
@@ -318,13 +323,13 @@
     },
     {
       "path": "park-layout.js",
-      "bytes": 2289,
-      "sha256": "de6e5ed38a81bd80457d00aab77e890cd916bf82a461fcce69f0ed9bd66fec5d"
+      "bytes": 2488,
+      "sha256": "9007dfd5b3bc98ff23d0e0444f982999eff0148b314002a18c12531ae48ee460"
     },
     {
       "path": "park-scene.js",
-      "bytes": 10497,
-      "sha256": "f9c607a09f387d2f982d5d69d457cb88780d7842435985ae2c857d48d7441c10"
+      "bytes": 10989,
+      "sha256": "87b8a7cf230683cfadb802a6790cf447acac5f83bdaab37890edacde36d897d8"
     },
     {
       "path": "pixel-actor-assets.js",
@@ -343,18 +348,18 @@
     },
     {
       "path": "script.js",
-      "bytes": 53794,
-      "sha256": "6a426cc21a2a125c1c29d34f978823f19e00da06562c177838c032f5d2fec6e3"
+      "bytes": 59033,
+      "sha256": "a16c7768589057b7918a3df8bb7f417074dd71348621ebf6180d6f02a4fe8882"
     },
     {
       "path": "styles.css",
-      "bytes": 24085,
-      "sha256": "c0ea3beb82762ce8c0ed2c757c32662e58bcff8cd45940fc1c7184e757f311d8"
+      "bytes": 23644,
+      "sha256": "9c30fcf37e090812b23c89885964120e94099a664623e2f3e567e5b3360ad19d"
     },
     {
       "path": "sw.js",
-      "bytes": 6218,
-      "sha256": "d68c0a64cf32a691309b5f43e0c277e014176155d37d8d1c9d801e53975046b0"
+      "bytes": 6248,
+      "sha256": "edef406544023ffa98e568310ef7d5e259d6af93119b49fbcbe4fdea6ecdb6c5"
     },
     {
       "path": "three-d-animation.js",

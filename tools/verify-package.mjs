@@ -15,11 +15,15 @@ const walk = (dir, prefix = '') => readdirSync(dir, { withFileTypes: true }).fla
 expect(walk(artifact).sort()).toEqual([...manifest.files.map(f => f.path), ...info.publicationMetadata].sort());
 for (const f of manifest.files) expect(sha(readFileSync(`${artifact}/${f.path}`)), f.path).toBe(f.sha256);
 const prior = JSON.parse(readFileSync('tests/fixtures/prior-production.json'));
+const previousCache = prior.cacheName;
+const candidateCache = 'pickleboard-static-v16';
 const oldFiles = new Map();
 for (const f of prior.files) {
   const b = execFileSync('git', ['show', `${prior.revision}:${f.file}`], { maxBuffer: 20 * 1024 * 1024 });
   expect(sha(b), `verified previous public asset ${f.file}`).toBe(f.sha256); oldFiles.set(f.file, b);
 }
+const priorCachePaths = [...oldFiles.get('sw.js').toString('utf8').split('const STATIC_ASSETS = [')[1].split('];')[0].matchAll(/'\.\/([^']*)'/g)].map(m => m[1] || 'index.html');
+expect([...oldFiles.keys()].filter(path => path !== 'sw.js').sort()).toEqual([...new Set(priorCachePaths)].sort());
 const results = [];
 const scopePath = new URL('https://fcw1987.github.io/pickleboard/').pathname;
 const types = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.png': 'image/png' };
@@ -47,7 +51,7 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
       expect(await page.evaluate(async () => (await navigator.serviceWorker.ready).scope)).toBe(base);
       const oldManifest = await page.evaluate(async () => (await fetch('./manifest.json')).json());
       if (mode === 'upgrade') {
-        expect(await page.evaluate(() => caches.keys())).toContain('pickleboard-static-v8');
+        expect(await page.evaluate(() => caches.keys())).toContain(previousCache);
         await page.evaluate(async () => {
           localStorage.setItem('pickleboard-theme', 'dark');
           const unrelated = await caches.open('unrelated-application-cache'); await unrelated.put('/keep', new Response('preserve'));
@@ -56,8 +60,8 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
         const before = await page.evaluate(() => pickleboard.captureBoardState());
         phase = 'new';
         await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
-        await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 20000 }).toContain('pickleboard-static-v15');
-        await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 20000 }).not.toContain('pickleboard-static-v8');
+        await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 20000 }).toContain(candidateCache);
+        await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 20000 }).not.toContain(previousCache);
         expect(await page.evaluate(() => pickleboard.captureBoardState())).toEqual(before);
         await page.reload(); await page.waitForFunction(() => window.pickleboard?.plays);
         expect(await page.evaluate(() => ({ theme: localStorage.getItem('pickleboard-theme'), body: document.body.dataset.theme }))).toEqual({ theme: 'dark', body: 'dark' });
@@ -67,8 +71,8 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
       const currentManifest = await page.evaluate(async () => (await fetch('./manifest.json')).json());
       expect(currentManifest.name).toBe('Pickleball Park');
       expect({ id: currentManifest.id, start_url: currentManifest.start_url }).toEqual({ id: oldManifest.id, start_url: oldManifest.start_url });
-      const checks = await page.evaluate(async ({ files, scopePath }) => {
-        const cache = await caches.open('pickleboard-static-v15');
+      const checks = await page.evaluate(async ({ files, scopePath, candidateCache }) => {
+        const cache = await caches.open(candidateCache);
         const digest = async r => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await r.arrayBuffer()))).map(v => v.toString(16).padStart(2, '0')).join('');
         const all = [];
         for (const f of files) {
@@ -81,7 +85,7 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
           cached.push({ path, sha256: await digest(await cache.match(request)) });
         }
         return { all, cached };
-      }, { files: manifest.files, scopePath });
+      }, { files: manifest.files, scopePath, candidateCache });
       for (const f of checks.all) {
         expect(f.sha256, f.path).toBe(manifest.files.find(e => e.path === f.path).sha256);
         if (f.path.endsWith('.js')) expect(f.type).toContain('javascript');
