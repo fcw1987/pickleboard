@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
-test('guided art reaches the projected contact without giant overhead equipment',async({page})=>{
+for (const viewport of [{width:1440,height:900},{width:390,height:844}]) test(`guided art reaches the projected contact without giant overhead equipment at ${viewport.width}px`,async({page})=>{
+ await page.setViewportSize(viewport);
  await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);
  const samples=await page.evaluate(async()=>{
   const board=pickleboard,engine=board.plays,result=[];

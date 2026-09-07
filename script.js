@@ -191,14 +191,26 @@ class Pickleboard {
 
     updateParkControls() {
         const stage=this.court.closest('.park-stage'); if(!stage)return;
-        const viewBox=this.projection.COURT_VIEWBOX, rect=stage.getBoundingClientRect();
-        const place=(element,anchor,padding=4)=>{if(!element||!anchor)return;const view=this.projection.courtToView(anchor);
-            const x=(view.x-viewBox.x)/viewBox.width*rect.width,y=(view.y-viewBox.y)/viewBox.height*rect.height;
+        const rect=stage.getBoundingClientRect(), matrix=this.court.getScreenCTM();
+        if(!matrix)return;
+        const courtCorners=[[0,0],[20,0],[20,44],[0,44]].map(([x,y])=>{const view=this.projection.courtToView(x,y);return new DOMPoint(view.x,view.y).matrixTransform(matrix);});
+        const edgeX=(from,to,y)=>from.x+(to.x-from.x)*(y-from.y)/(to.y-from.y);
+        const place=(element,anchor,padding=4,side=null)=>{if(!element||!anchor)return;const view=this.projection.courtToView(anchor);
+            const screen=new DOMPoint(view.x,view.y).matrixTransform(matrix);
             const halfWidth=element.offsetWidth/2,halfHeight=element.offsetHeight/2;
-            element.style.left=`${Math.max(halfWidth+padding,Math.min(rect.width-halfWidth-padding,x))}px`;
-            element.style.top=`${Math.max(halfHeight+padding,Math.min(rect.height-halfHeight-padding,y))}px`;};
-        place(this.menuToggle,PARK_LAYOUT.controls.menu); place(this.infoToggle,PARK_LAYOUT.controls.help);
-        place(stage.querySelector('.park-banner'),PARK_LAYOUT.controls.banner,4);
+            let x=screen.x,y=screen.y;
+            if(side==='left')x=Math.min(x,Math.min(edgeX(courtCorners[0],courtCorners[3],y-halfHeight),edgeX(courtCorners[0],courtCorners[3],y+halfHeight))-halfWidth-padding);
+            if(side==='right')x=Math.max(x,Math.max(edgeX(courtCorners[1],courtCorners[2],y-halfHeight),edgeX(courtCorners[1],courtCorners[2],y+halfHeight))+halfWidth+padding);
+            const localX=Math.max(halfWidth+padding-rect.left,Math.min(innerWidth-rect.left-halfWidth-padding,x-rect.left));
+            const localY=Math.max(halfHeight+padding-rect.top,Math.min(innerHeight-rect.top-halfHeight-padding,y-rect.top));
+            element.style.left=`${localX}px`; element.style.top=`${localY}px`;};
+        place(this.menuToggle,PARK_LAYOUT.controls.menu,4,'left'); place(this.infoToggle,PARK_LAYOUT.controls.help,4,'right');
+        const banner=stage.querySelector('.park-banner'),bannerAnchor=PARK_LAYOUT.controls.banner;
+        if(banner&&bannerAnchor){const view=this.projection.courtToView(bannerAnchor),screen=new DOMPoint(view.x,view.y).matrixTransform(matrix),scale=Math.hypot(matrix.a,matrix.b);
+            banner.style.width=`${Math.max(112,Math.min(280,14*scale))}px`;
+            const halfWidth=banner.offsetWidth/2,height=banner.offsetHeight;
+            banner.style.left=`${Math.max(halfWidth+4-rect.left,Math.min(innerWidth-rect.left-halfWidth-4,screen.x-rect.left))}px`;
+            banner.style.top=`${Math.max(height+8-rect.top,Math.min(innerHeight-rect.top-4,screen.y-rect.top))}px`;}
         for(const id of ['park-sign','park-banner']) this.court.querySelector(`[data-landmark-id="${id}"]`)?.setAttribute('visibility','hidden');
     }
 

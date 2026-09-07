@@ -29,8 +29,33 @@ test('resize preserves guided playback while controls remain operable',async({pa
  await page.locator('#menuToggle').click();await expect(page.locator('#menuClose')).toBeFocused();await page.keyboard.press('Escape');await expect(page.locator('#menuToggle')).toBeFocused();
 });
 
-test('200 percent text keeps border controls and help reachable',async({page})=>{
- await page.setViewportSize({width:390,height:844});await page.goto('/');await page.addStyleTag({content:'html{font-size:200%}'});
- for(const id of['menuToggle','infoToggle']){const r=await page.locator(`#${id}`).boundingBox();expect(r.width).toBeGreaterThanOrEqual(44);expect(r.height).toBeGreaterThanOrEqual(44);}
+test('guided layout keeps border controls on their projected park anchors',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);
+ await page.evaluate(()=>pickleboard.plays.load('serve-and-return'));
+ await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.body).getPropertyValue('--coaching-hud-height'))).not.toBe('');
+ const positions=await page.evaluate(()=>{const matrix=document.querySelector('#court').getScreenCTM();
+  const point=anchor=>{const view=PickleboardProjection.courtToView(anchor),screen=new DOMPoint(view.x,view.y).matrixTransform(matrix);return{x:screen.x,y:screen.y};};
+  const center=id=>{const r=document.getElementById(id).getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2,box:{left:r.left,right:r.right,top:r.top,bottom:r.bottom}};};
+  return{menu:center('menuToggle'),help:center('infoToggle'),menuAnchor:point({x:-6.5,y:15}),helpAnchor:point({x:26.5,y:8}),court:[[0,0],[20,0],[20,44],[0,44]].map(([x,y])=>point({x,y}))};});
+ for(const name of['menu','help']){expect(positions[name].x).toBeCloseTo(positions[`${name}Anchor`].x,0);expect(positions[name].y).toBeCloseTo(positions[`${name}Anchor`].y,0);}
+ const courtLeft=Math.min(...positions.court.map(point=>point.x)),courtRight=Math.max(...positions.court.map(point=>point.x));
+ expect(positions.menu.box.right).toBeLessThan(courtLeft);expect(positions.help.box.left).toBeGreaterThan(courtRight);
+});
+
+test('active shot cue keeps the banner inside a 1024x768 viewport',async({page})=>{
+ await page.setViewportSize({width:1024,height:768});await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);
+ await page.evaluate(()=>pickleboard.plays.load('lob-overhead'));await page.locator('#playNext').click();
+ await expect(page.locator('#playShotCue')).toBeVisible();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ const banner=await page.locator('.park-banner').boundingBox();expect(banner.y).toBeGreaterThanOrEqual(0);expect(banner.y+banner.height).toBeLessThanOrEqual(768);
+});
+
+for(const [width,height] of [[390,844],[844,390]])test(`200 percent text keeps border controls clear at ${width}x${height}`,async({page})=>{
+ await page.setViewportSize({width,height});await page.goto('/');await page.addStyleTag({content:'html{font-size:200%}'});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ const geometry=await page.evaluate(()=>{const matrix=document.querySelector('#court').getScreenCTM(),project=([x,y])=>{const view=PickleboardProjection.courtToView(x,y),p=new DOMPoint(view.x,view.y).matrixTransform(matrix);return{x:p.x,y:p.y};};
+  const rect=id=>{const r=document.getElementById(id).getBoundingClientRect();return[{x:r.left,y:r.top},{x:r.right,y:r.top},{x:r.right,y:r.bottom},{x:r.left,y:r.bottom}];};
+  return{court:[[0,0],[20,0],[20,44],[0,44]].map(project),menu:rect('menuToggle'),help:rect('infoToggle')};});
+ const separated=(a,b)=>[...a,...b].some((p,i)=>{const q=i<a.length?a[(i+1)%a.length]:b[(i-a.length+1)%b.length];const axis={x:-(q.y-p.y),y:q.x-p.x};const values=poly=>poly.map(point=>point.x*axis.x+point.y*axis.y);const av=values(a),bv=values(b);return Math.max(...av)<Math.min(...bv)||Math.max(...bv)<Math.min(...av);});
+ for(const [id,poly] of Object.entries({menu:geometry.menu,help:geometry.help})){const r=await page.locator(`#${id==='menu'?'menuToggle':'infoToggle'}`).boundingBox();expect(r.width).toBeGreaterThanOrEqual(44);expect(r.height).toBeGreaterThanOrEqual(44);expect(separated(poly,geometry.court),id).toBe(true);}
  await page.locator('#infoToggle').click();await expect(page.locator('#infoClose')).toBeVisible();
 });

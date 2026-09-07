@@ -2,6 +2,9 @@
     'use strict';
 
     const COURT_MIDLINE = 22;
+    // Ground fitting is an affine 2.5D layout, not a camera tilt. Keep upright
+    // actor and ball height calibrated together across responsive presets.
+    const UPRIGHT_HEIGHT_SCALE = Math.sqrt(1 - 0.9 * 0.9);
     const PRESETS = Object.freeze({
         portrait: Object.freeze({ shear: 0.04, depthScale: 0.9,
             viewBox: Object.freeze({ x: -10.6, y: -11, width: 41.2, height: 59 }) }),
@@ -53,8 +56,8 @@
         configureViewport,
         get name() { return activeName; },
         get COURT_VIEWBOX() { return active.viewBox; },
-        get HEIGHT_SCALE() { return Math.sqrt(1 - active.depthScale * active.depthScale); },
-        projectHeight: feet => feet * Math.sqrt(1 - active.depthScale * active.depthScale),
+        HEIGHT_SCALE: UPRIGHT_HEIGHT_SCALE,
+        projectHeight: feet => feet * UPRIGHT_HEIGHT_SCALE,
         get MATRIX() { return matrix; },
         courtToView,
         viewToCourt,

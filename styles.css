@@ -150,6 +150,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 }
 .park-control:hover { background:var(--button-hover); }
 .park-control:active { box-shadow:2px 2px 0 var(--shadow); }
+.park-menu { flex-direction:column; gap:3px; }
+.park-menu .control-label { line-height:1; }
+.park-help { flex-direction:column; gap:2px; }
+.park-help .control-label, .park-help .help-icon { line-height:1; }
 .park-banner { position:absolute; z-index:5; width:clamp(132px,38%,280px); margin:0; transform:translate(-50%,calc(-100% - 4px)); pointer-events:none; }
 .park-banner img { display:block; width:100%; height:auto; image-rendering:pixelated; }
 .hamburger-icon { display: grid; gap: 4px; }
@@ -293,6 +297,7 @@ body.three-d-active .park-control, body.three-d-active .court-container-fullscre
   .three-d-controls label, .three-d-controls button, .three-d-controls select { width: 100%; min-width: 0; }
 }
 @media (max-width: 420px) {
+  .park-menu, .park-help { padding-inline:4px; }
   /* Let enlarged brand text reserve real space instead of covering court action. */
   .court-container-fullscreen { padding: 0.45rem; }
   .court-svg { box-shadow: none; }
