@@ -18,6 +18,8 @@ The result shape is:
 }
 ```
 
+Coverage remains a separate derived heuristic. `recompileAssistedDocument(document, compiled, assistedPlay, coverage)` is the compiler-owned boundary for applying it: only derived player positions may change. It rejects ball, shot-semantic, target, or pinned-player changes; recompiles through the same timeline; restores recipe-based event IDs; and declines an unreachable assisted plan with a feasibility finding. Guide-only output can carry explanations without changing positions.
+
 `kind` separates a demonstrable `rule` violation from `feasibility` in the bounded motion/flight model, `tactical` advice, and an `unsupported` case. The initial compiler generates the first two kinds. An incomplete or invalid document keeps its editable recipes and compiles the valid prefix. An explicitly intentional fault is compiled as a terminal shot with a visible warning; no continuation is invented.
 
 ## Version 1 source shape
@@ -71,7 +73,7 @@ Court coordinates are feet in the established 20 by 44 board coordinate system. 
 
 The compiler derives contact phase, illustrative contact height, net crossing, zero or one bounce, and incoming contact. Serve and return legs in a standard opening each bounce once. Volley feet are generated outside the non-volley zone. Generated movement is bounded and continuous between production steps. A pinned/manual target is copied to the derived step and is never changed in the source. The reserved `coverage` output lets assistance add derived positions later without changing shot targets or authoring locks.
 
-Automatic forehand/backhand selection uses physical handedness, court side, and the contact's court x coordinate. Camera direction has no role. Explicit forehand/backhand and short-hop choices remain explicit.
+Automatic forehand/backhand selection uses physical handedness and the contact's lateral offset from the actor's derived stance, with tactical facing determined by the athlete's court side. Camera direction has no role. Explicit forehand/backhand and short-hop choices remain explicit.
 
 ## Lesson copies
 
@@ -94,4 +96,4 @@ Persisted template snapshots require the same size limit as imports. Future migr
 
 Rule checks cover standard standing doubles facts represented in the document: diagonal serve placement, the serve and return bounce sequence, alternating teams and explicit receivers, cross-net targets, and generated volley footing. Entering the non-volley zone is not treated as a fault by itself. Intentional-fault demonstrations retain warnings and stop at the fault.
 
-The trajectory model is an instructional approximation. Family, arc, and pace select bounded speeds, curve apexes, net clearances, and rebound heights. Player reach uses a bounded 14 feet/second planning heuristic with tolerance. Model version 1 preserves optional authored waypoints and uses the final movement target for sampling; it emits an explicit `unsupported` warning whenever a waypoint path is present rather than silently ignoring that constraint. These are feasibility assumptions, not official rules, measured biomechanics, aerodynamics, ball-speed claims, tactical recommendations, or predictive coaching results. Detailed spin, stacking, scoring, tournament administration, specialist shots, and full officiating remain unsupported in model version 1.
+The trajectory model is an instructional approximation. Family, arc, and pace select bounded speeds, curve apexes, net clearances, and rebound heights. Player reach uses a bounded 14 feet/second planning heuristic with tolerance. A pinned post-contact position remains active until that athlete's next authored movement; a dependent contact that conflicts with it stops the playable prefix with a feasibility explanation. Model version 1 preserves optional authored waypoints and uses the final movement target for sampling; it emits an explicit `unsupported` warning whenever a waypoint path is present rather than silently ignoring that constraint. A selected drop serve is likewise preserved and explicitly reported as unsupported because this model does not animate or validate its preparatory bounce. Declared winner and fault outcomes appear on the terminal step and in `play.outcome`. These are feasibility assumptions, not official rules, measured biomechanics, aerodynamics, ball-speed claims, tactical recommendations, or predictive coaching results. Detailed spin, stacking, scoring, tournament administration, specialist shots, and full officiating remain unsupported in model version 1.

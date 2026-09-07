@@ -4,7 +4,7 @@ import { PICKLEBOARD_PLAYS } from '../play-catalog.js';
 import { samplePlayBall } from '../three-d-core.js';
 import { validateRallyRules } from '../rally-rules.js';
 import { MAX_SHOTS, SCHEMA_VERSION, createStarterDocument, documentFromTemplate, validateDocument } from '../play-document.js';
-import { compileDocument } from '../play-compiler.js';
+import { compileDocument, recompileAssistedDocument } from '../play-compiler.js';
 
 const clone = value => structuredClone(value);
 
@@ -127,6 +127,55 @@ test('opening sequence protects the two-bounce rule and treats the kitchen line 
   assert.equal(returnFault.play.steps[1].shot.flight.bounces, 1);
 });
 
+test('drop serves are preserved but explicitly unsupported by the current motion model', () => {
+  const document = createStarterDocument();
+  document.shots[0].serveMethod = 'drop';
+  const result = compileDocument(document);
+  assert.equal(result.validShotCount, 3);
+  assert.equal(result.play.steps[1].shot.authoring.serveMethod, 'drop');
+  assert.match(result.findings.find(item => item.kind === 'unsupported').message, /preparatory bounce/);
+});
+
+test('a pinned prior movement stops a dependent contact instead of being overwritten', () => {
+  const document = createStarterDocument();
+  document.shots[2].receiver = 'player3';
+  document.shots[2].movement = { intent: 'manual', pinned: true, target: { x: 12, y: 12 } };
+  document.shots.push(
+    { id: 'drive-4', family: 'drive', hitter: 'player3', receiver: 'player1', contactStyle: 'forehand', target: { x: 3, y: 3 }, arc: 'low', pace: 'firm', movement: { intent: 'hold', pinned: false } },
+    { id: 'drop-5', family: 'drop', hitter: 'player1', receiver: 'auto', contactStyle: 'forehand', target: { x: 4, y: 28 }, arc: 'high', pace: 'soft', movement: { intent: 'advance', pinned: false } }
+  );
+  const result = compileDocument(document);
+  assert.equal(result.validShotCount, 4);
+  assert.match(result.findings.find(item => item.shotId === 'drop-5').message, /pinned at \(12\.0, 12\.0\)/);
+  assert.deepEqual(result.play.steps[3].positions.player1, { x: 12, y: 12 });
+  assert.deepEqual(document.shots[2].movement.target, { x: 12, y: 12 });
+});
+
+test('automatic stroke side uses handedness and the actor stance', () => {
+  const right = createStarterDocument();
+  right.opening = 'midrally';
+  right.initialLayout.ball = { x: 12, y: 14 };
+  right.initialLayout.player1 = { x: 10, y: 14 };
+  right.shots = [{ ...right.shots[2], id: 'auto-side', contactStyle: 'auto', target: { x: 12, y: 32 } }];
+  const left = clone(right);
+  left.players.player1.handedness = 'left';
+  assert.equal(compileDocument(right).play.steps[1].shot.contact.strokeSide, 'forehand');
+  assert.equal(compileDocument(left).play.steps[1].shot.contact.strokeSide, 'backhand');
+});
+
+test('winner and fault endings are visible terminal semantics', () => {
+  for (const ending of ['winner', 'fault']) {
+    const document = createStarterDocument();
+    document.ending = ending;
+    const result = compileDocument(document);
+    const last = result.play.steps.at(-1);
+    assert.match(last.label, ending === 'winner' ? /Winner/ : /Fault/);
+    assert.match(last.description, new RegExp(`Declared ${ending}`));
+    assert.deepEqual(result.play.outcome, { intent: ending, afterShotId: 'drop-3', intentionalFault: false });
+    assert.equal(result.validShotCount, 3);
+  }
+});
+
 test('compiler does not mutate source targets, manual movement, or pins', () => {
   const document = createStarterDocument();
   document.shots[2].movement = { intent: 'manual', pinned: true, target: { x: 12, y: 12 }, waypoints: [{ x: 13, y: 8 }] };
@@ -218,3 +267,53 @@ test('one sampled ball remains continuous at every generated event boundary', ()
   }
   assert.equal(new Set(timeline.events.map(event => event.id)).size, timeline.events.length);
 });
+
+test('coverage recompilation preserves semantics, pins, targets, and stable event ids', () => {
+  const document = createStarterDocument();
+  document.assistance.autoShading = true;
+  const compiled = compileDocument(document);
+  const assisted = clone(compiled.play);
+  assisted.steps[1].positions.player2.x += .35;
+  const coverage = [{ shotId: 'serve-1', explanation: 'Suggested Coverage' }];
+  const result = recompileAssistedDocument(document, compiled, assisted, coverage);
+  assert.equal(result.play.steps[1].positions.player2.x, compiled.play.steps[1].positions.player2.x + .35);
+  assert.deepEqual(result.play.steps.map(step => step.shot?.intendedTarget), compiled.play.steps.map(step => step.shot?.intendedTarget));
+  assert.deepEqual(result.timeline.events.map(event => event.id), compiled.timeline.events.map(event => event.id));
+  assert.deepEqual(result.coverage, coverage);
+
+  const guideDocument = createStarterDocument();
+  guideDocument.assistance.showGuides = true;
+  const guideCompiled = compileDocument(guideDocument);
+  const guide = recompileAssistedDocument(guideDocument, guideCompiled, clone(guideCompiled.play), coverage);
+  assert.deepEqual(guide.play.steps, guideCompiled.play.steps);
+  assert.deepEqual(guide.coverage, coverage);
+});
+
+test('coverage boundary rejects authored changes and declines unreachable suggestions', () => {
+  const document = createStarterDocument();
+  const compiled = compileDocument(document);
+  const changedBall = clone(compiled.play);
+  changedBall.steps[1].positions.ball.x += 1;
+  assert.throws(() => recompileAssistedDocument(document, compiled, changedBall, []), /may not change ball/);
+
+  const changedTarget = clone(compiled.play);
+  changedTarget.steps[1].shot.intendedTarget.x += 1;
+  assert.throws(() => recompileAssistedDocument(document, compiled, changedTarget, []), /player positions only/);
+
+  const pinnedDocument = createStarterDocument();
+  pinnedDocument.shots[0].movement.pinned = true;
+  const pinnedCompiled = compileDocument(pinnedDocument);
+  const changedPin = clone(pinnedCompiled.play);
+  changedPin.steps[1].positions.player1.x += .1;
+  assert.throws(() => recompileAssistedDocument(pinnedDocument, pinnedCompiled, changedPin, []), /may not change player1/);
+
+  const unreachable = clone(compiled.play);
+  unreachable.steps[1].positions.player2.x = 100;
+  const declined = recompileAssistedDocument(document, compiled, unreachable, coverageFixture());
+  assert.equal(declined.play, compiled.play);
+  assert.match(declined.findings.at(-1).message, /could not reach/);
+});
+
+function coverageFixture() {
+  return [{ shotId: 'serve-1', explanation: 'Suggested Coverage test fixture' }];
+}

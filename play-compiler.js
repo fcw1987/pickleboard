@@ -61,11 +61,13 @@ function strokeFor(shot) {
   return shot.family;
 }
 
-function autoStrokeSide(shot, contact, players) {
+function autoStrokeSide(shot, contact, players, actorPosition) {
   if (shot.contactStyle !== 'auto') return shot.contactStyle === 'short-hop' ? 'forehand' : shot.contactStyle;
   const handedness = players[shot.hitter].handedness;
   const green = players[shot.hitter].team === 'green';
-  const forehandSide = handedness === 'right' ? (green ? contact.x >= 10 : contact.x <= 10) : (green ? contact.x <= 10 : contact.x >= 10);
+  const lateral = contact.x - actorPosition.x;
+  const paddleSide = (green ? 1 : -1) * (handedness === 'right' ? 1 : -1);
+  const forehandSide = Math.abs(lateral) < .15 || lateral * paddleSide >= 0;
   return forehandSide ? 'forehand' : 'backhand';
 }
 
@@ -121,6 +123,12 @@ function finalizeLastAcceptedStep(steps, accepted) {
   step.shot.flight.bounces = 1;
   step.positions.ball = copy(recipe.target);
 }
+function labelOutcome(play) {
+  if (play.steps.length < 2 || play.ending === 'stop') return;
+  const last = play.steps.at(-1), noun = play.ending === 'winner' ? 'winner' : 'fault';
+  if (!last.label.endsWith(`· ${noun === 'winner' ? 'Winner' : 'Fault'}`)) last.label = `${last.label} · ${noun === 'winner' ? 'Winner' : 'Fault'}`;
+  if (!last.description.includes(`Declared ${noun};`)) last.description = `${last.description} Declared ${noun}; the demonstration ends here.`;
+}
 
 function validateRecipeIntent(document, recipe, index, priorRecipe, contact) {
   const findings = [];
@@ -146,11 +154,13 @@ function makePlay(document) {
   const findings = [];
   const accepted = [];
   const contacts = [];
+  const locks = new Map();
   let terminalFault = false;
 
   for (let index = 0; index < document.shots.length; index++) {
     const recipe = document.shots[index];
     if (recipe.movement.waypoints?.length) findings.push(finding('unsupported', 'warning', recipe.id, 'Movement waypoints are preserved, but trajectory model version 1 uses the final movement target only.'));
+    if (recipe.family === 'serve' && recipe.serveMethod === 'drop') findings.push(finding('unsupported', 'warning', recipe.id, 'The drop-serve choice is preserved, but trajectory model version 1 does not animate or validate the preparatory bounce.'));
     const prior = accepted[index - 1];
     const priorOrigin = contacts[index - 1];
     const contact = shotContact(recipe, prior, priorOrigin, prior?.target, document.initialLayout, document.players);
@@ -161,6 +171,13 @@ function makePlay(document) {
       terminalFault = true;
     }
     const previousPositions = steps.at(-1).positions;
+    const actorStance = copy(previousPositions[recipe.hitter]);
+    const locked = locks.get(recipe.hitter);
+    if (locked && distance(locked, contact) > .75) {
+      findings.push(finding('feasibility', 'error', recipe.id, `${recipe.hitter} is pinned at (${locked.x.toFixed(1)}, ${locked.y.toFixed(1)}) and cannot reach this contact without relaxing that authored lock.`));
+      finalizeLastAcceptedStep(steps, accepted);
+      break;
+    }
     const distanceToContact = distance(previousPositions[recipe.hitter], contact);
     const availableSeconds = index ? Math.max(.35, distance(priorOrigin, prior.target) / ((FLIGHT[prior.family][prior.pace] || 20) * 1.4667)) : .6;
     if (distanceToContact > availableSeconds * 14 + 3) {
@@ -169,7 +186,7 @@ function makePlay(document) {
       break;
     }
     // The receiver reaches contact during the incoming leg, preserving continuous positions.
-    if (index > 0) previousPositions[recipe.hitter] = copy(contact);
+    if (index > 0 && !locked) previousPositions[recipe.hitter] = copy(contact);
     const endPositions = copy(previousPositions);
     endPositions[recipe.hitter] = movementTarget(recipe, contact);
     const nextRecipe = document.shots[index + 1];
@@ -178,7 +195,7 @@ function makePlay(document) {
     const actualTarget = nextKind === 'volley' ? volleyContact(contact, recipe.target, document.players[nextRecipe.hitter].team) : copy(recipe.target);
     const metadata = trajectoryMetadata(recipe);
     const kind = contactKind(recipe);
-    const strokeSide = autoStrokeSide(recipe, contact, document.players);
+    const strokeSide = autoStrokeSide(recipe, contact, document.players, actorStance);
     const shot = {
       from: copy(contact), to: actualTarget, intendedTarget: copy(recipe.target), type: strokeFor(recipe), stroke: strokeFor(recipe), playerId: recipe.hitter,
       contact: { kind, heightFeet: recipe.family === 'overhead' ? 7 : kind === 'short-hop' ? .8 : kind === 'volley' ? 3 : recipe.family === 'serve' ? 2.8 : 2.2, strokeSide, feet: kind === 'serve' ? serveFeetAt(contact) : feetAt(contact), momentumEntersNonVolleyZone: false },
@@ -188,10 +205,12 @@ function makePlay(document) {
     steps.push({ id: recipe.id, label: `${index + 1}. ${FAMILY_LABEL[recipe.family]}`, description: `Authored ${recipe.family} to (${recipe.target.x.toFixed(1)}, ${recipe.target.y.toFixed(1)}).`, durationMs: 850, positions: endPositions, shot });
     accepted.push(recipe);
     contacts.push(contact);
+    if (recipe.movement.pinned) locks.set(recipe.hitter, copy(endPositions[recipe.hitter]));
+    else locks.delete(recipe.hitter);
     Object.assign(positions, endPositions);
     if (terminalFault) break;
   }
-  return { play: { id: document.id, name: document.title, description: 'Custom visual play', mode: 'doubles', rally: { openingBouncesSatisfied: document.opening === 'midrally' }, steps, ending: document.ending, assistance: copy(document.assistance) }, findings, accepted };
+  return { play: { id: document.id, name: document.title, description: 'Custom visual play', mode: 'doubles', rally: { openingBouncesSatisfied: document.opening === 'midrally' }, steps, ending: document.ending, outcome: { intent: document.ending, afterShotId: accepted.at(-1)?.id ?? null, intentionalFault: document.intentionalFault }, assistance: copy(document.assistance) }, findings, accepted };
 }
 
 export function compileDocument(document) {
@@ -199,21 +218,67 @@ export function compileDocument(document) {
   if (exactTemplate(document)) return templateResult(document);
   const { play, findings, accepted } = makePlay(document);
   let timeline;
-  try {
-    timeline = compilePlayTimeline(play);
-  } catch (error) {
-    const shotId = accepted.at(-1)?.id ?? document.shots[0]?.id ?? null;
-    findings.push(finding('feasibility', 'error', shotId, error.message));
-    if (play.steps.length > 1) {
+  while (!timeline) {
+    try { timeline = compilePlayTimeline(play); }
+    catch (error) {
+      const shotId = accepted.at(-1)?.id ?? document.shots[0]?.id ?? null;
+      findings.push(finding('feasibility', 'error', shotId, error.message));
+      if (play.steps.length === 1) throw new TypeError(`The valid play prefix cannot compile: ${error.message}`);
       play.steps.pop();
       accepted.pop();
       finalizeLastAcceptedStep(play.steps, accepted);
+      play.outcome.afterShotId = accepted.at(-1)?.id ?? null;
     }
-    timeline = compilePlayTimeline(play);
   }
+  labelOutcome(play);
   timeline = relabelTimeline(timeline, accepted.map(shot => shot.id));
   return Object.freeze({
     play: Object.freeze(play), timeline, findings: Object.freeze(findings),
     validShotCount: accepted.length, coverage: Object.freeze([])
   });
+}
+
+function semanticsWithoutPositions(play) {
+  return play.steps.map(step => ({ ...step, positions: undefined }));
+}
+
+// Compiler boundary for the separately derived coverage heuristic. It prevents
+// assistance from changing ball intent, contacts, pins, or stable event ids.
+export function recompileAssistedDocument(document, compiled, assistedPlay, coverage = []) {
+  validateDocument(document);
+  if (!compiled?.play?.steps || !compiled?.timeline || !assistedPlay?.steps) throw new TypeError('Compiled and assisted Play values are required.');
+  if (!Array.isArray(coverage)) throw new TypeError('Coverage must be an array.');
+  if (JSON.stringify(semanticsWithoutPositions(assistedPlay)) !== JSON.stringify(semanticsWithoutPositions(compiled.play))) {
+    throw new TypeError('Coverage assistance may change derived player positions only.');
+  }
+  const findings = [...compiled.findings];
+  const pinned = new Set(document.shots.filter(shot => shot.movement.pinned).map(shot => shot.hitter));
+  for (let index = 0; index < assistedPlay.steps.length; index++) {
+    const sourceStep = compiled.play.steps[index], assistedStep = assistedPlay.steps[index];
+    if (!sourceStep || !assistedStep?.positions) throw new TypeError('Coverage assistance must preserve the compiled step structure.');
+    for (const id of [...PLAYER_IDS, 'ball']) {
+      const source = sourceStep.positions[id], assisted = assistedStep.positions[id];
+      if (!source || !assisted || !Number.isFinite(assisted.x) || !Number.isFinite(assisted.y)) throw new TypeError(`Coverage assistance produced invalid ${id} coordinates at step ${index}.`);
+      if ((id === 'ball' || pinned.has(id)) && distance(source, assisted) > 1e-9) throw new TypeError(`Coverage assistance may not change ${id} at step ${index}.`);
+    }
+  }
+  let assistedTimeline;
+  try { assistedTimeline = compilePlayTimeline(assistedPlay); }
+  catch (error) {
+    findings.push(finding('feasibility', 'warning', null, `Suggested coverage was not applied because the assisted plan could not compile: ${error.message}`));
+    return Object.freeze({ ...compiled, findings: Object.freeze(findings), coverage: Object.freeze(copy(coverage)) });
+  }
+  for (const segment of assistedTimeline.segments) {
+    for (const id of PLAYER_IDS) {
+      const from = segment.previous.positions[id], to = segment.step.positions[id];
+      if (distance(from, to) > segment.duration * 14 + 3) {
+        const shotId = segment.step.shot?.authoring?.recipeId ?? null;
+        findings.push(finding('feasibility', 'warning', shotId, `Suggested coverage was not applied because ${id} could not reach the derived position in the available time.`));
+        return Object.freeze({ ...compiled, findings: Object.freeze(findings), coverage: Object.freeze(copy(coverage)) });
+      }
+    }
+  }
+  const ids = compiled.play.steps.filter(step => step.shot).map(step => step.shot.authoring?.recipeId ?? step.id);
+  assistedTimeline = relabelTimeline(assistedTimeline, ids);
+  return Object.freeze({ ...compiled, play: Object.freeze(assistedPlay), timeline: assistedTimeline, findings: Object.freeze(findings), coverage: Object.freeze(copy(coverage)) });
 }
