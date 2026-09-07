@@ -17,21 +17,21 @@
 </head>
 <body>
     <div class="app">
-        <div class="world-label" aria-label="Pickleball Park court planner"><strong>Pickleball Park</strong><span>Court planner</span></div>
-        <!-- Floating Action Button: Hamburger Menu -->
-        <button id="menuToggle" class="fab fab-menu" aria-label="Open menu" aria-controls="menuOverlay" aria-expanded="false">
+        <main class="court-container-fullscreen">
+        <div id="parkStage" class="park-stage">
+        <h1 class="park-banner"><img src="assets/park/banner.png" alt="Pickleball Park"></h1>
+        <button id="menuToggle" class="park-control park-menu" aria-label="Open menu" aria-controls="menuOverlay" aria-expanded="false">
             <span class="hamburger-icon">
                 <span></span>
                 <span></span>
                 <span></span>
-            </span>
+            </span><span class="control-label">Menu</span>
         </button>
 
         <!-- Floating Action Button: Info -->
-        <button id="infoToggle" class="fab fab-info" aria-label="Open help and information" aria-controls="infoModal">?</button>
+        <button id="infoToggle" class="park-control park-help" aria-label="Open help and information" aria-controls="infoModal"><span aria-hidden="true">? Help</span></button>
 
         <!-- Full-Screen Court Container -->
-        <main class="court-container-fullscreen">
             <svg id="court" class="court-svg" viewBox="-13 -11 47 60" preserveAspectRatio="xMidYMid meet">
                 <defs>
                     <linearGradient id="slabFace" x1="0" y1="0" x2="0" y2="1">
@@ -95,7 +95,7 @@
                 <circle id="player4-touch" class="touch-target" cx="15" cy="45" r="2.0" data-type="player" data-target="player4"/>
                 <circle id="ball-touch" class="touch-target" cx="19" cy="45" r="1.5" data-type="ball" data-target="ball"/>
                 </g>
-            </svg>
+            </svg></div>
         </main>
 
         <!-- Compact Guided Play controls -->
