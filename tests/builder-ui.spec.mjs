@@ -60,12 +60,24 @@ test.describe('court first builder UI harness', () => {
     }, fixture);
     await page.getByRole('button', { name: 'Learn / Templates' }).click();
     await page.getByRole('button', { name: 'Lesson One' }).click();
+    await page.getByRole('button', { name: 'Learn / Templates' }).click();
+    await page.getByRole('button', { name: 'Saved One' }).click();
     await page.getByLabel('Play title').click();
     await page.getByLabel('Play title').fill('Focused title');
     await page.getByRole('button', { name: 'Import / Export' }).click();
     await page.getByLabel('JSON backup').fill('{"schemaVersion":1,"title":"Imported"}');
     await page.getByRole('button', { name: 'Import JSON' }).click();
     const actions = await page.evaluate(() => window.__builderActions);
-    expect(actions).toEqual([{ type: 'template', payload: 'lesson-one' }, { type: 'title', payload: 'Focused title' }, { type: 'import', payload: '{"schemaVersion":1,"title":"Imported"}' }]);
+    expect(actions).toEqual([{ type: 'template', payload: 'lesson-one' }, { type: 'open', payload: 'saved-one' }, { type: 'title', payload: 'Focused title' }, { type: 'import', payload: '{"schemaVersion":1,"title":"Imported"}' }]);
+  });
+
+  test('keeps zero-shot settings and bounds file imports', async ({ page }) => {
+    await page.goto('/index.html?builder-ui-harness=1');
+    await page.evaluate(async () => { const { mountBuilderUI } = await import('/builder-ui.js'); window.__builderActions = []; window.__builder = mountBuilderUI({ onAction: (type, payload) => window.__builderActions.push({ type, payload }) }); window.__builder.render({ document: { title: 'Empty', shots: [], players: {}, assistance: {} } }); });
+    await expect(page.getByText('Auto Shading')).toBeVisible();
+    await expect(page.getByLabel('Starting condition')).toBeVisible();
+    await page.getByRole('button', { name: 'Import / Export' }).click();
+    await page.getByLabel('Choose JSON file').setInputFiles({ name: 'oversize.json', mimeType: 'application/json', buffer: Buffer.alloc(524 * 1024 + 1) });
+    await expect.poll(() => page.evaluate(() => window.__builderActions.at(-1))).toEqual({ type: 'message', payload: 'Import is limited to 524 KiB.' });
   });
 });

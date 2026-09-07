@@ -12,6 +12,7 @@ const FAMILIES = [
   ['lob', 'Lob'], ['overhead', 'Overhead']
 ];
 const PLAYERS = [['player1', 'Green 1'], ['player2', 'Green 2'], ['player3', 'Orange 1'], ['player4', 'Orange 2']];
+const MAX_IMPORT_BYTES = 524 * 1024;
 
 const text = (element, value) => { element.textContent = value == null ? '' : String(value); return element; };
 const el = (tag, className, label) => {
@@ -56,6 +57,8 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   let renderedSelectedShotId = null;
   let renderedView = null;
   let renderedWorkspace = null;
+  let userInspectorExpanded = null;
+  let inspectorManualCollapsed = null;
   const templateDialog = el('dialog', 'builder-dialog');
   const importDialog = el('dialog', 'builder-dialog');
   templateDialog.setAttribute('aria-label', 'Play library and templates');
@@ -63,8 +66,8 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   function closeDialog(dialog) { if (dialog.open) dialog.close(); }
   function openTemplateDialog() {
     templateDialog.replaceChildren(el('h2', '', 'Learn / Templates'), el('p', 'builder-dialog-copy', 'Choose a lesson or template to open as a copy.'));
-    const list = el('div', 'builder-dialog-list'); const entries = [...(current.templates || []), ...(current.library || [])];
-    entries.forEach(item => { const id = item.id; const label = item.name || item.title || id; const b = button(label, 'template-open', 'builder-button'); b.dataset.id = id; list.appendChild(b); });
+    const list = el('div', 'builder-dialog-list'); const entries = [...(current.templates || []).map(item => ({ ...item, __kind: 'template' })), ...(current.library || []).map(item => ({ ...item, __kind: 'open' }))];
+    entries.forEach(item => { const id = item.id; const label = item.name || item.title || id; const b = button(label, 'template-open', 'builder-button'); b.dataset.id = id; b.dataset.kind = item.__kind; list.appendChild(b); });
     if (!entries.length) list.appendChild(el('p', 'builder-dialog-copy', 'No saved plays or templates yet.'));
     templateDialog.appendChild(list); templateDialog.appendChild(button('Close', 'dialog-close', 'builder-button'));
     if (!templateDialog.open) templateDialog.showModal();
@@ -92,10 +95,12 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const range = root.querySelector('input[data-action="seek"]');
       if (range && document.activeElement !== range) range.value = String(current.time || 0);
       const save = root.querySelector('.builder-save-status'); if (save) save.textContent = current.saveStatus || 'Draft';
-      const play = root.querySelector('[data-action="play-pause"]'); if (play) play.textContent = current.playing ? 'Pause' : 'Play';
-      root.classList.toggle('builder-busy', Boolean(current.busy));
       const message = root.querySelector('.builder-message'); if (message) message.textContent = current.message || '';
+      const cueNode = root.querySelector('.builder-cue'); const fastCue = current.cue; if (cueNode && fastCue) { cueNode.querySelector('strong').textContent = fastCue.title || 'Current shot'; cueNode.querySelector('span').textContent = fastCue.description || ''; }
+      const play = root.querySelector('[data-action="play-pause"]'); if (play) { play.textContent = current.playing ? 'Pause' : 'Play'; play.setAttribute('aria-pressed', String(Boolean(current.playing))); }
+      root.classList.toggle('builder-busy', Boolean(current.busy));
       const loop = root.querySelector('[data-action="loop"]'); if (loop) { loop.textContent = current.loop ? 'Loop on' : 'Loop'; loop.setAttribute('aria-pressed', String(Boolean(current.loop))); }
+      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(inspectorManualCollapsed ?? ((current.playing || current.targetPlacement) && userInspectorExpanded !== true)); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"]'); if (collapseButton) { collapseButton.textContent = collapsed ? 'Expand' : 'Collapse'; collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
       root.appendChild(templateDialog); root.appendChild(importDialog);
       return;
     }
@@ -105,7 +110,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
 
     const top = el('header', 'builder-topbar');
     const brand = el('div', 'builder-brand');
-    brand.appendChild(title); brand.appendChild(el('span', 'builder-kicker', 'Court first rally authoring'));
+    text(title, 'Pickleball Park · Build a Play'); brand.appendChild(title); brand.appendChild(el('span', 'builder-kicker', 'Court first rally authoring'));
     top.appendChild(brand);
     const topActions = el('div', 'builder-top-actions');
     topActions.append(button('New Play', 'new', 'builder-button builder-button-primary'));
@@ -118,7 +123,9 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     const titleInput = el('input'); titleInput.type = 'text'; titleInput.value = doc.title || 'Untitled play'; titleInput.maxLength = 80; titleInput.dataset.action = 'title'; titleInput.setAttribute('aria-label', 'Play title');
     meta.appendChild(labelled('Play name', titleInput));
     status.textContent = current.saveStatus || 'Draft'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); meta.appendChild(status);
-    if (current.message) meta.appendChild(el('span', 'builder-message', current.message));
+    meta.appendChild(el('span', 'builder-message', current.message || ''));
+    const cue = current.cue || (selected ? { title: shotLabel(selected, shots.indexOf(selected)), description: `Selected ${selected.family} shot` } : null);
+    if (cue) { const cueNode = el('div', 'builder-cue'); cueNode.append(el('strong', '', cue.title || 'Current shot'), el('span', '', cue.description || '')); meta.appendChild(cueNode); }
     root.appendChild(meta);
 
     const strip = el('nav', 'builder-shot-strip'); strip.setAttribute('aria-label', 'Rally sequence');
@@ -136,14 +143,15 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       camera.className = 'builder-camera'; camera.querySelector('select').value = current.camera || 'overhead'; court.appendChild(camera);
     }
 
-    const inspector = el('aside', 'builder-inspector'); inspector.setAttribute('aria-label', 'Selected shot settings');
+    const inspectorAutoCollapsed = inspectorManualCollapsed ?? ((current.playing || current.targetPlacement) && userInspectorExpanded !== true);
+    const inspector = el('aside', `builder-inspector ${inspectorAutoCollapsed ? 'builder-inspector-collapsed' : ''}`); inspector.setAttribute('aria-label', 'Selected shot settings');
     if (current.workspace === 'planner') {
       inspector.append(el('h2', '', 'Court Planner')); inspector.append(el('p', 'builder-selected-summary', 'Your planner layout is preserved. Use it as the starting layout for a new or selected play.'));
       inspector.append(button('Return to builder', 'workspace-builder', 'builder-button builder-button-primary'));
       inspector.append(button('Use as starting layout', 'use-planner', 'builder-button builder-button-accent'));
       inspector.append(el('p', 'builder-selected-summary', 'Planner arrows and markup stay in the planner. They are not interpreted as rally shots.'));
     } else if (selected) {
-      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1}` : 'No shot selected')); inspectorHeader.append(button('Collapse', 'collapse-inspector', 'builder-button builder-collapse')); inspector.appendChild(inspectorHeader);
+      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1}` : 'No shot selected')); const collapse = button(inspectorAutoCollapsed ? 'Expand' : 'Collapse', 'collapse-inspector', 'builder-button builder-collapse'); collapse.setAttribute('aria-expanded', String(!inspectorAutoCollapsed)); inspectorHeader.append(collapse); inspector.appendChild(inspectorHeader);
       const summary = el('p', 'builder-selected-summary', 'Choose a hitter, shot family, target, and movement. The compiler will explain limits.'); inspector.appendChild(summary);
       const familySelect = select('Shot family', 'edit-family', FAMILIES); familySelect.querySelector('select').value = selected.family; inspector.appendChild(familySelect);
       const hitterSelect = select('Hitter', 'edit-hitter', PLAYERS); hitterSelect.querySelector('select').value = selected.hitter; inspector.appendChild(hitterSelect);
@@ -158,20 +166,23 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const manual = el('div', 'builder-grid-fields'); manual.appendChild(numberField('Manual X', 'edit-movement.target.x', selected.movement?.target?.x ?? 10, 0, 20)); manual.appendChild(numberField('Manual Y', 'edit-movement.target.y', selected.movement?.target?.y ?? 20, -8, 52)); inspector.appendChild(manual);
       const pinned = el('label', 'builder-switch'); const pin = el('input'); pin.type = 'checkbox'; pin.checked = Boolean(selected.movement?.pinned); pin.dataset.action = 'edit-movement.pinned'; pinned.append(pin, el('span', '', 'Pin movement target')); inspector.appendChild(pinned);
       const actions = el('div', 'builder-shot-actions'); actions.append(button('Duplicate', 'duplicate-shot', 'builder-button')); actions.append(button('Delete', 'delete-shot', 'builder-button builder-button-danger')); actions.append(button('Move earlier', 'move-earlier', 'builder-button')); actions.append(button('Move later', 'move-later', 'builder-button')); inspector.appendChild(actions);
-      const assistance = el('div', 'builder-assistance'); assistance.append(el('h2', '', 'Coaching assistance'));
+      const assistance = el('details', 'builder-assistance'); assistance.open = true; assistance.append(el('summary', '', 'Coaching assistance'));
       [['autoShading', 'Auto Shading', 'Adjust eligible generated movement'], ['showGuides', 'Show Coverage Guides', 'Explain suggested positions only']].forEach(([field, label, description]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; row.append(input, el('span', '', label), el('small', '', description)); assistance.append(row); }); inspector.appendChild(assistance);
-      const advanced = el('div', 'builder-advanced'); advanced.append(el('h2', '', 'Rally details'));
+      const advanced = el('details', 'builder-advanced'); advanced.open = true; advanced.append(el('summary', '', 'Rally details'));
       const opening = select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']]); opening.querySelector('select').value = doc.opening || 'serve'; advanced.append(opening);
       const ending = select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']]); ending.querySelector('select').value = doc.ending || 'stop'; advanced.append(ending);
       const fault = el('label', 'builder-switch'); const faultInput = el('input'); faultInput.type = 'checkbox'; faultInput.checked = Boolean(doc.intentionalFault); faultInput.dataset.action = 'intentionalFault'; fault.append(faultInput, el('span', '', 'Intentional coaching mistake'), el('small', '', 'Keep the rule warning visible at the terminal fault.')); advanced.append(fault); inspector.appendChild(advanced);
-      const handed = el('div', 'builder-handedness'); handed.append(el('h2', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); inspector.appendChild(handed);
-      if (current.findings?.length) { const find = el('div', 'builder-findings'); find.append(el('strong', '', 'Review')); current.findings.slice(0, 3).forEach(f => find.append(el('p', '', typeof f === 'string' ? f : f.message || 'Review this shot'))); inspector.appendChild(find); }
-    } else inspector.appendChild(el('p', 'builder-empty', 'Add a shot to start authoring.'));
+      const handed = el('details', 'builder-handedness'); handed.open = false; handed.append(el('summary', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); inspector.appendChild(handed);
+      if (current.findings?.length) { const find = el('div', 'builder-findings'); find.append(el('strong', '', 'Review')); current.findings.forEach(f => { const item = typeof f === 'string' ? { message: f } : f; const label = [item.shotId || item.stepId, item.kind].filter(Boolean).join(' · '); find.append(el('p', '', `${label ? `${label}: ` : ''}${item.message || 'Review this shot'}`)); }); inspector.appendChild(find); }
+    } else {
+      inspector.appendChild(el('p', 'builder-empty', 'Add a shot to start authoring.'));
+      const global = el('div', 'builder-global-settings'); global.append(el('h2', '', 'Play settings')); [['autoShading', 'Auto Shading'], ['showGuides', 'Show Coverage Guides']].forEach(([field, label]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; row.append(input, el('span', '', label)); global.append(row); }); global.append(select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']])); global.append(select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']])); inspector.append(global);
+    }
     layout.appendChild(inspector); root.appendChild(layout);
 
     const transport = el('footer', 'builder-transport');
     const transportButtons = el('div', 'builder-transport-buttons');
-    const undo = button('↶', 'undo', 'builder-button builder-icon-button'); undo.setAttribute('aria-label', 'Undo authored edit'); undo.disabled = !current.canUndo; const redo = button('↷', 'redo', 'builder-button builder-icon-button'); redo.setAttribute('aria-label', 'Redo authored edit'); redo.disabled = !current.canRedo; transportButtons.append(undo, redo); transportButtons.append(button('Previous', 'previous', 'builder-button')); transportButtons.append(button(current.playing ? 'Pause' : 'Play', 'play-pause', 'builder-button builder-button-primary')); transportButtons.append(button('Next', 'next', 'builder-button')); transportButtons.append(button('Restart', 'restart', 'builder-button'));
+    const undo = button('↶', 'undo', 'builder-button builder-icon-button'); undo.setAttribute('aria-label', 'Undo authored edit'); undo.disabled = !current.canUndo; const redo = button('↷', 'redo', 'builder-button builder-icon-button'); redo.setAttribute('aria-label', 'Redo authored edit'); redo.disabled = !current.canRedo; transportButtons.append(undo, redo); transportButtons.append(button('Previous', 'previous', 'builder-button')); const play = button(current.playing ? 'Pause' : 'Play', 'play-pause', 'builder-button builder-button-primary'); play.setAttribute('aria-pressed', String(Boolean(current.playing))); transportButtons.append(play); transportButtons.append(button('Next', 'next', 'builder-button')); transportButtons.append(button('Restart', 'restart', 'builder-button'));
     const range = el('input'); range.type = 'range'; range.min = 0; range.max = current.duration || 1; range.step = .01; range.value = current.time || 0; range.dataset.action = 'seek'; range.setAttribute('aria-label', 'Playhead'); transportButtons.append(range);
     const loop = button(current.loop ? 'Loop on' : 'Loop', 'loop', 'builder-button'); loop.setAttribute('aria-pressed', String(Boolean(current.loop))); transportButtons.append(loop); const rate = select('Speed', 'rate', [['0.25', '0.25×'], ['0.5', '0.5×'], ['1', '1×']]); rate.querySelector('select').value = String(current.rate || 1); transportButtons.append(rate); transport.appendChild(transportButtons);
     const secondary = el('div', 'builder-secondary-actions'); secondary.append(button('Save As', 'save-as', 'builder-button')); secondary.append(button('Open', 'open', 'builder-button')); secondary.append(button('Import / Export', 'import-export', 'builder-button')); secondary.append(button('Use planner layout', 'use-planner', 'builder-button')); transport.appendChild(secondary); root.appendChild(transport);
@@ -188,7 +199,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (action === 'add-shot') rerenderAction('addShot');
     else if (action === 'new') rerenderAction('new');
     else if (action === 'templates') openTemplateDialog();
-    else if (action === 'template-open') { closeDialog(templateDialog); rerenderAction('template', target.dataset.id); }
+    else if (action === 'template-open') { closeDialog(templateDialog); rerenderAction(target.dataset.kind === 'open' ? 'open' : 'template', target.dataset.id); }
     else if (action === 'dialog-close') { closeDialog(templateDialog); closeDialog(importDialog); }
     else if (action === 'place-target') rerenderAction('placeTarget', { shotId: current.selectedShotId });
     else if (action === 'target-preset') rerenderAction('editShot', { field: 'target', value: { x: Number(target.dataset.x), y: Number(target.dataset.y) } });
@@ -196,7 +207,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (action === 'delete-shot') rerenderAction('deleteShot', current.selectedShotId);
     else if (action === 'move-earlier') rerenderAction('moveShot', { id: current.selectedShotId, delta: -1 });
     else if (action === 'move-later') rerenderAction('moveShot', { id: current.selectedShotId, delta: 1 });
-    else if (action === 'collapse-inspector') root.querySelector('.builder-inspector')?.classList.toggle('builder-inspector-collapsed');
+    else if (action === 'collapse-inspector') { const inspector = root.querySelector('.builder-inspector'); inspectorManualCollapsed = !(inspector?.classList.contains('builder-inspector-collapsed')); userInspectorExpanded = !inspectorManualCollapsed; render({}); }
     else if (action === 'play-pause') rerenderAction('playPause');
     else if (action === 'restart' || action === 'previous' || action === 'next' || action === 'undo' || action === 'redo' || action === 'save-as' || action === 'use-planner') rerenderAction(({ 'save-as': 'saveAs', 'use-planner': 'usePlanner' }[action] || action));
     else if (action === 'open') openTemplateDialog();
@@ -215,7 +226,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (target.dataset.action === 'camera') fire('camera', target.value);
     else if (target.dataset.action === 'handedness') fire('handedness', { id: target.dataset.playerId, value: target.value });
     else if (target.dataset.action === 'import-file') {
-      const file = target.files?.[0]; if (file) file.text().then(raw => fire('import', raw));
+      const file = target.files?.[0]; if (file) { if (file.size > MAX_IMPORT_BYTES) { fire('message', `Import is limited to ${Math.round(MAX_IMPORT_BYTES / 1024)} KiB.`); return; } file.text().then(raw => fire('import', raw)); }
     }
     else if (target.dataset.action === 'opening' || target.dataset.action === 'ending') fire(target.dataset.action, target.value);
     else if (target.dataset.action === 'intentionalFault') fire('intentionalFault', target.checked);
