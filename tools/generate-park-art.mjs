@@ -93,24 +93,33 @@ const bench = () => {
   return c;
 };
 const glyphs = {
-  P: ['110','101','110','100','100'], I: ['111','010','010','010','111'], C: ['111','100','100','100','111'], K: ['101','101','110','101','101'], L: ['100','100','100','100','111'], E: ['111','100','110','100','111'], B: ['110','101','110','101','110'], A: ['010','101','111','101','101'], R: ['110','101','110','101','101']
+  P: ['110','101','110','100','100'], I: ['111','010','010','010','111'], C: ['111','100','100','100','111'], K: ['101','101','110','101','101'], L: ['100','100','100','100','111'], E: ['111','100','110','100','111'], B: ['110','101','110','101','110'], A: ['010','101','111','101','101'], R: ['110','101','110','101','101'], H: ['101','101','111','101','101']
 };
-const text = (c, value, x, y, color) => {
+const text = (c, value, x, y, color, scale = 1) => {
   for (const letter of value) {
     const pattern = glyphs[letter];
-    if (!pattern) { x += 4; continue; }
-    pattern.forEach((row, dy) => [...row].forEach((pixel, dx) => { if (pixel === '1') c.rect(x + dx, y + dy, 1, 1, color); }));
-    x += 4;
+    if (!pattern) { x += 4 * scale; continue; }
+    pattern.forEach((row, dy) => [...row].forEach((pixel, dx) => { if (pixel === '1') c.rect(x + dx * scale, y + dy * scale, scale, scale, color); }));
+    x += 4 * scale;
   }
 };
 const sign = () => {
   const c = new Canvas(64, 64);
   c.rect(26, 23, 12, 34, C.parkWood); c.rect(29, 21, 6, 36, C.parkShadow);
   c.rect(8, 8, 48, 23, C.navyDark); c.rect(12, 12, 40, 15, C.parkSign);
-  // The sign has enough room for the full park name at native resolution.
-  text(c, 'PICKLEBALL', 12, 14, C.grassDeep);
-  text(c, 'PARK', 25, 21, C.parkShadow);
+  // The border sign is a readable help affordance; product identity lives in banner().
+  text(c, 'HELP', 16, 15, C.grassDeep, 2);
   c.rect(19, 57, 26, 3, [...C.parkShadow.slice(0, 3), 90]);
+  return c;
+};
+const banner = () => {
+  const c = new Canvas(128, 32);
+  c.rect(1, 1, 126, 30, C.navyDark);
+  c.rect(4, 4, 120, 24, C.parkSign);
+  c.rect(6, 6, 116, 20, C.orangeDark);
+  // A compact two-line wordmark keeps every doubled pixel legible in the park border.
+  text(c, 'PICKLEBALL', 24, 7, C.grassDeep, 2);
+  text(c, 'PARK', 48, 18, C.parkShadow, 2);
   return c;
 };
 
@@ -118,7 +127,7 @@ const assets = [
   ['quiet-court.png', texture(C.court, [mix(C.court, C.navyLight, 0.16), mix(C.court, C.kitchen, 0.14)], 1, 2)],
   ['grass.png', texture(C.surround, [mix(C.surround, C.grassDeep, 0.28), mix(C.surround, C.grassLight, 0.24)], 2, 1)],
   ['path.png', texture(C.path, [mix(C.path, C.orangeDark, 0.24), mix(C.path, C.orangeLight, 0.16)], 3, 1)],
-  ['tree.png', tree()], ['shrub.png', shrub()], ['bench.png', bench()], ['sign.png', sign()]
+  ['tree.png', tree()], ['shrub.png', shrub()], ['bench.png', bench()], ['sign.png', sign()], ['banner.png', banner()]
 ];
 const output = [];
 for (const [name, canvas] of assets) {
