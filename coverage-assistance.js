@@ -5,22 +5,20 @@ const MAX_LATERAL_SPEED_FPS = 13;
 const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 const clone = value => JSON.parse(JSON.stringify(value));
 
-function assistanceSettings(document) {
-  const source = document?.assistance || document?.assistanceSettings || {};
+function readAssistance(document) {
+  const source = document?.assistance || {};
   return {
     auto: source.autoShading === true,
-    guides: source.showCoverageGuides === true,
+    guides: source.showGuides === true,
     team: ['green', 'orange', 'both'].includes(source.team) ? source.team : 'both'
   };
 }
 
 function playerRecords(document, play) {
   const source = document?.players;
-  const records = Array.isArray(source)
-    ? source
-    : source && typeof source === 'object'
-      ? Object.entries(source).map(([id, value]) => ({ id, ...value }))
-      : [];
+  const records = source && typeof source === 'object' && !Array.isArray(source)
+    ? Object.entries(source).map(([id, value]) => ({ id, ...value }))
+    : [];
   const result = new Map(records.filter(record => typeof record?.id === 'string').map(record => [record.id, record]));
   const ids = new Set();
   for (const step of play?.steps || []) {
@@ -41,15 +39,10 @@ function selectedTeam(setting, team) {
   return setting === 'both' || setting === team;
 }
 
-function pinnedPlayers(document, shotId) {
-  const shot = document?.shots?.find?.(item => item.id === shotId);
-  if (!shot) return new Set();
-  const movements = Array.isArray(shot.movement) ? shot.movement : [shot.movement, shot.postContactMovement];
+function pinnedPlayers(document) {
   const pinned = new Set();
-  for (const movement of movements) {
-    if (!movement || movement.pinned !== true) continue;
-    if (typeof movement.playerId === 'string') pinned.add(movement.playerId);
-    if (Array.isArray(movement.playerIds)) movement.playerIds.filter(id => typeof id === 'string').forEach(id => pinned.add(id));
+  for (const shot of document?.shots || []) {
+    if (shot?.movement?.pinned === true && typeof shot.hitter === 'string') pinned.add(shot.hitter);
   }
   return pinned;
 }
@@ -70,17 +63,18 @@ function boundedMoveX(fromX, desiredX, seconds) {
  */
 export function applyCoverageAssistance(play, document, timeline) {
   const clonedPlay = clone(play);
-  const settings = assistanceSettings(document);
+  const settings = readAssistance(document);
   if (!settings.auto && !settings.guides) return { play: clonedPlay, coverage: [] };
 
   const players = playerRecords(document, clonedPlay);
   const coverage = [];
+  const pinned = pinnedPlayers(document);
   const steps = clonedPlay.steps || [];
   for (let index = 0; index < steps.length; index += 1) {
     const step = steps[index];
     const shot = step.shot;
     if (!shot?.from || !Number.isFinite(shot.from.x) || !Number.isFinite(shot.from.y)) continue;
-    const hitterId = shot.playerId || shot.hitterId;
+    const hitterId = shot.playerId;
     const hitterTeam = players.get(hitterId)?.team;
     if (!hitterTeam) continue;
     const defendingTeam = hitterTeam === 'green' ? 'orange' : hitterTeam === 'orange' ? 'green' : null;
@@ -106,8 +100,7 @@ export function applyCoverageAssistance(play, document, timeline) {
       }
     };
 
-    const nextReceiverId = steps[index + 1]?.shot?.playerId || steps[index + 1]?.shot?.hitterId;
-    const pinned = pinnedPlayers(document, step.id);
+    const nextReceiverId = steps[index + 1]?.shot?.playerId;
     const protectedIds = new Set([hitterId, nextReceiverId, ...pinned]);
     const receiverIsDefender = defenders.some(player => player.id === nextReceiverId);
     const coveragePartner = receiverIsDefender
