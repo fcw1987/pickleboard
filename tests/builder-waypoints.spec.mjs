@@ -34,7 +34,8 @@ test('bounded imported waypoints require a session acknowledgement and survive e
 
   const stoppedAt = await page.evaluate(() => playBuilder.session.clock.elapsed);
   await page.evaluate(() => playBuilder.action('playPause'));
-  await page.waitForTimeout(200);
+  await page.evaluate(()=>playBuilder.session.tick(performance.now()+5000));
+  await page.evaluate(()=>playBuilder.seek(1));
   expect(await page.evaluate(() => playBuilder.session.clock.elapsed)).toBe(stoppedAt);
   expect(await page.evaluate(() => playBuilder.session.clock.playing)).toBe(false);
 

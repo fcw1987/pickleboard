@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'pickleboard-';
-const STATIC_CACHE = `${CACHE_PREFIX}static-v17`;
+const STATIC_CACHE = `${CACHE_PREFIX}static-v18`;
 const LEGACY_CACHES = new Set(['pickleboard-cache-v1']);
 const APP_SHELL_URL = new URL('./index.html', self.location).href;
 const STATIC_ASSETS = [
@@ -14,6 +14,8 @@ const STATIC_ASSETS = [
   './builder-ui.css',
   './builder-integration.css',
   './builder-court-tools.js',
+  './builder-framing.js',
+  './builder-waypoint-policy.js',
   './coverage-assistance.js',
   './rally-rules.js',
   './visual-theme.js',

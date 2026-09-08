@@ -452,7 +452,7 @@ class ThreeDPlaybackViewer {
         const width = Math.max(1, this.elements.canvas.clientWidth);
         const height = Math.max(1, this.elements.canvas.clientHeight);
         const hudHeight = this.elements.root.hidden ? 0 : (this.elements.root.querySelector('.three-d-hud')?.getBoundingClientRect().height || 0);
-        const reservedPixels = Math.min(height * 0.8, hudHeight + 24);
+        const reservedPixels = this.board.courtFirstComposition ? 0 : Math.min(height * 0.8, hudHeight + 24);
         // Include every authored position and shot, so playback never needs camera chasing.
         // Conservative upright pixel-actor bounds include cap, feet and stroke reach.
         const envelope = this.sceneEnvelope || [];
@@ -478,7 +478,7 @@ class ThreeDPlaybackViewer {
         }
         this.sceneEnvelope=envelope;
         }
-        const framing = fitCameraPreset(this.cameraPreset, width / height, reservedPixels / height, envelope);
+        const framing = fitCameraPreset(this.cameraPreset, width / height, reservedPixels / height, envelope, {courtFirst:Boolean(this.board.courtFirstComposition)});
         this.camera.clearViewOffset();
         this.camera.aspect = width / height;
         this.camera.fov = framing.fov;

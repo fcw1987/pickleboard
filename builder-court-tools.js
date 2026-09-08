@@ -35,6 +35,8 @@ export class BuilderCourtTools {
     }
     down(event){
         if(this.builder.workspace!=='builder'||event.button>0||this.builder.busy)return;
+        // Hidden targets must never capture an ordinary playback gesture.
+        if(this.builder.session.clock.playing&&!this.placing)return;
         const shot=this.builder.selectedShot;if(!shot)return;const target=this.project(shot.target);
         const near=target&&Math.hypot(event.clientX-target.x,event.clientY-target.y)<25;
         if(!this.placing&&!near)return;
@@ -45,8 +47,8 @@ export class BuilderCourtTools {
     }
     move(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;const p=this.unproject(event);if(!p)return;this.drag.target={x:Math.max(0,Math.min(20,p.x-this.drag.offset.x)),y:Math.max(0,Math.min(44,p.y-this.drag.offset.y))};this.render();}
     up(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;this.move(event);const target=this.drag.target;this.drag=null;this.placing=false;this.surface.releasePointerCapture(event.pointerId);this.builder.action('editShot',{field:'target',value:target});}
-    cancel(event){if(this.drag&&event.pointerId===this.drag.pointer){this.drag=null;this.placing=false;this.render();}}
-    clear(){this.drag=null;this.placing=false;this.layer.replaceChildren();}
+    cancel(event){if(this.drag&&event.pointerId===this.drag.pointer){this.clear();this.builder.message='Target placement cancelled.';this.builder.render();}}
+    clear(){if(this.drag&&this.surface?.hasPointerCapture(this.drag.pointer))this.surface.releasePointerCapture(this.drag.pointer);this.drag=null;this.placing=false;this.layer.replaceChildren();}
     render(){
         const b=this.builder;if(b.workspace!=='builder'){this.clear();return;}this.bind();
                 this.layer.replaceChildren();const shot=b.selectedShot;if(!shot)return;

@@ -48,15 +48,31 @@ function shotLabel(shot, index) { return `${index + 1}. ${FAMILIES.find(([id]) =
 
 function recipeSummary(shot) {
   if (!shot) return '';
-  const family = FAMILIES.find(([id]) => id === shot.family)?.[1]?.toLowerCase() || 'shot';
-  const x = Number(shot.target?.x);
-  const y = Number(shot.target?.y);
-  const target = Number.isFinite(x) && Number.isFinite(y)
-    ? (Math.abs(x - 10) < 1.1 ? (y > 30 ? 'deep centerline' : 'centerline') : x < 7 ? 'wide left' : x > 13 ? 'wide right' : 'middle')
-    : 'selected target';
-  const arc = shot.arc && shot.arc !== 'medium' ? ` ${shot.arc} arc` : '';
-  const pace = shot.pace && shot.pace !== 'medium' ? `, ${shot.pace} pace` : '';
-  return `${family}${arc}${pace} to ${target} (green-side view)`;
+  const family = FAMILIES.find(([id]) => id === shot.family)?.[1] || 'Shot';
+  const {x, y} = shot.target || {};
+  const depth = Number.isFinite(y) ? (y <= 9 || y >= 35 ? 'deep ' : y >= 15 && y <= 29 ? 'short ' : '') : '';
+  const direction = Number.isFinite(x) ? (Math.abs(x-10) <= 1 ? 'toward the centerline' : x < 7 ? 'toward the left sideline' : x > 13 ? 'toward the right sideline' : 'through the middle') : 'to the selected target';
+  const flight = `${shot.arc || 'medium'} arc, ${shot.pace || 'medium'} pace`;
+  return `${family} · ${flight} · ${depth}${direction} (green-side view)`;
+}
+function cueDescription(current, shots, selected) {
+  const shot = shots.find(s => s.id === current.cue?.shotId) || selected;
+  return current.cue?.description?.startsWith('Authored ') ? recipeSummary(shot) : (current.cue?.description || recipeSummary(shot));
+}
+
+function findingText(item, shots) {
+  const index=shots.findIndex(s=>s.id===(item.shotId || item.stepId));
+  const kind={rule:'Rules issue',feasibility:'Movement or flight limit',tactical:'Coaching suggestion',unsupported:'Preview limitation'}[item.kind] || 'Review';
+  let message=item.message || 'Review this shot';
+  for(const [id,label] of PLAYERS)message=message.replaceAll(id,label);
+  let correction='';
+  if(message.includes('diagonal receiving'))correction=' Move the serve target into the opposite service box beyond the kitchen.';
+  else if(message.includes('alternate between teams'))correction=' Choose a hitter on the opposite team or remove the duplicate contact.';
+  else if(message.includes('must let'))correction=' Choose a bounced return or groundstroke for this opening contact.';
+  else if(message.includes('pinned'))correction=' Adjust the manual destination, or explicitly unpin that movement before retrying.';
+  else if(message.includes('cannot reach') || message.includes('could not reach'))correction=' Try a softer incoming shot or move the starting player closer; your target and pins have been kept.';
+  else if(message.includes('must cross the net'))correction=' Place the target on the other side of the net.';
+  return `${index>=0?`Shot ${index+1} · `:''}${kind}: ${message}${correction}`;
 }
 
 export function mountBuilderUI({ onAction = () => {} } = {}) {
@@ -74,6 +90,8 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   let userInspectorExpanded = null;
   let inspectorManualCollapsed = null;
   let advancedOpen = false;
+  let shotDetailsOpen = false;
+  let handednessOpen = false;
   const templateDialog = el('dialog', 'builder-dialog');
   const importDialog = el('dialog', 'builder-dialog');
   templateDialog.setAttribute('aria-label', 'Play library and templates');
@@ -112,16 +130,20 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       if (range && document.activeElement !== range) range.value = String(current.time || 0);
       const save = root.querySelector('.builder-save-status'); if (save) save.textContent = current.saveStatus || 'Draft';
       const message = root.querySelector('.builder-message'); if (message) message.textContent = current.message || '';
-      const cueNode = root.querySelector('.builder-cue'); const fastCue = current.cue; if (cueNode && fastCue) { cueNode.querySelector('strong').textContent = fastCue.title || 'Current shot'; cueNode.querySelector('span').textContent = (/target|coordinate|\d+\.\d/i.test(fastCue.description || '') && selected) ? recipeSummary(selected) : (fastCue.description || (selected ? recipeSummary(selected) : '')); }
+      const cueNode = root.querySelector('.builder-cue'); const fastCue = current.cue; if (cueNode && fastCue) { cueNode.querySelector('strong').textContent = fastCue.title || 'Current shot'; cueNode.querySelector('span').textContent = cueDescription(current, shots, selected); }
       const play = root.querySelector('[data-action="play-pause"]'); if (play) { play.textContent = current.playing ? 'Pause' : 'Play'; play.setAttribute('aria-pressed', String(Boolean(current.playing))); }
       root.classList.toggle('builder-busy', Boolean(current.busy));
       const loop = root.querySelector('[data-action="loop"]'); if (loop) { loop.textContent = current.loop ? 'Loop on' : 'Loop'; loop.setAttribute('aria-pressed', String(Boolean(current.loop))); }
-      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(inspectorManualCollapsed ?? true); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"]'); if (collapseButton) { collapseButton.textContent = collapsed ? 'Edit shot' : 'Collapse'; collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
+      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(inspectorManualCollapsed ?? true); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"],[data-action="cancel-target"]'); if (collapseButton) { collapseButton.textContent = current.targetPlacement ? 'Cancel target' : collapsed ? 'Edit shot' : 'Collapse';collapseButton.dataset.action=current.targetPlacement?'cancel-target':'collapse-inspector'; collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
       root.appendChild(templateDialog); root.appendChild(importDialog);
       return;
     }
     renderedDocument = doc; renderedSelectedShotId = current.selectedShotId; renderedView = current.view; renderedWorkspace = current.workspace; renderedWaypointKey = waypointKey;
     const previousAdvanced = root.querySelector('.builder-advanced'); if (previousAdvanced) advancedOpen = previousAdvanced.open;
+    const oldDetails=root.querySelector('.builder-shot-details');if(oldDetails)shotDetailsOpen=oldDetails.open;
+    const oldHanded=root.querySelector('.builder-handedness');if(oldHanded)handednessOpen=oldHanded.open;
+    const focused=document.activeElement;const focusIdentity=root.contains(focused)?{action:focused.dataset.action,shotId:focused.dataset.shotId,label:focused.getAttribute('aria-label')}:null;
+    const oldScroll=root.querySelector('.builder-sequence-scroll')?.scrollLeft || 0;
     root.replaceChildren();
     root.classList.toggle('builder-planner', current.workspace === 'planner');
 
@@ -144,18 +166,21 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     const meta = el('div', 'builder-meta');
     meta.appendChild(el('span', 'builder-message', current.message || ''));
     const cue = current.cue || (selected ? { title: shotLabel(selected, shots.indexOf(selected)), description: '' } : null);
-    if (cue) { const cueNode = el('div', 'builder-cue'); const cueText = cue.description && !/target|coordinate|\d+\.\d/i.test(cue.description) ? cue.description : (selected ? recipeSummary(selected) : ''); cueNode.append(el('strong', '', cue.title || 'Current shot'), el('span', '', cueText)); meta.appendChild(cueNode); }
+    if (cue) { const cueNode = el('div', 'builder-cue'); const cueText = cueDescription(current, shots, selected); cueNode.append(el('strong', '', cue.title || 'Current shot'), el('span', '', cueText)); meta.appendChild(cueNode); }
     if (current.waypointPolicy?.requiresConfirmation) {
-      const affected = (current.waypointPolicy.affected || []).map(item => `${item.number ? `Shot ${item.number}` : item.shotId || 'Shot'}${item.player ? ` · ${item.player}` : ''}`).join(', ');
+      const affected = (current.waypointPolicy.affected || []).map(item => `${item.number ? `Shot ${item.number}` : item.shotId || 'Shot'}${item.player ? ` · ${PLAYERS.find(([id])=>id===item.player)?.[1] || item.player}` : ''}`).join(', ');
       const detail = [current.waypointPolicy.message || 'Some movement waypoints are preview-only.', affected ? `Affected: ${affected}` : ''].filter(Boolean).join(' ');
-      const notice = el('div', 'builder-waypoint-notice'); notice.append(el('strong', '', 'Preview permission needed'), el('span', '', detail), button('Preview destination only', 'acknowledge-waypoints', 'builder-button builder-button-accent')); meta.appendChild(notice);
+      const notice = el('div', 'builder-waypoint-notice'); notice.append(el('strong', '', 'Movement path preview'), el('span', '', detail), button('Preview destination only', 'acknowledge-waypoints', 'builder-button builder-button-accent')); meta.appendChild(notice);
     }
+    if(current.findings?.length){const review=button(`Review ${current.findings.length} ${current.findings.length===1?'issue':'issues'}`,'review-findings','builder-button builder-button-accent');meta.append(review);}
     root.appendChild(meta);
 
     const strip = el('nav', 'builder-shot-strip'); strip.setAttribute('aria-label', 'Rally sequence');
-    const stripLabel = el('span', 'builder-strip-label', 'Rally sequence'); strip.appendChild(stripLabel);
-    shots.forEach((shot, index) => { const b = button(shotLabel(shot, index), 'select-shot', `builder-shot ${shot.id === current.selectedShotId ? 'is-selected' : ''}`); b.dataset.shotId = shot.id; b.setAttribute('aria-current', shot.id === current.selectedShotId ? 'step' : 'false'); strip.appendChild(b); });
-    const add = button('+ Add shot', 'add-shot', 'builder-button builder-add-shot'); strip.appendChild(add);
+    const sequence=el('div','builder-sequence-scroll');
+    const stripLabel = el('span', 'builder-strip-label', 'Rally sequence'); sequence.appendChild(stripLabel);
+    shots.forEach((shot, index) => { const b = button(shotLabel(shot, index), 'select-shot', `builder-shot ${shot.id === current.selectedShotId ? 'is-selected' : ''}`); b.dataset.shotId = shot.id; b.setAttribute('aria-current', shot.id === current.selectedShotId ? 'step' : 'false'); sequence.appendChild(b); });
+    strip.appendChild(sequence);sequence.scrollLeft=oldScroll;
+    const add = button('+ Add shot', 'add-shot', 'builder-button builder-add-shot');add.disabled=shots.length>=64;add.title=add.disabled?'This play has reached the 64-shot limit':'Append a shot';strip.appendChild(add);
 
     const assistanceBar = el('div', 'builder-assistance-bar'); assistanceBar.append(el('strong', '', 'Assistance'));
     [['autoShading', 'Auto Shading', 'Shading changes eligible movement'], ['showGuides', 'Coverage Guides', 'Explain suggested positions only']].forEach(([field, label, description]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; input.setAttribute('aria-label', label); row.append(input, el('span', '', label), el('span', 'sr-only', description)); assistanceBar.append(row); });
@@ -179,12 +204,12 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       inspector.append(button('Use as starting layout', 'use-planner', 'builder-button builder-button-accent'));
       inspector.append(el('p', 'builder-selected-summary', 'Planner arrows and markup stay in the planner. They are not interpreted as rally shots.'));
     } else if (selected) {
-      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1}` : 'No shot selected')); const collapse = button(inspectorAutoCollapsed ? 'Edit shot' : 'Collapse', 'collapse-inspector', 'builder-button builder-collapse'); collapse.setAttribute('aria-expanded', String(!inspectorAutoCollapsed)); inspectorHeader.append(collapse); inspector.appendChild(inspectorHeader);
+      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1}` : 'No shot selected')); const collapse = button(current.targetPlacement ? 'Cancel target' : inspectorAutoCollapsed ? 'Edit shot' : 'Collapse', current.targetPlacement?'cancel-target':'collapse-inspector', 'builder-button builder-collapse'); collapse.setAttribute('aria-expanded', String(!inspectorAutoCollapsed)); inspectorHeader.append(collapse); inspector.appendChild(inspectorHeader);
       const summary = el('p', 'builder-selected-summary', recipeSummary(selected)); inspector.appendChild(summary);
       const familySelect = select('Shot family', 'edit-family', FAMILIES); familySelect.querySelector('select').value = selected.family; inspector.appendChild(familySelect);
       const hitterSelect = select('Hitter', 'edit-hitter', PLAYERS); hitterSelect.querySelector('select').value = selected.hitter; inspector.appendChild(hitterSelect);
-      const targetRow = el('div', 'builder-target-row'); targetRow.append(el('div', 'builder-target-readout', `Target ${Number(selected.target?.x || 0).toFixed(1)}, ${Number(selected.target?.y || 0).toFixed(1)}`)); targetRow.append(button('Place target on court', 'place-target', 'builder-button builder-button-accent')); inspector.appendChild(targetRow);
-      const details = el('details', 'builder-shot-details'); details.append(el('summary', '', 'Details · coordinates, contact, movement'));
+      const targetRow = el('div', 'builder-target-row'); targetRow.append(el('div', 'builder-target-readout', 'Drag the target ring to adjust')); targetRow.append(button('Place target on court', 'place-target', 'builder-button builder-button-accent')); inspector.appendChild(targetRow);
+      const details = el('details', 'builder-shot-details'); details.open=shotDetailsOpen;details.append(el('summary', '', 'Details · coordinates, contact, movement'));
       const coords = el('div', 'builder-grid-fields'); coords.appendChild(numberField('Target width', 'edit-target.x', selected.target?.x ?? 10, 0, 20)); coords.appendChild(numberField('Target depth', 'edit-target.y', selected.target?.y ?? 20, 0, 44)); details.appendChild(coords);
       const presets = el('div', 'builder-presets'); presets.append(el('span', 'builder-field-label', 'Target presets · green side')); [['wide', 3], ['middle', 10], ['centerline', 10]].forEach(([label, x]) => { const b = button(label, 'target-preset', 'builder-chip'); b.dataset.x = x; b.dataset.y = selected.target?.y || 20; b.dataset.direction = label; presets.appendChild(b); }); details.appendChild(presets);
       const tuning = el('div', 'builder-grid-fields'); const arc = select('Arc', 'edit-arc', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]); const pace = select('Pace', 'edit-pace', [['soft', 'Soft'], ['medium', 'Medium'], ['firm', 'Firm']]); arc.querySelector('select').value = selected.arc || 'medium'; pace.querySelector('select').value = selected.pace || 'medium'; tuning.append(arc, pace); inspector.appendChild(tuning);
@@ -200,8 +225,8 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const ending = select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']]); ending.querySelector('select').value = doc.ending || 'stop'; advanced.append(ending);
       const fault = el('label', 'builder-switch'); const faultInput = el('input'); faultInput.type = 'checkbox'; faultInput.checked = Boolean(doc.intentionalFault); faultInput.dataset.action = 'intentionalFault'; fault.append(faultInput, el('span', '', 'Intentional coaching mistake'), el('small', '', 'Keep the rule warning visible at the terminal fault.')); advanced.append(fault);
       const scope = select('Shade team', 'shade-team', [['both', 'Both teams'], ['green', 'Green'], ['orange', 'Orange']]); scope.querySelector('select').value = doc.assistance?.team || 'both'; advanced.append(scope); inspector.appendChild(advanced);
-      const handed = el('details', 'builder-handedness'); handed.open = false; handed.append(el('summary', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); inspector.appendChild(handed);
-      if (current.findings?.length) { const find = el('div', 'builder-findings'); find.append(el('strong', '', 'Review')); current.findings.forEach(f => { const item = typeof f === 'string' ? { message: f } : f; const label = [item.shotId || item.stepId, item.kind].filter(Boolean).join(' · '); find.append(el('p', '', `${label ? `${label}: ` : ''}${item.message || 'Review this shot'}`)); }); inspector.appendChild(find); }
+      const handed = el('details', 'builder-handedness'); handed.open = handednessOpen; handed.append(el('summary', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); inspector.appendChild(handed);
+      if (current.findings?.length) { const find = el('div', 'builder-findings'); find.append(el('strong', '', 'Review')); current.findings.forEach(f => { const item = typeof f === 'string' ? { message: f } : f; find.append(el('p', '', findingText(item, shots))); }); inspector.appendChild(find); }
     } else {
       const header=el('div','builder-inspector-header');header.append(el('span','','Play settings'),button(inspectorAutoCollapsed?'Edit play':'Collapse','collapse-inspector','builder-button builder-collapse'));inspector.append(header,el('p','builder-empty','Add a shot to start authoring.'));
       const global = el('div', 'builder-global-settings'); global.append(el('h2', '', 'Play settings')); [['autoShading', 'Auto Shading'], ['showGuides', 'Show Coverage Guides']].forEach(([field, label]) => { const row = el('label', 'builder-switch'); const input = el('input'); input.type = 'checkbox'; input.checked = Boolean(doc.assistance?.[field]); input.dataset.assistance = field; row.append(input, el('span', '', label)); global.append(row); }); global.append(select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']])); global.append(select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']])); inspector.append(global);
@@ -215,23 +240,31 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     const loop = button(current.loop ? 'Loop on' : 'Loop', 'loop', 'builder-button'); loop.setAttribute('aria-pressed', String(Boolean(current.loop))); transportButtons.append(loop); const rate = select('Speed', 'rate', [['0.25', '0.25×'], ['0.5', '0.5×'], ['1', '1×']]); rate.querySelector('select').value = String(current.rate || 1); transportButtons.append(rate); transport.appendChild(transportButtons);
     const secondary = el('div', 'builder-secondary-actions'); secondary.append(undo,redo); transport.appendChild(secondary); root.appendChild(transport);
     root.append(templateDialog, importDialog);
+    sequence.scrollLeft=oldScroll;
+    const selectedButton=sequence.querySelector('.is-selected');if(selectedButton){const a=selectedButton.getBoundingClientRect(),b=sequence.getBoundingClientRect();if(a.left<b.left)sequence.scrollLeft-=b.left-a.left;else if(a.right>b.right)sequence.scrollLeft+=a.right-b.right;}
+    if(focusIdentity && document.activeElement===document.body){
+      const next=[...root.querySelectorAll('[data-action],[aria-label]')].find(n=>focusIdentity.shotId?n.dataset.shotId===focusIdentity.shotId:focusIdentity.action?n.dataset.action===focusIdentity.action:n.getAttribute('aria-label')===focusIdentity.label);
+      if(next?.getClientRects().length)next.focus({preventScroll:true});
+    }
   }
   function rerenderAction(type, payload) { fire(type, payload); }
   function handleClick(event) {
     const target = event.target.closest('[data-action]'); if (!target || !root.contains(target)) return;
     const action = target.dataset.action;
-    const menu = target.closest('.builder-menu'); if (menu) menu.open = false;
+    const menu = target.closest('.builder-menu'); if (menu) {menu.open = false;menu.querySelector('summary').focus();}
     const input=document.activeElement;if(input&&root.contains(input)&&input.matches('input:not([type=range]),textarea'))input.blur();
     if (action === 'select-shot') { inspectorManualCollapsed = false; userInspectorExpanded = true; rerenderAction('selectShot', target.dataset.shotId); }
     else if (action === 'view') rerenderAction('view', target.dataset.view);
     else if (action === 'workspace-planner') rerenderAction('workspace', 'planner');
     else if (action === 'workspace-builder') rerenderAction('workspace', 'builder');
-    else if (action === 'add-shot') rerenderAction('addShot');
+    else if (action === 'add-shot') {inspectorManualCollapsed=false;rerenderAction('addShot');}
     else if (action === 'new') rerenderAction('new');
     else if (action === 'templates') openTemplateDialog();
     else if (action === 'template-open') { closeDialog(templateDialog); rerenderAction(target.dataset.kind === 'open' ? 'open' : 'template', target.dataset.id); }
     else if (action === 'dialog-close') { closeDialog(templateDialog); closeDialog(importDialog); }
-    else if (action === 'place-target') { inspectorManualCollapsed = true; userInspectorExpanded = null; rerenderAction('placeTarget', { shotId: current.selectedShotId }); }
+    else if (action === 'review-findings') {inspectorManualCollapsed=false;render({});root.querySelector('.builder-findings')?.scrollIntoView({block:'nearest'});}
+    else if (action === 'cancel-target') rerenderAction('cancelTarget');
+    else if (action === 'place-target') { inspectorManualCollapsed = true; userInspectorExpanded = null; rerenderAction('placeTarget', { shotId: current.selectedShotId });root.querySelector('[data-action=cancel-target]')?.focus({preventScroll:true}); }
     else if (action === 'target-preset') rerenderAction('editShot', { field: 'target', value: { x: Number(target.dataset.x), y: Number(target.dataset.y) } });
     else if (action === 'duplicate-shot') rerenderAction('duplicateShot', current.selectedShotId);
     else if (action === 'delete-shot') rerenderAction('deleteShot', current.selectedShotId);
@@ -265,7 +298,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (target.dataset.action === 'seek') fire('seek', Number(target.value));
   }
   function handleInput(event) { if (event.target.dataset.action === 'seek') fire('seek', Number(event.target.value)); }
-  root.addEventListener('pointerdown',event=>{if(event.target.closest('button')&&root.contains(document.activeElement)&&document.activeElement.matches('input:not([type=range]),textarea'))event.preventDefault();});
+  root.addEventListener('pointerdown',event=>{if(event.target.closest('button,summary')&&root.contains(document.activeElement)&&document.activeElement.matches('input:not([type=range]),textarea'))event.preventDefault();});
   root.addEventListener('keydown', event => { if (event.key !== 'Escape') return; const menu = event.target.closest('.builder-menu[open]'); if (menu) { menu.open = false; menu.querySelector('summary')?.focus(); event.preventDefault(); } });
   root.addEventListener('click', handleClick); root.addEventListener('change', handleChange); root.addEventListener('input', handleInput);
   render();

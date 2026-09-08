@@ -134,7 +134,7 @@ class Pickleboard {
     }
 
     setupProjectedScene() {
-        const viewBox = this.projection.COURT_VIEWBOX;
+        const viewBox = this.presentationViewBox || this.projection.COURT_VIEWBOX;
         this.court.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
         const groundPlane = document.getElementById('groundPlane');
         if (groundPlane) groundPlane.setAttribute('transform', this.projection.svgMatrix());
@@ -174,7 +174,7 @@ class Pickleboard {
     }
 
     applyProjection() {
-        const viewBox = this.projection.COURT_VIEWBOX;
+        const viewBox = this.presentationViewBox || this.projection.COURT_VIEWBOX;
         this.court.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
         document.getElementById('groundPlane')?.setAttribute('transform', this.projection.svgMatrix());
         updateParkSVGProjection(this.court);
@@ -216,7 +216,7 @@ class Pickleboard {
 
     setupResponsiveProjection() {
         let frame=null; const update=()=>{frame=null;if(this.dragState.isDragging||this.isDrawing){this.projectionResizePending=true;return;}
-            const changed=this.projection.configureViewport(innerWidth,innerHeight);if(changed)this.applyProjection();else this.updateParkControls();};
+            const viewport=this.presentationViewBox?this.court.getBoundingClientRect():{width:innerWidth,height:innerHeight};const changed=this.projection.configureViewport(viewport.width,viewport.height);if(changed)this.applyProjection();else this.updateParkControls();};
         this.scheduleProjectionUpdate=()=>{if(frame===null)frame=requestAnimationFrame(update);};
         window.addEventListener('resize',this.scheduleProjectionUpdate);
         window.addEventListener('load',this.scheduleProjectionUpdate,{once:true});
