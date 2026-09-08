@@ -48,7 +48,7 @@ test.describe('court first builder UI harness', () => {
     await expect(page.locator('.builder-planner')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Use as starting layout' })).toBeVisible();
     await page.getByRole('button', { name: 'Return to builder' }).first().click();
-    await page.getByRole('checkbox', { name: 'Shading', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Auto Shading', exact: true }).check();
     const actions = await page.evaluate(() => window.__builderActions);
     expect(actions.map(action => action.type)).toEqual(['workspace', 'workspace', 'assistance']);
     expect(actions[2].payload).toEqual({ field: 'autoShading', value: true });
@@ -81,7 +81,7 @@ test.describe('court first builder UI harness', () => {
   test('keeps zero-shot settings and bounds file imports', async ({ page }) => {
     await page.goto('/index.html?workspace=planner&builder-ui-harness=1');
     await page.evaluate(async () => { const { mountBuilderUI } = await import('/builder-ui.js'); window.__builderActions = []; window.__builder = mountBuilderUI({ onAction: (type, payload) => window.__builderActions.push({ type, payload }) }); window.__builder.render({ document: { title: 'Empty', shots: [], players: {}, assistance: {} } }); });
-    await expect(page.getByRole('checkbox', { name: 'Shading', exact: true })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'Auto Shading', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Edit play' }).click();
     await expect(page.getByLabel('Starting condition')).toBeVisible();
     await page.locator('.builder-menu summary', { hasText: 'File' }).click();

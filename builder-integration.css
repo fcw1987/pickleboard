@@ -108,3 +108,34 @@ body.builder-workspace .modal {z-index:6000}
 .builder-button-primary {color:#182b3a}
 .builder-message {color:var(--text-primary,#182b3a);font-weight:600}
 .builder-button-accent {color:#182b3a}
+
+/* Final builder shell overrides. The sequence owns the assistance controls, so
+   the court gets the full remaining viewport on portrait and landscape. */
+.builder-ui { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto 3rem minmax(0,1fr) auto; }
+.builder-top-actions { position: relative; }
+.builder-menu[open] { position: absolute; top: 0; z-index: 30; }
+.builder-menu:nth-child(1)[open] { right: 5.2rem; }
+.builder-menu:nth-child(2)[open] { right: 0; }
+.builder-planner .builder-brand, .builder-planner .builder-top-actions { display:flex; }
+.builder-planner .builder-top-actions > :not(.builder-menu) { display:inline-flex; }
+.builder-planner .builder-layout { display:block; }
+.builder-assistance-bar { flex: 0 0 auto; border: 0; box-shadow: none; min-height: 2rem; padding-inline: .4rem; }
+.builder-assistance-bar .builder-switch { display:inline-grid; grid-template-columns:auto auto; }
+.builder-secondary-actions { flex: 0 0 auto; }
+@media (max-width:700px) {
+  .builder-ui { grid-template-rows: auto auto auto minmax(0,1fr) auto; }
+  .builder-topbar { min-height: 0; }
+  .builder-assistance-bar { gap: .45rem; overflow-x:auto; }
+  .builder-assistance-bar .builder-switch { white-space:nowrap; }
+  .builder-shot-strip { height:auto; min-height:3rem; flex-wrap:wrap; overflow-x:hidden; }
+  .builder-shot-strip .builder-assistance-bar { flex-basis:100%; overflow:visible; }
+}
+@media (max-height:500px) and (orientation:landscape) {
+  .builder-ui { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto 2.4rem minmax(0,1fr) 3rem; }
+  .builder-topbar, .builder-meta, .builder-shot-strip, .builder-layout, .builder-transport { grid-column: 1; grid-row: auto; margin: 0; }
+  .builder-topbar { height: auto; display:flex; }
+  .builder-meta { height: auto; }
+  .builder-shot-strip { height: 2.4rem; }
+  .builder-layout { min-height: 0; }
+  .builder-transport { min-height: 0; }
+}
