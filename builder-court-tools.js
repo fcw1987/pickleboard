@@ -3,17 +3,28 @@ const NS='http://www.w3.org/2000/svg';
 const element=(tag,attrs={})=>{const node=document.createElementNS(NS,tag);for(const[key,value]of Object.entries(attrs))node.setAttribute(key,value);return node;};
 export class BuilderCourtTools {
     constructor(builder){
-        this.builder=builder;this.placing=false;this.drag=null;this.THREE=null;this.surface=null;
+        this.builder=builder;this.placing=false;this.placement=null;this.drag=null;this.THREE=null;this.surface=null;
         this.layer=element('svg',{'aria-hidden':'true',class:'builder-court-tools'});
         this.layer.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:4500';
         document.body.append(this.layer);
-        this.handlers={pointerdown:e=>this.down(e),pointermove:e=>this.move(e),pointerup:e=>this.up(e),pointercancel:e=>this.cancel(e)};
-        this.resize=()=>this.render();window.addEventListener('resize',this.resize);
+        this.handlers={pointerdown:e=>this.down(e),pointermove:e=>this.move(e),pointerup:e=>this.up(e),pointercancel:e=>this.cancel(e),lostpointercapture:e=>this.lostCapture(e)};
+        this.resize=()=>{if(this.drag||this.placing)this.abort('Target placement cancelled after the court resized.');else this.render();};window.addEventListener('resize',this.resize);
     }
     async bind(){
         const view=this.builder.board.threeD,surface=this.builder.view==='3d'?view.renderer?.domElement:this.builder.board.court;
-        if(surface!==this.surface){if(this.surface)for(const[type,handler]of Object.entries(this.handlers))this.surface.removeEventListener(type,handler);this.surface=surface;if(surface)for(const[type,handler]of Object.entries(this.handlers))surface.addEventListener(type,handler);}
+        if(surface!==this.surface){if(this.surface){if(this.drag||this.placing)this.abort('Target placement cancelled when the court view changed.',false);for(const[type,handler]of Object.entries(this.handlers))this.surface.removeEventListener(type,handler);}this.surface=surface;if(surface)for(const[type,handler]of Object.entries(this.handlers))surface.addEventListener(type,handler);}
         if(this.builder.view==='3d'&&!this.THREE){this.THREE=await import('./vendor/three.module.min.js');this.render();}
+    }
+    beginPlacement({field='target',player=null}={}){
+        const shot=this.builder.selectedShot;if(!shot)return false;
+        const playerField=/^playerMovement\.(player[1-4])\.target$/.exec(field);
+        if(!['target','movement.target'].includes(field)&&!playerField)throw new TypeError('Unsupported court placement field.');
+        if(playerField)player=playerField[1];
+        if(player!==null&&!/^player[1-4]$/.test(player))throw new TypeError('Unknown movement player.');
+        let start=field==='target'?shot.target:field==='movement.target'?shot.movement?.target:shot.playerMovement?.[player]?.target;
+        if(!start&&player)start=this.builder.document.initialLayout?.[player];
+        if(!start||!Number.isFinite(start.x)||!Number.isFinite(start.y))throw new TypeError('Court placement requires a finite starting position.');
+        this.builder.pause();this.clear();this.placement={field,player,start:{x:start.x,y:start.y}};this.placing=true;this.render();return true;
     }
     project(position,height=0){
         const viewer=this.builder.board.threeD;
@@ -35,24 +46,27 @@ export class BuilderCourtTools {
     }
     down(event){
         if(this.builder.workspace!=='builder'||event.button>0||this.builder.busy)return;
+        if((this.drag&&event.pointerId!==this.drag.pointer)||((this.drag||this.placing)&&['touch','pen'].includes(event.pointerType)&&event.isPrimary===false)){this.abort('Target placement cancelled because another touch was detected.');return;}
         // Hidden targets must never capture an ordinary playback gesture.
         if(this.builder.session.clock.playing&&!this.placing)return;
-        const shot=this.builder.selectedShot;if(!shot)return;const target=this.project(shot.target);
+        const shot=this.builder.selectedShot;if(!shot)return;const source=this.placement?.start||shot.target,target=this.project(source);
         const near=target&&Math.hypot(event.clientX-target.x,event.clientY-target.y)<25;
         if(!this.placing&&!near)return;
         const point=this.unproject(event);if(!point)return;
         this.builder.pause();event.preventDefault();event.stopPropagation();this.surface.setPointerCapture(event.pointerId);
-        this.drag={pointer:event.pointerId,offset:near&&!this.placing?{x:point.x-shot.target.x,y:point.y-shot.target.y}:{x:0,y:0},target:{...shot.target}};
+        this.drag={pointer:event.pointerId,pointerType:event.pointerType,field:this.placement?.field||'target',player:this.placement?.player||null,offset:near&&!this.placing?{x:point.x-source.x,y:point.y-source.y}:{x:0,y:0},target:{...source}};
         this.move(event);
     }
     move(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;const p=this.unproject(event);if(!p)return;this.drag.target={x:Math.max(0,Math.min(20,p.x-this.drag.offset.x)),y:Math.max(0,Math.min(44,p.y-this.drag.offset.y))};this.render();}
-    up(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;this.move(event);const target=this.drag.target;this.drag=null;this.placing=false;this.surface.releasePointerCapture(event.pointerId);this.builder.action('editShot',{field:'target',value:target});}
-    cancel(event){if(this.drag&&event.pointerId===this.drag.pointer){this.clear();this.builder.message='Target placement cancelled.';this.builder.render();}}
-    clear(){if(this.drag&&this.surface?.hasPointerCapture(this.drag.pointer))this.surface.releasePointerCapture(this.drag.pointer);this.drag=null;this.placing=false;this.layer.replaceChildren();}
+    up(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;this.move(event);const {target,field,player}=this.drag;this.drag=null;this.placing=false;this.placement=null;if(this.surface.hasPointerCapture(event.pointerId))this.surface.releasePointerCapture(event.pointerId);if(player)this.builder.action('editMovement',{player,field:'target',value:target});else this.builder.action('editShot',{field,value:target});}
+    cancel(event){if(this.drag&&event.pointerId===this.drag.pointer)this.abort('Target placement cancelled.');}
+    lostCapture(event){if(this.drag&&event.pointerId===this.drag.pointer)this.abort('Target placement cancelled because pointer contact was lost.');}
+    abort(message,rerender=true){this.clear();this.builder.message=message;if(rerender)this.builder.render();}
+    clear(){const drag=this.drag;this.drag=null;this.placing=false;this.placement=null;if(drag&&this.surface?.hasPointerCapture(drag.pointer))this.surface.releasePointerCapture(drag.pointer);this.layer.replaceChildren();}
     render(){
         const b=this.builder;if(b.workspace!=='builder'){this.clear();return;}this.bind();
                 this.layer.replaceChildren();const shot=b.selectedShot;if(!shot)return;
-        const point=this.project(this.drag?.target || shot.target);
+        const point=this.project(this.drag?.target || this.placement?.start || shot.target);
         if(point&&!b.session.clock.playing){const group=element('g');group.append(element('circle',{cx:point.x,cy:point.y,r:13,fill:'none',stroke:'#fff6db','stroke-width':5}),element('circle',{cx:point.x,cy:point.y,r:13,fill:'none',stroke:'#6f365f','stroke-width':3}),element('path',{d:`M${point.x-20} ${point.y}h40 M${point.x} ${point.y-20}v40`,stroke:'#6f365f','stroke-width':2}));const label=element('text',{x:point.x+17,y:point.y-17,fill:'#203449',stroke:'#fff6db','stroke-width':3,'paint-order':'stroke','font-size':13,'font-family':'system-ui','font-weight':700});label.textContent='Target';group.append(label);this.layer.append(group);}
         for(const annotation of b.document.annotations){
             if(annotation.type!=='path'||typeof annotation.d!=='string')continue;
@@ -68,5 +82,5 @@ export class BuilderCourtTools {
         const positions=Object.values(coverage.positions || {});for(const position of positions){const p=this.project(position);if(!p)continue;this.layer.append(element('path',{d:`M${origin.x} ${origin.y}L${p.x} ${p.y}`,stroke:'#526d86','stroke-width':2,'stroke-dasharray':'5 5',opacity:.65}),element('circle',{cx:p.x,cy:p.y,r:17,fill:'none',stroke:'#526d86','stroke-width':2,'stroke-dasharray':'3 3'}));}
         const label=element('text',{x:Math.max(16,b.ui.element.querySelector('.builder-court-region').getBoundingClientRect().x+16),y:b.ui.element.querySelector('.builder-court-region').getBoundingClientRect().y+25,fill:'#203449',stroke:'#fff6db','stroke-width':3,'paint-order':'stroke','font-size':13,'font-family':'system-ui'});label.textContent='Suggested Coverage · instructional approximation';this.layer.append(label);
     }
-    destroy(){if(this.surface)for(const[type,handler]of Object.entries(this.handlers))this.surface.removeEventListener(type,handler);window.removeEventListener('resize',this.resize);this.layer.remove();}
+    destroy(){this.clear();if(this.surface)for(const[type,handler]of Object.entries(this.handlers))this.surface.removeEventListener(type,handler);window.removeEventListener('resize',this.resize);this.layer.remove();}
 }
