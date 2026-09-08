@@ -22,6 +22,9 @@ test.describe('court first builder UI harness', () => {
     await expect(page.locator('.builder-shot')).toHaveCount(3);
     await expect(page.locator('.builder-court-region')).toHaveAttribute('aria-label', /3D rally court/);
     await page.getByRole('button', { name: 'Add shot' }).click();
+    await page.locator('.builder-menu summary', { hasText: 'Plays' }).click();
+    await page.getByRole('button', { name: 'Planner', exact: true }).count();
+    await page.getByRole('button', { name: 'Edit shot' }).click();
     await page.getByRole('button', { name: 'Place target on court' }).click();
     await page.getByRole('button', { name: '2D' }).click();
     const actions = await page.evaluate(() => window.__builderActions);
@@ -40,11 +43,12 @@ test.describe('court first builder UI harness', () => {
       } });
       window.__builder.render({ document: fixtureValue, selectedShotId: 'shot-serve' });
     }, fixture);
+    await page.locator('.builder-menu summary', { hasText: 'Plays' }).click();
     await page.getByRole('button', { name: 'Planner', exact: true }).click();
     await expect(page.locator('.builder-planner')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Use as starting layout' })).toBeVisible();
     await page.getByRole('button', { name: 'Return to builder' }).first().click();
-    await page.getByRole('checkbox', { name: /Auto Shading/ }).check();
+    await page.getByRole('checkbox', { name: 'Shading', exact: true }).check();
     const actions = await page.evaluate(() => window.__builderActions);
     expect(actions.map(action => action.type)).toEqual(['workspace', 'workspace', 'assistance']);
     expect(actions[2].payload).toEqual({ field: 'autoShading', value: true });
@@ -58,13 +62,16 @@ test.describe('court first builder UI harness', () => {
       window.__builder = mountBuilderUI({ onAction: (type, payload) => window.__builderActions.push({ type, payload }) });
       window.__builder.render({ document: fixtureValue, selectedShotId: 'shot-serve', templates: [{ id: 'lesson-one', name: 'Lesson One' }], library: [{ id: 'saved-one', title: 'Saved One' }] });
     }, fixture);
+    await page.locator('.builder-menu summary', { hasText: 'Plays' }).click();
     await page.getByRole('button', { name: 'Learn', exact: true }).click();
     await page.getByRole('button', { name: 'Lesson One' }).click();
+    await page.locator('.builder-menu summary', { hasText: 'Plays' }).click();
     await page.getByRole('button', { name: 'Learn', exact: true }).click();
     await page.getByRole('button', { name: 'Saved One' }).click();
     await page.getByLabel('Play title').click();
     await page.getByLabel('Play title').fill('Focused title');
-    await page.getByRole('button', { name: 'Import / Export' }).click();
+    await page.locator('.builder-menu summary', { hasText: 'File' }).click();
+    await page.locator('header').getByRole('button', { name: 'Import / Export' }).click();
     await page.getByLabel('JSON backup').fill('{"schemaVersion":1,"title":"Imported"}');
     await page.getByRole('button', { name: 'Import JSON' }).click();
     const actions = await page.evaluate(() => window.__builderActions);
@@ -74,9 +81,11 @@ test.describe('court first builder UI harness', () => {
   test('keeps zero-shot settings and bounds file imports', async ({ page }) => {
     await page.goto('/index.html?workspace=planner&builder-ui-harness=1');
     await page.evaluate(async () => { const { mountBuilderUI } = await import('/builder-ui.js'); window.__builderActions = []; window.__builder = mountBuilderUI({ onAction: (type, payload) => window.__builderActions.push({ type, payload }) }); window.__builder.render({ document: { title: 'Empty', shots: [], players: {}, assistance: {} } }); });
-    await expect(page.getByRole('checkbox', { name: 'Auto Shading', exact: true })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'Shading', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Edit play' }).click();
     await expect(page.getByLabel('Starting condition')).toBeVisible();
-    await page.getByRole('button', { name: 'Import / Export' }).click();
+    await page.locator('.builder-menu summary', { hasText: 'File' }).click();
+    await page.locator('header').getByRole('button', { name: 'Import / Export' }).click();
     await page.getByLabel('Choose JSON file').setInputFiles({ name: 'oversize.json', mimeType: 'application/json', buffer: Buffer.alloc(512 * 1024 + 1) });
     await expect.poll(() => page.evaluate(() => window.__builderActions.at(-1))).toEqual({ type: 'message', payload: 'Import is limited to 512 KiB.' });
   });
