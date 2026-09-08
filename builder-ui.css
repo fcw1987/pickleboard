@@ -34,6 +34,39 @@ body.builder-workspace #playbackControls, body.builder-workspace .three-d-hud { 
 @media (max-height: 500px) and (orientation: landscape) { .builder-ui { grid-template-rows:auto auto auto minmax(0,1fr) auto; gap:.3rem; padding:.3rem; } .builder-topbar { min-height:2.6rem; padding:.25rem .5rem; } .builder-shot-strip { min-height:2.6rem; } .builder-layout { grid-template-columns:minmax(0,1fr) 18rem; } .builder-inspector { padding:.45rem; max-height:12rem; overflow:auto; } .builder-transport { min-height:4rem; } }
 @media (prefers-reduced-motion: reduce) { .builder-ui *, .builder-ui *::before, .builder-ui *::after { transition:none !important; animation:none !important; } }
 
+/* Portrait authoring sheet: one contextual, nonmodal surface shared by every
+   editing route.  The court remains interactive outside the sheet. */
+.builder-collapse-label-done { display:none; }
+.builder-inspector[data-surface="nonmodal-sheet"] { overscroll-behavior:contain; scrollbar-gutter:stable; }
+.builder-inspector :is(button, select, input) { accent-color:var(--pb-green,#3d6f5c); }
+.builder-save-error { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; grid-column:1/-1; padding:.35rem .5rem; border-left:4px solid var(--pb-shot,#ba663f); background:color-mix(in srgb, var(--pb-shot,#ba663f) 10%, var(--play-panel,#fffbea)); font-size:.78rem; }
+.builder-save-error span { color:var(--text-secondary,#50616b); }
+.builder-save-error .builder-button { min-height:2.4rem; }
+.builder-inspector :is(button, select, input):focus-visible { outline:3px solid #cf743b; outline-offset:2px; }
+@media (max-width:700px) {
+  .builder-inspector:not(.builder-inspector-collapsed) {
+    display:flex; flex-direction:column; gap:.35rem; max-height:min(68dvh, 34rem);
+    padding:.6rem; border:2px solid var(--border-color,#526c68); border-radius:12px 12px 0 0;
+    background:var(--play-panel,#fffbea); box-shadow:0 -5px 18px color-mix(in srgb, var(--shadow,#162c40) 25%, transparent);
+  }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-inspector-header { position:sticky; top:-.6rem; z-index:2; margin:-.6rem -.6rem .1rem; padding:.6rem; background:var(--play-panel,#fffbea); border-bottom:1px solid var(--border-color,#526c68); }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-collapse-label-collapse { display:none; }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-collapse-label-done { display:inline; }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-field { margin:.25rem 0; }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-shot-details,
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-advanced,
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-handedness { margin-top:.35rem; padding-top:.4rem; }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-shot-details > summary,
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-advanced > summary,
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-handedness > summary { min-height:44px; display:flex; align-items:center; }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-shot-details[open] { padding-bottom:.25rem; }
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-shot-details .builder-field,
+  .builder-inspector:not(.builder-inspector-collapsed) .builder-grid-fields { min-width:0; }
+  .builder-inspector:not(.builder-inspector-collapsed) :is(select, input[type=number], input[type=text]) { min-height:44px; font-size:1rem; }
+  .builder-inspector:not(.builder-inspector-collapsed) :is(button, .builder-chip) { min-height:44px; }
+  .builder-inspector-collapsed .builder-collapse { min-height:44px; }
+}
+
 /* Court-centered compact pass: the scene owns the open canvas, while controls
    stay available as small, explicit overlays. */
 body.builder-workspace { --builder-side-width: 260px; --builder-bottom-height: 5rem; }

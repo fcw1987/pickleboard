@@ -9,7 +9,7 @@ body.builder-workspace .modal {z-index:6000}
 .builder-ui :focus-visible {outline:3px solid #cf743b;outline-offset:3px}
 .builder-ui button:disabled {opacity:.5;cursor:default}
 /* The real scene gets a measured region, never a scaled screenshot. */
-.builder-ui {height:100dvh;box-sizing:border-box;overflow:hidden}
+.builder-ui {height:var(--builder-visible-height,100dvh);box-sizing:border-box;overflow:hidden;top:var(--builder-visible-top,0px)}
 .builder-court-region {min-height:0}
 .builder-meta {display:grid;grid-template-columns:minmax(12rem,24rem) minmax(7rem,1fr) minmax(12rem,1.4fr);gap:.25rem .8rem;align-items:center}
 .builder-meta input {width:100%;box-sizing:border-box}
@@ -191,3 +191,12 @@ body.builder-workspace .modal {z-index:6000}
 .builder-large-text .builder-camera select {width:100%;font-size:.75rem}
 .builder-large-text .builder-inspector-collapsed {left:0;right:auto;bottom:4px;width:auto}
 .builder-large-text .builder-view-toggle {right:0;bottom:4px}
+/* Portrait selected-shot sheet stays above transport while its own content scrolls. */
+@media(max-width:700px){
+ .builder-inspector:not(.builder-inspector-collapsed){bottom:50px;max-height:min(calc(var(--builder-visible-height,100dvh) * .68),34rem);overflow-y:auto;overscroll-behavior:contain;border-radius:12px 12px 0 0}
+ .builder-inspector:not(.builder-inspector-collapsed) .builder-inspector-header{min-height:44px}
+ .builder-inspector:not(.builder-inspector-collapsed) .builder-target-row{align-items:stretch}
+ .builder-inspector:not(.builder-inspector-collapsed) .builder-target-row .builder-button{flex:1;min-height:44px}
+ .builder-inspector:not(.builder-inspector-collapsed) .builder-shot-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+ .builder-inspector:not(.builder-inspector-collapsed) .builder-shot-actions .builder-button{min-height:44px}
+}
