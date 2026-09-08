@@ -184,7 +184,7 @@ export class PlayBuilder {
             else if(action==='handedness')this.edit(doc=>{doc.players[value.id].handedness=value.value;});
             else if(['opening','ending','intentionalFault'].includes(action))this.edit(doc=>{doc[action]=value;});
             else if(action==='undo'||action==='redo') {
-                this.pause();this.cancelPendingView();const restored=this.history[action]();if(restored){this.document=restored;this.installPlay(false);this.save();}
+                this.pause();this.cancelPendingView();const restored=this.history[action]();if(restored){this.document=restored;if(!restored.shots.some(shot=>shot.id===this.selectedShotId))this.selectedShotId=restored.shots[0]?.id||null;this.installPlay(false);this.save();}
             }
             else if(action==='new'){if(this.workspace==='planner')await this.setWorkspace('builder');const fresh=createStarterDocument();fresh.id=id();this.loadDocument(fresh);this.message='New starter draft. Choose targets or remove shots to begin from an empty sequence.';}
             else if(action==='saveAs'){const draft=copy(this.document);draft.id=id();draft.title=`${draft.title} — copy`.slice(0,120);this.loadDocument(draft);}
