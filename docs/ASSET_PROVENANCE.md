@@ -27,3 +27,7 @@ The prior paragraphs record historical assets. Current editor PNGs are **64×64*
 The permanent product name is Pickleball Park. The 64×64 park sign is authored by `tools/generate-park-art.mjs` with original 3×5 pixel glyphs spelling `PICKLEBALL` above `PARK`. It replaces two unlabeled sign strokes, not a third-party font. Sign PNG: 214→306 bytes; the seven park PNGs total 2,422 bytes. Bounds, palette, world placement and pivot are unchanged.
 
 Inspection found no old PB lettering in the approved replay athletes, editor composites, caps, paddle faces or icon emblem. Those assets, all 1,120 frame records, 32 atlas files, four editor PNGs, eleven icons and source sheets are unchanged. All three generators reproduce their outputs; the only runtime artwork delta is the sign. The historical before/after inspection remains local; the original source sheets remain in `assets/source/`. No license, ownership, dependency, asset service or font installation changed.
+
+## Court-first border artwork (local candidate, 2026-09-07)
+
+`tools/generate-park-art.mjs` now produces the original 128×32 navy/ivory two-line `assets/park/banner.png` and revises the existing 64×64 sign to HELP. The existing local pixel glyph generator, palette, PNG encoder and license terms are unchanged. Run `node tools/generate-park-art.mjs`, then `npm run check:generated`. No external graphics, fonts or services were used. Athlete artwork, grip anchors and all other park PNGs are unchanged. The top tree is replaced by the banner; no spectators or animated decorations were added.

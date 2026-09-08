@@ -10,7 +10,7 @@ const plays = [
 async function openApp(page) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/index.html?all-plays-3d=1');
+  await page.goto('/index.html?workspace=planner&all-plays-3d=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   return errors;
 }

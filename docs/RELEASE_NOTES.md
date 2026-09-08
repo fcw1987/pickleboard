@@ -1,3 +1,9 @@
+# Local visual play builder candidate — not published
+
+The local builder candidate follows the court-first `e4e23a9` baseline. Build a Play is now the paused 3D front door, with one shared 2D/3D session, genuine parameterized rallies, named local drafts and JSON backups, independent shading/guides, and the retained planner. The approved pixel art and eight lessons remain. This is a local product expansion for owner review; the public site is unchanged. See [builder verification](BUILDER_VERIFICATION.md) for exact tests, model limits, screenshots, recordings and offline evidence.
+
+---
+
 # Pickleball Park, pixel park baseline for live testing
 
 The owner approved the rebrand on desktop and authorized delivery through the existing repository and Pages path. This sanitized public snapshot carries the approved runtime plus deliberately selected maintainer documentation and five reviewed app-only stills in [rebrand verification](REBRAND_VERIFICATION.md). It is a release candidate for live testing, not a stable 1.0 announcement.

@@ -18,7 +18,7 @@ if (run.status !== 1) throw new Error(`Full WebKit suite must exit 1 before poli
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
   '### WebKit infrastructure policy',
   '',
-  '- Original suite result: **115 passed, 7 failed**.',
+  `- Original suite result: **${summary.counts.passed} passed, ${summary.counts.allowedFailures} failed**.`,
   '- The 7 failures exactly match the reviewed WebKit infrastructure signatures; no test was skipped or weakened.',
   `- Exception review expires **${summary.reviewExpires}**; tracking issue: https://github.com/fcw1987/pickleboard/issues/14`,
   '',

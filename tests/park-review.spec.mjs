@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 async function loadPlay(page, playId = 'third-shot-drop') {
-  await page.goto('/index.html?park-independent-review=1');
+  await page.goto('/index.html?workspace=planner&park-independent-review=1');
   await page.waitForFunction(() => Boolean(window.pickleboard?.plays && window.pickleboard?.threeD));
   await page.evaluate(id => pickleboard.plays.load(id), playId);
 }

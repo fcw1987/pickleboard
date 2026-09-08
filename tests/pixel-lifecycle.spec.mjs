@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
     };
     window.__pixelLifecycleListeners = counts;
   });
-  await page.goto('/index.html?pixel-lifecycle=1');
+  await page.goto('/index.html?workspace=planner&pixel-lifecycle=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
 });
 

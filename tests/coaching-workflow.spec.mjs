@@ -8,7 +8,7 @@ for (const [name, viewport, touch] of [
   test.describe(name, () => {
     test.use({ viewport, hasTouch: touch });
     test('all coaching instructions are readable without clipping', async ({ page }) => {
-      await page.goto('/');
+      await page.goto('/?workspace=planner');
       await page.waitForFunction(() => window.pickleboard?.plays);
       await page.emulateMedia({ reducedMotion: 'reduce' });
       const plays = await page.evaluate(() => pickleboard.plays.list());
@@ -29,7 +29,7 @@ for (const [name, viewport, touch] of [
     test('arranged annotated board survives repeated 2D and 3D round trips', async ({ page, browserName }) => {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
-      await page.goto('/');
+      await page.goto('/?workspace=planner');
       await page.waitForFunction(() => window.pickleboard?.threeD);
       const activate = selector => touch ? page.locator(selector).tap() : page.locator(selector).click();
       async function stroke(selector, dx, dy) {
@@ -119,7 +119,7 @@ for (const [name, viewport, touch] of [
 }
 
 test('cached coaching engine resumes an interrupted shot offline', async ({ page, context }) => {
-  await page.goto('/');
+  await page.goto('/?workspace=planner');
   await page.waitForFunction(() => window.pickleboard?.plays && navigator.serviceWorker.controller);
   await context.setOffline(true);
   await page.reload();

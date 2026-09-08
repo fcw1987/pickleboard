@@ -3,11 +3,11 @@ import test from 'node:test';
 import { validateBrandFiles } from '../tools/check-brand.mjs';
 
 const baseline = new Map([
-  ['index.html', '<title>Pickleball Park - Pickleball Court Planner</title><img src="icons/icon.png">'],
+  ['index.html', '<title>Pickleball Park - Build a Play</title><img src="icons/icon.png">'],
   ['manifest.json', JSON.stringify({ name: 'Pickleball Park', short_name: 'Pickleball Park', start_url: './index.html', icons: [{ src: 'icons/icon.png' }] })],
   ['package.json', JSON.stringify({ name: 'pickleballpark', description: 'Pickleball Park app' })],
   ['package-lock.json', JSON.stringify({ name: 'pickleballpark', packages: { '': { name: 'pickleballpark' } } })],
-  ['sw.js', "const CACHE_PREFIX = 'pickleboard-';\nconst STATIC_CACHE = `${CACHE_PREFIX}static-v15`;\nconsole.warn('Pickleball Park static cache');"],
+  ['sw.js', "const CACHE_PREFIX = 'pickleboard-';\nconst STATIC_CACHE = `${CACHE_PREFIX}static-v17`;\nconsole.warn('Pickleball Park static cache');"],
   ['README.md', '# Pickleball Park\n'],
   ['tools/generate-park-art.mjs', "const glyphs={P:['1'],I:['1'],C:['1'],K:['1'],L:['1'],E:['1'],B:['1'],A:['1'],R:['1']}; text(c, 'PICKLEBALL', 1, 1, C.x); text(c, 'PARK', 1, 2, C.x);"],
   ['icons/icon.png', null]
@@ -26,7 +26,7 @@ test('rejects former branding in active UI, README, and current docs', () => {
 });
 test('rejects stale package metadata and incorrectly cased asset references', () => {
   assert(errorsAfter('package.json', JSON.stringify({ name: 'pickleboard', description: 'Pickleboard app' })).some(error => error.includes('package.json')));
-  assert(errorsAfter('index.html', '<title>Pickleball Park - Pickleball Court Planner</title><img src="icons/Icon.png">').some(error => error.includes('incorrectly cased')));
+  assert(errorsAfter('index.html', '<title>Pickleball Park - Build a Play</title><img src="icons/Icon.png">').some(error => error.includes('incorrectly cased')));
 });
 test('rejects an incomplete generated sign while allowing exact archive and contract exceptions', () => {
   assert(errorsAfter('tools/generate-park-art.mjs', "const glyphs={P:['1'],A:['1'],R:['1'],K:['1']}; text(c, 'PARK', 1, 2, C.x);").some(error => error.includes('full PICKLEBALL')));
@@ -37,7 +37,7 @@ test('rejects an incomplete generated sign while allowing exact archive and cont
 });
 
 test('allows only the actual accepted before title in comparison metadata', () => {
-  const records = [{name:'before', revision:'dd0c3fa', actual:{title:'Pickleboard - Pickleball Court Planner'}}, {name:'after', actual:{title:'Pickleball Park - Pickleball Court Planner'}}];
+  const records = [{name:'before', revision:'dd0c3fa', actual:{title:'Pickleboard - Pickleball Court Planner'}}, {name:'after', actual:{title:'Pickleball Park - Build a Play'}}];
   assert.deepEqual(errorsAfter('docs/rebrand/capture-metadata.json', JSON.stringify({records})), []);
   records[1].actual.title = 'Pickleboard - Pickleball Court Planner';
   assert(errorsAfter('docs/rebrand/capture-metadata.json', JSON.stringify({records})).some(error => error.includes('unapproved')));

@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-async function open(page){await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);await page.evaluate(()=>pickleboard.plays.load('third-shot-drop'));await page.locator('#play3dView').click();await page.waitForFunction(()=>pickleboard.threeD.active);}
+async function open(page){await page.goto('/?workspace=planner');await page.waitForFunction(()=>window.pickleboard?.plays);await page.evaluate(()=>pickleboard.plays.load('third-shot-drop'));await page.locator('#play3dView').click();await page.waitForFunction(()=>pickleboard.threeD.active);}
 
 test('rendered paddle geometry and opaque artwork meet the unchanged ball at contact',async({page})=>{
  await open(page);
@@ -57,7 +57,7 @@ test('ball stays at least ten CSS pixels and its surface keeps the logical proje
 test('malformed pixel metadata fails before a canvas is allocated and retry succeeds',async({browser})=>{
  const context=await browser.newContext({serviceWorkers:'block'}),page=await context.newPage();
  await page.route('**/assets/replay/metadata.json',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({version:2,directions:[],atlases:{}})}));
- await page.goto('/');await page.waitForFunction(()=>window.pickleboard?.plays);await page.evaluate(()=>pickleboard.plays.load('third-shot-drop'));await page.locator('#play3dView').click();
+ await page.goto('/?workspace=planner');await page.waitForFunction(()=>window.pickleboard?.plays);await page.evaluate(()=>pickleboard.plays.load('third-shot-drop'));await page.locator('#play3dView').click();
  await expect(page.locator('#threeDLoadStatus')).toContainText('Your board is safe');await expect(page.locator('#threeDCanvas canvas')).toHaveCount(0);await expect(page.locator('#play3dView')).toBeEnabled();
  await page.unroute('**/assets/replay/metadata.json');await page.locator('#play3dView').click();await page.waitForFunction(()=>pickleboard.threeD.active);await expect(page.locator('#threeDCanvas canvas')).toHaveCount(1);await context.close();
 });
@@ -70,7 +70,7 @@ test('context loss exits safely and replay can be opened again',async({page})=>{
 
 test('fresh cached installation opens all four pixel actors fully offline',async({browser})=>{
  const context=await browser.newContext({serviceWorkers:'allow'}),page=await context.newPage();
- await page.goto('/');await page.waitForFunction(()=>navigator.serviceWorker.controller);await context.setOffline(true);await page.reload();
+ await page.goto('/?workspace=planner');await page.waitForFunction(()=>navigator.serviceWorker.controller);await context.setOffline(true);await page.reload();
  await page.waitForFunction(()=>window.pickleboard?.plays);await page.evaluate(()=>pickleboard.plays.load('third-shot-drop'));await page.locator('#play3dView').click();await page.waitForFunction(()=>pickleboard.threeD.active);
  expect(await page.evaluate(()=>[...pickleboard.threeD.playerObjects.values()].filter(a=>a.userData.pixelActor&&a.userData.body.material.map.image.complete).length)).toBe(4);
  await page.locator('#threeDExit').click();await page.locator('#playExit').click();await expect(page.locator('#threeDCanvas canvas')).toHaveCount(0);await context.close();

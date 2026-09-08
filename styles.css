@@ -71,10 +71,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
   overflow: hidden;
   isolation: isolate;
 }
-.world-label { position: absolute; z-index: 10; top: 1rem; left: calc(max(0.8rem, env(safe-area-inset-left)) + 52px + 0.9rem); max-width: calc(100% - max(0.8rem, env(safe-area-inset-left)) - 52px - 1.7rem); display: grid; color: var(--text-primary); pointer-events: none; }
-.world-label strong { font-family: ui-rounded, "Arial Rounded MT Bold", ui-sans-serif, sans-serif; font-size: 1.1rem; letter-spacing: 0.04em; white-space: normal; }
-.world-label span { font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; }
-body.play-mode .world-label, body.three-d-active .world-label { display: none; }
 .court-container-fullscreen {
   display: flex;
   align-items: center;
@@ -85,12 +81,12 @@ body.play-mode .world-label, body.three-d-active .world-label { display: none; }
   padding: max(0.7rem, env(safe-area-inset-top)) max(0.7rem, env(safe-area-inset-right)) max(0.7rem, env(safe-area-inset-bottom)) max(0.7rem, env(safe-area-inset-left));
   background: radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--bg-primary) 78%, var(--pb-green-light)), var(--bg-primary) 75%);
 }
+.park-stage { --stage-ratio: 41.2 / 59; position:relative; width:min(1050px,100%,calc((100dvh - 1.4rem) * var(--stage-ratio))); max-height:100%; aspect-ratio:var(--stage-ratio); }
+.park-stage[data-projection="wide"] { --stage-ratio:44 / 43.8; }
 .court-svg {
   display: block;
-  width: min(1050px, 100%, calc((100dvh - 1.4rem) * 47 / 60));
-  height: auto;
-  max-height: 100%;
-  aspect-ratio: 47 / 60;
+  width: 100%;
+  height: 100%;
   border: 0;
   outline: none;
   border-radius: 0;
@@ -128,34 +124,43 @@ body.play-mode .world-label, body.three-d-active .world-label { display: none; }
 .tracer-dot.ball-token { fill: var(--ball-color); }
 @keyframes tracerFadeOut { 0% { opacity: 0.55; } 50% { opacity: 0.35; } 100% { opacity: 0; } }
 
-/* Small square controls sit above the board like a handheld HUD. */
-.fab {
-  position: fixed;
+/* Native controls occupy useful fixtures on the park border. */
+.park-control {
+  position: absolute;
   z-index: 1000;
-  display: grid;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: .35rem .5rem;
   color: var(--pb-line);
   background: var(--pb-navy);
   border: 3px double var(--pb-line);
   border-radius: var(--corner);
   box-shadow: 4px 4px 0 var(--shadow);
   font-weight: 800;
-  font-size: 1.15rem;
+  font-size: .72rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
   line-height: 1;
+  transform:translate(-50%,-50%);
   transition: transform 120ms ease, background-color 120ms ease;
 }
-.fab:hover { background: var(--button-hover); transform: translate(-1px, -1px); }
-.fab:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
-.fab-menu { top: max(0.8rem, env(safe-area-inset-top)); left: max(0.8rem, env(safe-area-inset-left)); }
-.fab-info { right: max(0.8rem, env(safe-area-inset-right)); bottom: max(0.8rem, env(safe-area-inset-bottom)); }
+.park-control:hover { background:var(--button-hover); }
+.park-control:active { box-shadow:2px 2px 0 var(--shadow); }
+.park-menu { flex-direction:column; gap:3px; }
+.park-menu .control-label { line-height:1; }
+.park-help { flex-direction:column; gap:2px; }
+.park-help .control-label, .park-help .help-icon { line-height:1; }
+.park-banner { position:absolute; z-index:5; width:clamp(132px,38%,280px); margin:0; transform:translate(-50%,calc(-100% - 4px)); pointer-events:none; }
+.park-banner img { display:block; width:100%; height:auto; image-rendering:pixelated; }
 .hamburger-icon { display: grid; gap: 4px; }
 .hamburger-icon span { display: block; width: 20px; height: 2px; background: currentColor; }
-.fab-menu.active .hamburger-icon span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-.fab-menu.active .hamburger-icon span:nth-child(2) { opacity: 0; }
-.fab-menu.active .hamburger-icon span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.park-menu.active .hamburger-icon span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.park-menu.active .hamburger-icon span:nth-child(2) { opacity: 0; }
+.park-menu.active .hamburger-icon span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
 /* Shared overlay frame */
 .overlay, .modal { position: fixed; inset: 0; opacity: 0; visibility: hidden; background: rgba(28, 43, 64, 0.7); transition: opacity 160ms ease, visibility 160ms ease; }
@@ -275,10 +280,10 @@ body[data-theme="dark"] .playback-step-label { color: var(--pb-orange-light); }
 
 /* Reserve a readable strip for guided play copy and controls. */
 body.play-mode .court-container-fullscreen { padding-bottom: max(13rem, calc(0.7rem + env(safe-area-inset-bottom))); }
-body.three-d-active .fab, body.three-d-active .court-container-fullscreen, body.three-d-active .playback-controls { visibility: hidden; }
+body.three-d-active .park-control, body.three-d-active .court-container-fullscreen, body.three-d-active .playback-controls { visibility: hidden; }
 
 @media (max-width: 700px) {
-  .fab { width: 48px; height: 48px; }
+  .park-control { min-width:44px; min-height:44px; }
   .menu-panel { width: min(360px, 100vw); }
   .playback-controls { width: calc(100vw - 1rem); padding: 0.65rem; }
   .playback-buttons { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -292,11 +297,8 @@ body.three-d-active .fab, body.three-d-active .court-container-fullscreen, body.
   .three-d-controls label, .three-d-controls button, .three-d-controls select { width: 100%; min-width: 0; }
 }
 @media (max-width: 420px) {
+  .park-menu, .park-help { padding-inline:4px; }
   /* Let enlarged brand text reserve real space instead of covering court action. */
-  body:not(.play-mode):not(.three-d-active) .app { display: flex; flex-direction: column; }
-  body:not(.play-mode):not(.three-d-active) .world-label { position: relative; top: auto; flex-shrink: 0; margin-top: 1rem; margin-bottom: 0.5rem; }
-  body:not(.play-mode):not(.three-d-active) .court-container-fullscreen { flex: 1; height: auto; }
-
   .court-container-fullscreen { padding: 0.45rem; }
   .court-svg { box-shadow: none; }
   .menu-content { padding-inline: 0.9rem; }
@@ -342,7 +344,6 @@ body.three-d-active .court-container-fullscreen {
   padding-right: max(0.7rem, env(safe-area-inset-right));
   padding-bottom: calc(var(--coaching-hud-height, 0px) + max(0.7rem, env(safe-area-inset-bottom)));
 }
-body.play-mode #menuOverlay { display: none; }
 body.play-mode .playback-controls { top: auto; right: auto; bottom: max(.7rem, env(safe-area-inset-bottom)); left: 50%; width: min(700px, calc(100vw - 2rem)); transform: translateX(-50%); }
 /* Scene geometry supplies depth; canvas resolution is independent of sprite pixels. */
 .three-d-canvas canvas { image-rendering: auto; }

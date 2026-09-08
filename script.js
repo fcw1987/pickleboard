@@ -1,4 +1,5 @@
-import { populateParkSVG } from './park-scene.js';
+import { populateParkSVG, updateParkSVGProjection } from './park-scene.js';
+import { PARK_LAYOUT } from './park-layout.js';
 import './guided-plays.js';
 import { COURT_LINES } from './court-geometry.js';
 // Pickleball Park - Interactive Pickleball Coaching and Strategy
@@ -121,6 +122,7 @@ class Pickleboard {
     }
     
     init() {
+        this.projection.configureViewport(innerWidth, innerHeight);
         this.setupProjectedScene();
         this.setupEventListeners();
         this.setupAdaptiveTouchTargets();
@@ -128,6 +130,7 @@ class Pickleboard {
         this.loadTheme();
         this.setGameMode('doubles'); // Start with doubles
         this.initializeGuidedPlays();
+        this.setupResponsiveProjection();
     }
 
     setupProjectedScene() {
@@ -166,6 +169,60 @@ class Pickleboard {
             net.setAttribute('transform', `translate(0 ${netGround.y})`);
             net.dataset.depth = String(netGround.y);
         }
+        this.court.closest('.park-stage')?.setAttribute('data-projection', this.projection.name);
+        this.updateParkControls();
+    }
+
+    applyProjection() {
+        const viewBox = this.projection.COURT_VIEWBOX;
+        this.court.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        document.getElementById('groundPlane')?.setAttribute('transform', this.projection.svgMatrix());
+        updateParkSVGProjection(this.court);
+        const corners=[[-8,-8],[28,-8],[28,52],[-8,52]].map(([x,y])=>this.projection.courtToView(x,y));
+        const points=values=>values.map(point=>`${point.x},${point.y}`).join(' ');
+        document.getElementById('courtCastShadow')?.setAttribute('points',points(corners.map(point=>({x:point.x+1,y:point.y+1.1}))));
+        document.getElementById('courtSlabEdge')?.setAttribute('points',points([corners[3],corners[2],{x:corners[2].x,y:corners[2].y+1.1},{x:corners[3].x,y:corners[3].y+1.1}]));
+        const net=document.getElementById('netActor'), netGround=this.projection.courtToView(0,22);
+        if(net){net.setAttribute('transform',`translate(0 ${netGround.y})`);net.dataset.depth=String(netGround.y);}
+        Object.values(this.tokens).forEach(token=>this.renderTokenPosition(token));
+        this.court.closest('.park-stage')?.setAttribute('data-projection',this.projection.name);
+        requestAnimationFrame(()=>{this.updateParkControls();this.updateTouchTargetSizes();});
+    }
+
+    updateParkControls() {
+        const stage=this.court.closest('.park-stage'); if(!stage)return;
+        const rect=stage.getBoundingClientRect(), matrix=this.court.getScreenCTM();
+        if(!matrix)return;
+        const courtCorners=[[0,0],[20,0],[20,44],[0,44]].map(([x,y])=>{const view=this.projection.courtToView(x,y);return new DOMPoint(view.x,view.y).matrixTransform(matrix);});
+        const edgeX=(from,to,y)=>from.x+(to.x-from.x)*(y-from.y)/(to.y-from.y);
+        const place=(element,anchor,padding=4,side=null)=>{if(!element||!anchor)return;const view=this.projection.courtToView(anchor);
+            const screen=new DOMPoint(view.x,view.y).matrixTransform(matrix);
+            const halfWidth=element.offsetWidth/2,halfHeight=element.offsetHeight/2;
+            let x=screen.x,y=screen.y;
+            if(side==='left')x=Math.min(x,Math.min(edgeX(courtCorners[0],courtCorners[3],y-halfHeight),edgeX(courtCorners[0],courtCorners[3],y+halfHeight))-halfWidth-padding);
+            if(side==='right')x=Math.max(x,Math.max(edgeX(courtCorners[1],courtCorners[2],y-halfHeight),edgeX(courtCorners[1],courtCorners[2],y+halfHeight))+halfWidth+padding);
+            const localX=Math.max(halfWidth+padding-rect.left,Math.min(innerWidth-rect.left-halfWidth-padding,x-rect.left));
+            const localY=Math.max(halfHeight+padding-rect.top,Math.min(innerHeight-rect.top-halfHeight-padding,y-rect.top));
+            element.style.left=`${localX}px`; element.style.top=`${localY}px`;};
+        place(this.menuToggle,PARK_LAYOUT.controls.menu,4,'left'); place(this.infoToggle,PARK_LAYOUT.controls.help,4,'right');
+        const banner=stage.querySelector('.park-banner'),bannerAnchor=PARK_LAYOUT.controls.banner;
+        if(banner&&bannerAnchor){const view=this.projection.courtToView(bannerAnchor),screen=new DOMPoint(view.x,view.y).matrixTransform(matrix),scale=Math.hypot(matrix.a,matrix.b);
+            banner.style.width=`${Math.max(112,Math.min(280,14*scale))}px`;
+            const halfWidth=banner.offsetWidth/2,height=banner.offsetHeight;
+            banner.style.left=`${Math.max(halfWidth+4-rect.left,Math.min(innerWidth-rect.left-halfWidth-4,screen.x-rect.left))}px`;
+            banner.style.top=`${Math.max(height+8-rect.top,Math.min(innerHeight-rect.top-4,screen.y-rect.top))}px`;}
+        for(const id of ['park-sign','park-banner']) this.court.querySelector(`[data-landmark-id="${id}"]`)?.setAttribute('visibility','hidden');
+    }
+
+    setupResponsiveProjection() {
+        let frame=null; const update=()=>{frame=null;if(this.dragState.isDragging||this.isDrawing){this.projectionResizePending=true;return;}
+            const changed=this.projection.configureViewport(innerWidth,innerHeight);if(changed)this.applyProjection();else this.updateParkControls();};
+        this.scheduleProjectionUpdate=()=>{if(frame===null)frame=requestAnimationFrame(update);};
+        window.addEventListener('resize',this.scheduleProjectionUpdate);
+        window.addEventListener('load',this.scheduleProjectionUpdate,{once:true});
+        const observer=new ResizeObserver(this.scheduleProjectionUpdate);
+        for(const element of [this.court.closest('.park-stage'),this.menuToggle,this.infoToggle,this.court.closest('.park-stage')?.querySelector('.park-banner')]) if(element)observer.observe(element);
+        this.projectionResizeObserver=observer;
     }
 
     initializeGuidedPlays() {
@@ -527,6 +584,7 @@ class Pickleboard {
         
         // Restore text selection
         document.body.style.userSelect = '';
+        if(this.projectionResizePending){this.projectionResizePending=false;this.scheduleProjectionUpdate?.();}
     }
 
     handlePlayerTouchEnd(event, token) {
@@ -1116,6 +1174,7 @@ class Pickleboard {
         
         this.currentPath = null;
         this.drawingState.pathData = [];
+        if(this.projectionResizePending){this.projectionResizePending=false;this.scheduleProjectionUpdate?.();}
     }
     
     undoLastStroke() {
@@ -1264,7 +1323,8 @@ class Pickleboard {
         if (wasActive && restoreFocus) this.menuToggle.focus({ preventScroll: true });
     }
     
-    openInfoModal() {
+    openInfoModal({ returnFocus = this.infoToggle } = {}) {
+        this.infoReturnFocus = returnFocus;
         if (this.menuOverlay.classList.contains('active')) this.closeMenu({ restoreFocus: false });
         this.infoModal.classList.add('active');
         this.infoToggle.setAttribute('aria-expanded', 'true');
@@ -1277,7 +1337,10 @@ class Pickleboard {
         this.infoModal.classList.remove('active');
         this.infoToggle.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = ''; // Restore scrolling
-        if (wasActive && restoreFocus) this.infoToggle.focus({ preventScroll: true });
+        if (wasActive && restoreFocus) {
+            const target = this.infoReturnFocus?.isConnected && this.infoReturnFocus !== document.body && this.infoReturnFocus !== document.documentElement && !this.infoModal.contains(this.infoReturnFocus) && this.infoReturnFocus.getClientRects().length ? this.infoReturnFocus : this.infoToggle;
+            target.focus({ preventScroll: true });
+        }
     }
 }
 
