@@ -188,6 +188,17 @@ function makePlay(document) {
     if (index > 0 && !locked) previousPositions[recipe.hitter] = copy(contact);
     const endPositions = copy(previousPositions);
     endPositions[recipe.hitter] = movementTarget(recipe, contact);
+    let movementImpossible = false;
+    for (const [player, movement] of Object.entries(recipe.playerMovement || {})) {
+      const target = movementTarget({movement}, previousPositions[player]);
+      const movementSeconds = Math.max(.35, distance(contact, recipe.target) / ((FLIGHT[recipe.family][recipe.pace] || 20) * 1.4667));
+      if (distance(previousPositions[player], target) > movementSeconds * 14 + 3) {
+        findings.push(finding('feasibility', 'error', recipe.id, `${player} cannot reach the manual destination during this flight. Move the destination closer; the authored pin has been kept.`));
+        movementImpossible = true; break;
+      }
+      endPositions[player] = target;
+    }
+    if (movementImpossible) { finalizeLastAcceptedStep(steps, accepted); break; }
     const nextRecipe = document.shots[index + 1];
     const nextKind = nextRecipe ? contactKind(nextRecipe) : null;
     const bounces = document.opening === 'serve' && index < 2 ? 1 : nextKind === 'volley' ? 0 : 1;
@@ -207,6 +218,10 @@ function makePlay(document) {
     contacts.push(contact);
     if (recipe.movement.pinned) locks.set(recipe.hitter, copy(endPositions[recipe.hitter]));
     else locks.delete(recipe.hitter);
+    for (const [player, movement] of Object.entries(recipe.playerMovement || {})) {
+      if (movement.pinned) locks.set(player, copy(endPositions[player]));
+      else locks.delete(player);
+    }
     Object.assign(positions, endPositions);
     if (terminalFault) break;
   }
@@ -252,7 +267,7 @@ export function recompileAssistedDocument(document, compiled, assistedPlay, cove
     throw new TypeError('Coverage assistance may change derived player positions only.');
   }
   const findings = [...compiled.findings];
-  const pinned = new Set(document.shots.filter(shot => shot.movement.pinned).map(shot => shot.hitter));
+  const pinned = new Set(document.shots.flatMap(shot => [...(shot.movement.pinned ? [shot.hitter] : []), ...Object.entries(shot.playerMovement || {}).filter(([,m]) => m.pinned || m.intent === 'manual').map(([player]) => player)]));
   for (let index = 0; index < assistedPlay.steps.length; index++) {
     const sourceStep = compiled.play.steps[index], assistedStep = assistedPlay.steps[index];
     if (!sourceStep || !assistedStep?.positions) throw new TypeError('Coverage assistance must preserve the compiled step structure.');

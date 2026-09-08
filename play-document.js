@@ -44,6 +44,18 @@ const point = (value, path, { offCourt = false } = {}) => {
   if (value.x < -margin || value.x > 20 + margin || value.y < -margin || value.y > 44 + margin) fail(path, `must stay within ${offCourt ? 'the supported court apron' : 'the 20 by 44 foot court'}.`);
 };
 
+function validateMovement(value, path) {
+  object(value, `${path}`);
+  choice(value.intent, MOVEMENT_INTENTS, `${path}.intent`);
+  if (typeof value.pinned !== 'boolean') fail(`${path}.pinned`, 'must be boolean.');
+  if (value.target !== undefined) point(value.target, `${path}.target`, { offCourt: true });
+  if (value.intent === 'manual' && !value.target) fail(`${path}.target`, 'is required for manual movement.');
+  if (value.waypoints !== undefined) {
+    if (!Array.isArray(value.waypoints) || value.waypoints.length > 8) fail(`${path}.waypoints`, 'must contain at most 8 points.');
+    value.waypoints.forEach((item, waypointIndex) => point(item, `${path}.waypoints[${waypointIndex}]`, { offCourt: true }));
+  }
+}
+
 function validateTemplateSource(value) {
   if (value === undefined) return;
   object(value, 'templateSource');
@@ -105,14 +117,14 @@ export function validateDocument(value) {
     point(shot.target, `${path}.target`);
     choice(shot.arc, ARCS, `${path}.arc`);
     choice(shot.pace, PACES, `${path}.pace`);
-    object(shot.movement, `${path}.movement`);
-    choice(shot.movement.intent, MOVEMENT_INTENTS, `${path}.movement.intent`);
-    if (typeof shot.movement.pinned !== 'boolean') fail(`${path}.movement.pinned`, 'must be boolean.');
-    if (shot.movement.target !== undefined) point(shot.movement.target, `${path}.movement.target`, { offCourt: true });
-    if (shot.movement.intent === 'manual' && !shot.movement.target) fail(`${path}.movement.target`, 'is required for manual movement.');
-    if (shot.movement.waypoints !== undefined) {
-      if (!Array.isArray(shot.movement.waypoints) || shot.movement.waypoints.length > 8) fail(`${path}.movement.waypoints`, 'must contain at most 8 points.');
-      shot.movement.waypoints.forEach((item, waypointIndex) => point(item, `${path}.movement.waypoints[${waypointIndex}]`, { offCourt: true }));
+    validateMovement(shot.movement, `${path}.movement`);
+    if (shot.playerMovement !== undefined) {
+      object(shot.playerMovement, `${path}.playerMovement`);
+      for (const [player, movement] of Object.entries(shot.playerMovement)) {
+        choice(player, PLAYER_IDS, `${path}.playerMovement player`);
+        if (player === shot.hitter) fail(`${path}.playerMovement.${player}`, 'use movement for the hitter, not two competing commands.');
+        validateMovement(movement, `${path}.playerMovement.${player}`);
+      }
     }
     if (shot.family === 'serve') choice(shot.serveMethod, ['volley', 'drop'], `${path}.serveMethod`);
     else if (shot.serveMethod !== undefined) fail(`${path}.serveMethod`, 'is only valid for a serve.');

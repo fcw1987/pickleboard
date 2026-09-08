@@ -27,14 +27,12 @@ function fingerprint(value) {
 export function getWaypointPolicy(document, acknowledgedKey = null) {
   const shots = Array.isArray(document?.shots) ? document.shots : [];
   const affected = shots.flatMap((shot, index) => {
-    const waypoints = shot?.movement?.waypoints;
-    if (!Array.isArray(waypoints) || waypoints.length === 0) return [];
-    return [{
-      shotId: typeof shot.id === 'string' ? shot.id : null,
-      number: index + 1,
-      player: typeof shot.hitter === 'string' ? shot.hitter : null,
-      pointCount: waypoints.length
-    }];
+    return [[shot.hitter, shot.movement], ...Object.entries(shot.playerMovement || {})].flatMap(([player, movement]) => {
+      const waypoints = movement?.waypoints;
+      if (!Array.isArray(waypoints) || waypoints.length === 0) return [];
+      return [{shotId: typeof shot.id === 'string' ? shot.id : null, number: index + 1,
+        player, pointCount: waypoints.length}];
+    });
   });
 
   if (affected.length === 0) {
@@ -49,6 +47,7 @@ export function getWaypointPolicy(document, acknowledgedKey = null) {
         shotId,
         number,
         hitter: shot?.hitter ?? null,
+        playerMovement: shot?.playerMovement ?? null,
         target: shot?.target ?? null,
         movement: {
           intent: shot?.movement?.intent ?? null,

@@ -23,3 +23,5 @@ JSON import only returns a validated detached document; callers choose whether t
 ## Intermediate movement paths
 
 Version 1 retains imported `movement.waypoints` verbatim but only animates the final destination. The controller requires a session-only **Preview destination only** acknowledgement before advancing such a document. Affected path changes invalidate that acknowledgement; reload asks again. This does not migrate or rewrite source data. See [usability verification](COURT_CENTERED_BUILDER.md).
+
+The iPhone continuation checks a draft against the last version observed by this tab before saving it. A conflict preserves the in-memory edit and the other tab's saved version; **Save a copy** gives the local work a new identity. Unrelated draft saves do not conflict. Imports are explicitly new copies, never identity-based replacements. Completed fields commit synchronously on change or background completion; there is no playback-frame autosave. Local browser storage remains a convenience, not a backup or cloud synchronization service.

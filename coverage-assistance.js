@@ -42,6 +42,7 @@ function selectedTeam(setting, team) {
 function pinnedPlayers(document) {
   const pinned = new Set();
   for (const shot of document?.shots || []) {
+    for (const [player, movement] of Object.entries(shot.playerMovement || {})) if (movement.pinned || movement.intent === 'manual') pinned.add(player);
     if (shot?.movement?.pinned === true && typeof shot.hitter === 'string') pinned.add(shot.hitter);
   }
   return pinned;
