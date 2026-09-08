@@ -186,3 +186,8 @@ body.builder-workspace .modal {z-index:6000}
 .builder-target-row .builder-button {width:100%}
 .builder-inspector {background:var(--bg-primary,#fffbea)}
 @media(max-width:700px){.builder-inspector .builder-target-row{display:grid;width:100%}}
+/* Text enlargement stacks scene controls instead of clipping native values. */
+.builder-large-text .builder-camera {left:0;right:0;bottom:110px;width:100%;max-width:none;box-sizing:border-box}
+.builder-large-text .builder-camera select {width:100%;font-size:.75rem}
+.builder-large-text .builder-inspector-collapsed {left:0;right:auto;bottom:4px;width:auto}
+.builder-large-text .builder-view-toggle {right:0;bottom:4px}

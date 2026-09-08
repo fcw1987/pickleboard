@@ -33,10 +33,13 @@ test('guided layout keeps border controls on their projected park anchors',async
  await page.setViewportSize({width:1440,height:900});await page.goto('/?workspace=planner');await page.waitForFunction(()=>window.pickleboard?.plays);
  await page.evaluate(()=>pickleboard.plays.load('serve-and-return'));
  await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.body).getPropertyValue('--coaching-hud-height'))).not.toBe('');
- const positions=await page.evaluate(()=>{const matrix=document.querySelector('#court').getScreenCTM();
+ const measure=()=>page.evaluate(()=>{const matrix=document.querySelector('#court').getScreenCTM();
   const point=anchor=>{const view=PickleboardProjection.courtToView(anchor),screen=new DOMPoint(view.x,view.y).matrixTransform(matrix);return{x:screen.x,y:screen.y};};
   const center=id=>{const r=document.getElementById(id).getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2,box:{left:r.left,right:r.right,top:r.top,bottom:r.bottom}};};
   return{menu:center('menuToggle'),help:center('infoToggle'),menuAnchor:point({x:-6.5,y:15}),helpAnchor:point({x:26.5,y:8}),court:[[0,0],[20,0],[20,44],[0,44]].map(([x,y])=>point({x,y}))};});
+ // The HUD CSS variable is set before ResizeObserver applies the projected control positions.
+ await expect.poll(async()=>{const p=await measure();return Math.max(...['menu','help'].flatMap(n=>['x','y'].map(axis=>Math.abs(p[n][axis]-p[`${n}Anchor`][axis]))));}).toBeLessThan(.5);
+ const positions=await measure();
  for(const name of['menu','help']){expect(positions[name].x).toBeCloseTo(positions[`${name}Anchor`].x,0);expect(positions[name].y).toBeCloseTo(positions[`${name}Anchor`].y,0);}
  const courtLeft=Math.min(...positions.court.map(point=>point.x)),courtRight=Math.max(...positions.court.map(point=>point.x));
  expect(positions.menu.box.right).toBeLessThan(courtLeft);expect(positions.help.box.left).toBeGreaterThan(courtRight);
