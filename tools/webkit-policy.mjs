@@ -52,9 +52,9 @@ export function inspectWebKitReport(report, diagnostics, options = {}) {
 
   const specs = (report?.suites ?? []).flatMap(flattenSpecs);
   if ((report?.errors ?? []).length) failures.push('report contains errors outside tests');
-  if (specs.length !== 159) failures.push(`expected 159 tests, found ${specs.length}`);
+  if (specs.length !== 160) failures.push(`expected 160 tests, found ${specs.length}`);
   const stats = report?.stats ?? {};
-  for (const [name, expected] of Object.entries({ expected: 152, unexpected: 7, flaky: 0, skipped: 0 })) if (stats[name] !== expected) failures.push(`unexpected ${name} count: ${stats[name]}`);
+  for (const [name, expected] of Object.entries({ expected: 153, unexpected: 7, flaky: 0, skipped: 0 })) if (stats[name] !== expected) failures.push(`unexpected ${name} count: ${stats[name]}`);
 
   const allowed = new Map(ALLOWED_FAILURES.map((entry) => [key(entry), entry]));
   const observed = new Set();

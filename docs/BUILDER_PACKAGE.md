@@ -1,6 +1,6 @@
 # Builder package and offline contract
 
-The deployment artifact is pinned to commit `5d38cd507a8123ae27d7b743870b3d8e495af69b`, where Build a Play is the default entry. Its runtime manifest contains exactly 91 files totaling 1,574,087 bytes, with manifest SHA-256 `fd560e5d7ca005506dad6b7d883a3083268d4959c5c9eb57a1d05e653d579414`. Documentation, drafts, test profiles, tests, and source art remain outside the runtime package.
+The deployment artifact is pinned to commit `7ef3961857b41731712bb3697eca29ff5664e43f`, where Build a Play is the default entry. Its runtime manifest contains exactly 91 files totaling 1,574,196 bytes, with manifest SHA-256 `1ad3da14624cd2d7170b07110f653620857d921129d9dc0a948f9013977db52b`. Documentation, drafts, test profiles, tests, and source art remain outside the runtime package.
 
 `npm run build:site` rejects any path, byte length, or hash difference from `tests/fixtures/approved-runtime.json`. `node tools/verify-deployment-artifact.mjs dist <full-revision>` independently enforces the same source, manifest digest, file count, file set, byte count, and regular-file-only contract.
 
