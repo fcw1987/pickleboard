@@ -19,3 +19,7 @@ Writing the complete envelope with one `setItem` call is the commit point. A quo
 JSON import only returns a validated detached document; callers choose whether to save it. JSON export emits only the validated source document. Browser storage remains local to the current browser profile and origin and is not an absolute backup, so export is the durable manual backup path.
 
 `EditHistory` stores detached source snapshots. `commit` drops the redo branch, `undo` and `redo` return clones, and the configured limit bounds retained undo transitions. Playback frames and derived compiler output must never be committed. The integrating session decides which user operations form a single authored edit and separately marks dependent later shots for review.
+
+## Intermediate movement paths
+
+Version 1 retains imported `movement.waypoints` verbatim but only animates the final destination. The controller requires a session-only **Preview destination only** acknowledgement before advancing such a document. Affected path changes invalidate that acknowledgement; reload asks again. This does not migrate or rewrite source data. See [usability verification](COURT_CENTERED_BUILDER.md).

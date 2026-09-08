@@ -1,5 +1,7 @@
 # Visual play builder — local implementation
 
+Current continuation: the completed [court-centered usability pass](COURT_CENTERED_BUILDER.md) on `feature/court-centered-builder` preserves this builder. The original builder branch was pushed at `d9b75d7` under separate authorization; the usability pass remains local. The record below describes the original implementation.
+
 Base: clean `e4e23a9`, descending from published `f130801`; no later banner correction or uncommitted changes found. Branch `feature/visual-play-builder`. No remote publication is authorized. Existing court-first preview/source is preserved in Git.
 
 ## Ownership and contracts
