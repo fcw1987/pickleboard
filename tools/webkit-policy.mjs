@@ -7,7 +7,7 @@ export const TEST_FILE_HASHES = Object.freeze({
   'tests/pixel-replay.spec.mjs': '11e47959d5a67ec9d22f78c3e8fd014e86142419ed11aef16442b9688c1b0808',
   'tests/plays.spec.mjs': '022625b7c4e12b45b70b20976ac3034d594f1f35eb4ba4f0dc9b9f1fd77a601d',
   'tests/three-d.spec.mjs': '2b537f7cdf131da967b56f1e0d3dde79734dc2e48fab552d76df9a3e062d7533',
-  'tests/service-worker.spec.mjs': 'a38f56f0b7db31e973fd51b2719f7e3e991432f19edef8032d97140249f130b9',
+  'tests/service-worker.spec.mjs': '62823cc2388d262d3d5b2432c158a87c9022853c068363b7416e8353c4a7ab9a',
 });
 
 export const ALLOWED_FAILURES = Object.freeze([
@@ -52,9 +52,9 @@ export function inspectWebKitReport(report, diagnostics, options = {}) {
 
   const specs = (report?.suites ?? []).flatMap(flattenSpecs);
   if ((report?.errors ?? []).length) failures.push('report contains errors outside tests');
-  if (specs.length !== 160) failures.push(`expected 160 tests, found ${specs.length}`);
+  if (specs.length !== 168) failures.push(`expected 168 tests, found ${specs.length}`);
   const stats = report?.stats ?? {};
-  for (const [name, expected] of Object.entries({ expected: 153, unexpected: 7, flaky: 0, skipped: 0 })) if (stats[name] !== expected) failures.push(`unexpected ${name} count: ${stats[name]}`);
+  for (const [name, expected] of Object.entries({ expected: 161, unexpected: 7, flaky: 0, skipped: 0 })) if (stats[name] !== expected) failures.push(`unexpected ${name} count: ${stats[name]}`);
 
   const allowed = new Map(ALLOWED_FAILURES.map((entry) => [key(entry), entry]));
   const observed = new Set();

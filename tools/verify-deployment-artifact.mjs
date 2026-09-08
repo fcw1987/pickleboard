@@ -3,8 +3,8 @@ import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const APPROVED_SOURCE = '7ef3961857b41731712bb3697eca29ff5664e43f';
-const APPROVED_MANIFEST_SHA256 = '1ad3da14624cd2d7170b07110f653620857d921129d9dc0a948f9013977db52b';
+const APPROVED_SOURCE = '634bc6b20fe87730f0abc3503af6eedcfb42ba16';
+const APPROVED_MANIFEST_SHA256 = '52ac96eaf909e9558f8e7ff1a4a92d469d783fb6997a9e14c7f15ad82a9e0d95';
 const METADATA_FILES = ['build-info.json', 'runtime-manifest.json'];
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const safePath = (file) => typeof file === 'string' && file.length > 0 && !path.posix.isAbsolute(file) && !file.split('/').includes('..') && !file.includes('\\');
@@ -36,7 +36,7 @@ export function validateDeploymentArtifact(root, expectedRevision) {
   if (info.revision !== expectedRevision) throw new Error('Artifact revision mismatch');
   if (info.runtimeManifestSha256 !== APPROVED_MANIFEST_SHA256) throw new Error('Build metadata manifest digest mismatch');
   if (JSON.stringify(info.publicationMetadata) !== JSON.stringify(METADATA_FILES)) throw new Error('Publication metadata set mismatch');
-  if (!Array.isArray(manifest.files) || manifest.files.length !== 91) throw new Error('Runtime manifest must contain exactly 91 files');
+  if (!Array.isArray(manifest.files) || manifest.files.length !== 93) throw new Error('Runtime manifest must contain exactly 93 files');
 
   const runtimePaths = manifest.files.map((file) => file.path);
   if (runtimePaths.some((file) => !safePath(file))) throw new Error('Runtime manifest contains an unsafe path');

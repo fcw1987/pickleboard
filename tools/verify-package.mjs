@@ -16,7 +16,7 @@ expect(walk(artifact).sort()).toEqual([...manifest.files.map(f => f.path), ...in
 for (const f of manifest.files) expect(sha(readFileSync(`${artifact}/${f.path}`)), f.path).toBe(f.sha256);
 const prior = JSON.parse(readFileSync('tests/fixtures/prior-production.json'));
 const previousCache = prior.cacheName;
-const candidateCache = 'pickleboard-static-v17';
+const candidateCache = 'pickleboard-static-v18';
 const oldFiles = new Map();
 for (const f of prior.files) {
   const b = execFileSync('git', ['show', `${prior.revision}:${f.file}`], { maxBuffer: 20 * 1024 * 1024 });
@@ -24,18 +24,30 @@ for (const f of prior.files) {
 }
 const priorCachePaths = [...oldFiles.get('sw.js').toString('utf8').split('const STATIC_ASSETS = [')[1].split('];')[0].matchAll(/'\.\/([^']*)'/g)].map(m => m[1] || 'index.html');
 expect([...oldFiles.keys()].filter(path => path !== 'sw.js').sort()).toEqual([...new Set(priorCachePaths)].sort());
+// Also exercise the immediately preceding, reviewed builder cache and saved draft.
+const builderRevision = 'd9b75d71b3836613acfd5d5c33e2d228b789ec4c';
+const builderFixture = JSON.parse(execFileSync('git', ['show', `${builderRevision}:tests/fixtures/approved-runtime.json`]));
+const builderFiles = new Map();
+for (const f of builderFixture.files) {
+  const bytes = execFileSync('git', ['show', `${builderRevision}:${f.path}`], { maxBuffer: 20 * 1024 * 1024 });
+  expect(sha(bytes), `previous builder ${f.path}`).toBe(f.sha256); builderFiles.set(f.path, bytes);
+}
 const results = [];
 const scopePath = new URL('https://fcw1987.github.io/pickleboard/').pathname;
 const types = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.png': 'image/png' };
 for (const [browserName, browserType] of [['chromium', chromium], ['webkit', webkit]]) {
-  for (const mode of ['fresh', 'upgrade']) {
-    let phase = mode === 'upgrade' ? 'old' : 'new', stopped = false;
+  for (const mode of ['fresh', 'upgrade', 'builder-upgrade']) {
+    const upgrading = mode !== 'fresh';
+    const previousFiles = mode === 'builder-upgrade' ? builderFiles : oldFiles;
+    const priorCache = mode === 'builder-upgrade' ? 'pickleboard-static-v17' : previousCache;
+    const previousRevision = mode === 'builder-upgrade' ? builderRevision : prior.revision;
+    let phase = upgrading ? 'old' : 'new', stopped = false;
     const server = createServer((req, res) => {
       const pathname = decodeURIComponent(new URL(req.url, 'http://local').pathname);
       if (!pathname.startsWith(scopePath) || pathname.split('/').includes('..')) return res.writeHead(404).end('Not found');
       const file = pathname.slice(scopePath.length) || 'index.html';
       try {
-        const bytes = phase === 'old' ? oldFiles.get(file) : readFileSync(`${artifact}/${file}`);
+        const bytes = phase === 'old' ? previousFiles.get(file) : readFileSync(`${artifact}/${file}`);
         if (!bytes) throw Error('Not cached in prior release');
         res.writeHead(200, { 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' }).end(bytes);
       } catch { res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found'); }
@@ -50,20 +62,33 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
       await page.waitForFunction(() => navigator.serviceWorker.controller && window.pickleboard?.plays);
       expect(await page.evaluate(async () => (await navigator.serviceWorker.ready).scope)).toBe(base);
       const oldManifest = await page.evaluate(async () => (await fetch('./manifest.json')).json());
-      if (mode === 'upgrade') {
-        expect(await page.evaluate(() => caches.keys())).toContain(previousCache);
+      if (upgrading) {
+        expect(await page.evaluate(() => caches.keys())).toContain(priorCache);
         await page.evaluate(async () => {
           localStorage.setItem('pickleboard-theme', 'dark');
           const unrelated = await caches.open('unrelated-application-cache'); await unrelated.put('/keep', new Response('preserve'));
           pickleboard.setTokenPosition('player1', 8.25, 12.75); pickleboard.setDrawingMode(true);
         });
+        let priorDraft = null;
+        if (mode === 'builder-upgrade') {
+          await page.waitForFunction(() => window.playBuilder && !playBuilder.busy);
+          priorDraft = await page.evaluate(async () => {
+            await playBuilder.action('title', 'Preserved pre-update draft');
+            await playBuilder.action('editShot', { field: 'target.x', value: 6.25 });
+            return JSON.stringify(playBuilder.document);
+          });
+        }
         const before = await page.evaluate(() => pickleboard.captureBoardState());
         phase = 'new';
         await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
         await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 20000 }).toContain(candidateCache);
-        await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 20000 }).not.toContain(previousCache);
+        await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 20000 }).not.toContain(priorCache);
         expect(await page.evaluate(() => pickleboard.captureBoardState())).toEqual(before);
         await page.reload(); await page.waitForFunction(() => window.pickleboard?.plays);
+        if (priorDraft) {
+          await page.waitForFunction(() => window.playBuilder && !playBuilder.busy);
+          expect(await page.evaluate(() => JSON.stringify(playBuilder.document))).toBe(priorDraft);
+        }
         expect(await page.evaluate(() => ({ theme: localStorage.getItem('pickleboard-theme'), body: document.body.dataset.theme }))).toEqual({ theme: 'dark', body: 'dark' });
         expect(await page.evaluate(async () => (await (await caches.open('unrelated-application-cache')).match('/keep')).text())).toBe('preserve');
       }
@@ -138,7 +163,7 @@ for (const [browserName, browserType] of [['chromium', chromium], ['webkit', web
         expect(lesson.shots).toBeGreaterThan(0);
       }
       await expect(page.locator('#threeDCanvas canvas')).toHaveCount(0); expect(errors).toEqual([]);
-      results.push({ browser: browserName, mode, status: 'PASS', runtimeHashes: checks.all.length, cacheEntries: checks.cached.length, offlineCustomReload: true, offlineLessons: ids.length, offlineMethod: 'owned server stopped', source: info.revision, previousPublicSource: mode === 'upgrade' ? prior.revision : null });
+      results.push({ browser: browserName, mode, status: 'PASS', runtimeHashes: checks.all.length, cacheEntries: checks.cached.length, offlineCustomReload: true, offlineLessons: ids.length, offlineMethod: 'owned server stopped', source: info.revision, previousPublicSource: upgrading ? previousRevision : null });
     } catch (e) { results.push({ browser: browserName, mode, status: 'FAIL', error: e.message }); throw e; }
     finally { await browser.close(); if (!stopped) { server.closeAllConnections(); await new Promise(r => server.close(r)); } mkdirSync('release-results', { recursive: true }); writeFileSync('release-results/package-verification.json', JSON.stringify(results, null, 2)); }
   }
