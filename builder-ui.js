@@ -94,6 +94,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   let shotDetailsOpen = false;
   let handednessOpen = false;
   let importFileGeneration = 0;
+  let exportedBackup = '';
   const templateDialog = el('dialog', 'builder-dialog');
   const importDialog = el('dialog', 'builder-dialog');
   templateDialog.setAttribute('aria-label', 'Play library and templates');
@@ -108,6 +109,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     if (!templateDialog.open) templateDialog.showModal();
   }
   function openImportDialog() {
+    importFileGeneration += 1;
     importDialog.replaceChildren(el('h2', '', 'Import / Export'), el('p', 'builder-dialog-copy', 'Import creates a separate editable copy. Paste a versioned play JSON backup or choose a local file, then select Import JSON.'), labelled('JSON backup', Object.assign(document.createElement('textarea'), { rows: 8, spellcheck: false })));
     const file = document.createElement('input'); file.type = 'file'; file.accept = 'application/json,.json'; file.setAttribute('aria-label', 'Choose JSON file'); file.dataset.action = 'import-file'; importDialog.appendChild(labelled('JSON file', file));
     const actions = el('div', 'builder-dialog-actions'); actions.append(button('Import JSON', 'import-json', 'builder-button builder-button-primary')); actions.append(button('Export current play', 'export', 'builder-button')); actions.append(button('Close', 'dialog-close', 'builder-button')); importDialog.appendChild(actions);
@@ -137,7 +139,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const play = root.querySelector('[data-action="play-pause"]'); if (play) { play.textContent = current.playing ? 'Pause' : 'Play'; play.setAttribute('aria-pressed', String(Boolean(current.playing))); }
       root.classList.toggle('builder-busy', Boolean(current.busy));
       const loop = root.querySelector('[data-action="loop"]'); if (loop) { loop.textContent = current.loop ? 'Loop on' : 'Loop'; loop.setAttribute('aria-pressed', String(Boolean(current.loop))); }
-      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(inspectorManualCollapsed ?? true); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"],[data-action="cancel-target"],[data-action="cancel-movement"]'); if (collapseButton) { const placement = current.targetPlacement ? 'target' : current.movementPlacement ? 'movement' : ''; if (placement === 'target' || placement === 'movement' || collapsed) collapseButton.textContent = placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : 'Edit shot'; else collapseButton.replaceChildren(el('span', 'builder-collapse-label-collapse', 'Collapse'), el('span', 'builder-collapse-label-done', 'Done')); collapseButton.dataset.action=placement==='target'?'cancel-target':placement==='movement'?'cancel-movement':'collapse-inspector'; collapseButton.setAttribute('aria-label', placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : collapsed ? 'Edit shot' : 'Collapse'); collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
+      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(inspectorManualCollapsed ?? true); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"],[data-action="cancel-target"],[data-action="cancel-movement"]'); if (collapseButton) { const placement = current.targetPlacement ? 'target' : current.movementPlacement ? 'movement' : ''; if (placement === 'target' || placement === 'movement' || collapsed) collapseButton.textContent = placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : 'Edit shot'; else collapseButton.replaceChildren(el('span', 'builder-collapse-label-collapse', 'Collapse'), el('span', 'builder-collapse-label-done', 'Done')); collapseButton.dataset.action=placement==='target'?'cancel-target':placement==='movement'?'cancel-movement':'collapse-inspector'; collapseButton.setAttribute('aria-label', placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : collapsed ? 'Edit shot' : 'Done'); collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
       root.appendChild(templateDialog); root.appendChild(importDialog);
       return;
     }
@@ -227,12 +229,15 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       details.append(select('Receiver', 'edit-receiver', [['auto', 'Automatic'], ...PLAYERS])); details.querySelector('[data-action="edit-receiver"]').value = selected.receiver || 'auto';
       details.append(select('Contact style', 'edit-contactStyle', [['auto', 'Automatic'], ['forehand', 'Forehand'], ['backhand', 'Backhand'], ['short-hop', 'Short hop']])); details.querySelector('[data-action="edit-contactStyle"]').value = selected.contactStyle || 'auto';
       if (selected.family === 'serve') { details.append(select('Serve method', 'edit-serveMethod', [['drop', 'Drop serve'], ['volley', 'Volley serve']])); details.querySelector('[data-action="edit-serveMethod"]').value = selected.serveMethod || 'drop'; }
-      const movementPlayer = current.movementPlayer || selected.movement?.player || selected.hitter;
+      const movementPlayer = current.movementPlayer || selected.hitter;
+      const movementState = movementPlayer === selected.hitter ? (selected.movement || {}) : (selected.playerMovement?.[movementPlayer] || {});
       const movementOwner = select('Moving player', 'movement-player', PLAYERS); movementOwner.querySelector('select').value = movementPlayer; details.appendChild(movementOwner);
-      const movement = select('Movement intent', 'edit-movement.intent', [['hold', 'Hold'], ['advance', 'Advance'], ['recover', 'Recover'], ['manual', 'Manual']]); movement.querySelector('select').value = selected.movement?.intent || 'recover'; details.appendChild(movement);
-      const manual = el('div', 'builder-grid-fields'); manual.appendChild(numberField('Manual X', 'edit-movement.target.x', selected.movement?.target?.x ?? 10, 0, 20)); manual.appendChild(numberField('Manual Y', 'edit-movement.target.y', selected.movement?.target?.y ?? 20, -8, 52)); details.appendChild(manual);
+      const movement = select('Movement intent', 'edit-movement.intent', [['hold', 'Hold'], ['advance', 'Advance'], ['recover', 'Recover'], ['manual', 'Manual']]); movement.querySelector('select').value = movementState.intent || 'recover'; details.appendChild(movement);
+      const initialTarget = doc.initialLayout?.[movementPlayer]?.target || doc.initialLayout?.[movementPlayer] || {};
+      const movementTarget = movementState.target || initialTarget;
+      const manual = el('div', 'builder-grid-fields'); manual.appendChild(numberField('Manual X', 'edit-movement.target.x', movementTarget.x ?? 10, 0, 20)); manual.appendChild(numberField('Manual Y', 'edit-movement.target.y', movementTarget.y ?? 20, -8, 52)); details.appendChild(manual);
       details.append(button('Place movement on court', 'place-movement', 'builder-button builder-button-accent'));
-      const pinned = el('label', 'builder-switch'); const pin = el('input'); pin.type = 'checkbox'; pin.checked = Boolean(selected.movement?.pinned); pin.dataset.action = 'edit-movement.pinned'; pinned.append(pin, el('span', '', 'Pin movement target')); details.appendChild(pinned); inspector.appendChild(details);
+      const pinned = el('label', 'builder-switch'); const pin = el('input'); pin.type = 'checkbox'; pin.checked = Boolean(movementState.pinned); pin.dataset.action = 'edit-movement.pinned'; pinned.append(pin, el('span', '', 'Pin movement target')); details.appendChild(pinned); inspector.appendChild(details);
       const actions = el('div', 'builder-shot-actions'); actions.append(button('Duplicate', 'duplicate-shot', 'builder-button')); actions.append(button('Delete', 'delete-shot', 'builder-button builder-button-danger')); actions.append(button('Move earlier', 'move-earlier', 'builder-button')); actions.append(button('Move later', 'move-later', 'builder-button')); inspector.appendChild(actions);
       const advanced = el('details', 'builder-advanced'); advanced.open = advancedOpen; advanced.append(el('summary', '', 'Rally details'));
       const opening = select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']]); opening.querySelector('select').value = doc.opening || 'serve'; advanced.append(opening);
@@ -263,12 +268,12 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     }
   }
   function rerenderAction(type, payload) { fire(type, payload); }
-  function handleClick(event) {
+  async function handleClick(event) {
     const target = event.target.closest('[data-action]'); if (!target || !root.contains(target)) return;
     const action = target.dataset.action;
     const menu = target.closest('.builder-menu'); if (menu) {menu.open = false;menu.querySelector('summary').focus();}
     const input=document.activeElement;if(input&&root.contains(input)&&input.matches('input:not([type=range]),textarea'))input.blur();
-    if (action === 'select-shot') { inspectorManualCollapsed = false; userInspectorExpanded = true; rerenderAction('selectShot', target.dataset.shotId); }
+    if (action === 'select-shot') { inspectorManualCollapsed = false; userInspectorExpanded = true; current.movementPlayer = null; rerenderAction('selectShot', target.dataset.shotId); }
     else if (action === 'view') rerenderAction('view', target.dataset.view);
     else if (action === 'workspace-planner') rerenderAction('workspace', 'planner');
     else if (action === 'workspace-builder') rerenderAction('workspace', 'builder');
@@ -281,7 +286,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (action === 'cancel-target') rerenderAction('cancelTarget');
     else if (action === 'cancel-movement') rerenderAction('cancelMovement');
     else if (action === 'place-target') { inspectorManualCollapsed = true; userInspectorExpanded = null; rerenderAction('placeTarget', { shotId: current.selectedShotId });root.querySelector('[data-action=cancel-target]')?.focus({preventScroll:true}); }
-    else if (action === 'place-movement') { inspectorManualCollapsed = true; userInspectorExpanded = null; rerenderAction('placeMovement', { shotId: current.selectedShotId, player: current.movementPlayer || current.document?.shots?.find(shot => shot.id === current.selectedShotId)?.movement?.player || current.document?.shots?.find(shot => shot.id === current.selectedShotId)?.hitter }); }
+    else if (action === 'place-movement') { inspectorManualCollapsed = true; userInspectorExpanded = null; rerenderAction('placeMovement', { shotId: current.selectedShotId, player: current.movementPlayer || current.document?.shots?.find(shot => shot.id === current.selectedShotId)?.hitter }); }
     else if (action === 'target-preset') rerenderAction('editShot', { field: 'target', value: { x: Number(target.dataset.x), y: Number(target.dataset.y) } });
     else if (action === 'duplicate-shot') rerenderAction('duplicateShot', current.selectedShotId);
     else if (action === 'delete-shot') rerenderAction('deleteShot', current.selectedShotId);
@@ -292,7 +297,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (action === 'restart' || action === 'previous' || action === 'next' || action === 'undo' || action === 'redo' || action === 'save-as' || action === 'use-planner') rerenderAction(({ 'save-as': 'saveAs', 'use-planner': 'usePlanner' }[action] || action));
     else if (action === 'open') openTemplateDialog();
     else if (action === 'import-export') openImportDialog();
-    else if (action === 'import-json') { const area = importDialog.querySelector('textarea'); closeDialog(importDialog); rerenderAction('import', area?.value || ''); }
+    else if (action === 'import-json') { const area = importDialog.querySelector('textarea'); const result = await rerenderAction('import', area?.value || ''); if (!result || result.ok !== false) { importFileGeneration += 1; closeDialog(importDialog); } else { const status = importDialog.querySelector('.builder-import-status') || el('p', 'builder-import-status'); status.textContent = result.error || 'Import could not be completed. Check the JSON and try again.'; importDialog.insertBefore(status, importDialog.querySelector('.builder-dialog-actions')); } }
     else if (action === 'export') rerenderAction('export');
     else if (action === 'loop') rerenderAction('loop', !current.loop);
     else if (action === 'help') rerenderAction('help');
@@ -302,11 +307,11 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   function handleChange(event) {
     const target = event.target; if (!target.dataset.action && !target.dataset.assistance) return;
     if (target.dataset.assistance) fire('assistance', { field: target.dataset.assistance, value: target.checked });
-    else if (target.dataset.action === 'title') fire('title', target.value);
-    else if (target.dataset.action === 'movement-player') { current.movementPlayer = target.value; fire('editMovement', { player: target.value, field: 'player', value: target.value }); }
+    else if (target.dataset.action === 'title') { if (!target.value.trim()) { markInvalidField(target, 'Enter a play title.'); fire('message', 'Enter a play title before saving.'); return; } clearInvalidField(target); fire('title', target.value); }
+    else if (target.dataset.action === 'movement-player') { current.movementPlayer = target.value; renderedDocument = null; render({}); }
     else if (target.dataset.action.startsWith('edit-')) {
-      const field = target.dataset.action.slice(5); const value = target.type === 'checkbox' ? target.checked : (target.type === 'number' ? Number(target.value) : target.value);
-      if (field.startsWith('movement.')) fire('editMovement', { player: current.movementPlayer || current.document?.shots?.find(shot => shot.id === current.selectedShotId)?.movement?.player || current.document?.shots?.find(shot => shot.id === current.selectedShotId)?.hitter, field: field.slice(9), value });
+      const field = target.dataset.action.slice(5); if (target.type === 'number' && (target.value === '' || !target.validity.valid)) { markInvalidField(target, 'Enter a value in range.'); return; } clearInvalidField(target); const value = target.type === 'checkbox' ? target.checked : (target.type === 'number' ? Number(target.value) : target.value);
+      if (field.startsWith('movement.')) fire('editMovement', { player: current.movementPlayer || current.document?.shots?.find(shot => shot.id === current.selectedShotId)?.hitter, field: field.slice(9), value });
       else fire('editShot', { field, value });
     }
     else if (target.dataset.action === 'shade-team') fire('assistance',{field:'team',value:target.value});
@@ -325,11 +330,29 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   root.addEventListener('keydown', event => { if (event.key !== 'Escape') return; const menu = event.target.closest('.builder-menu[open]'); if (menu) { menu.open = false; menu.querySelector('summary')?.focus(); event.preventDefault(); } });
   root.addEventListener('click', handleClick); root.addEventListener('change', handleChange); root.addEventListener('input', handleInput);
   root.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' || !event.target.matches('input[type="number"], input[type="text"]')) return;
+    if (!event.target.matches('input[type="number"], input[type="text"]')) return;
+    if (event.key === 'Escape') { renderedDocument = null; render({}); event.preventDefault(); return; }
+    if (event.key !== 'Enter') return;
+    if (event.target.type === 'number' && (event.target.value === '' || !event.target.validity.valid)) { markInvalidField(event.target, 'Enter a value in range.'); event.preventDefault(); return; }
     event.target.blur();
   });
+  function showExport(raw) {
+    exportedBackup = String(raw || '');
+    if (!importDialog.open) openImportDialog();
+    const area = importDialog.querySelector('textarea');
+    if (area) { area.value = exportedBackup; area.focus({ preventScroll: true }); area.select(); }
+  }
+  function markInvalidField(target, message) {
+    target.setAttribute('aria-invalid', 'true');
+    const field = target.closest('.builder-field') || target.parentElement;
+    if (field && !field.querySelector('.builder-field-error')) field.appendChild(el('span', 'builder-field-error', message));
+  }
+  function clearInvalidField(target) {
+    target.removeAttribute('aria-invalid');
+    target.closest('.builder-field')?.querySelector('.builder-field-error')?.remove();
+  }
   render();
-  return { render, destroy() { destroyed = true; root.remove(); document.body.classList.remove('builder-workspace', 'planner-workspace'); }, element: root };
+  return { render, showExport, destroy() { destroyed = true; importFileGeneration += 1; root.remove(); document.body.classList.remove('builder-workspace', 'planner-workspace'); }, element: root };
 }
 
 export { FAMILIES };

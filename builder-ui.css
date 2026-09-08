@@ -42,6 +42,8 @@ body.builder-workspace #playbackControls, body.builder-workspace .three-d-hud { 
 .builder-save-error { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; grid-column:1/-1; padding:.35rem .5rem; border-left:4px solid var(--pb-shot,#ba663f); background:color-mix(in srgb, var(--pb-shot,#ba663f) 10%, var(--play-panel,#fffbea)); font-size:.78rem; }
 .builder-save-error span { color:var(--text-secondary,#50616b); }
 .builder-save-error .builder-button { min-height:2.4rem; }
+.builder-field-error { display:block; color:var(--pb-shot,#a94c2d); font-size:.72rem; font-weight:700; }
+.builder-inspector [aria-invalid="true"] { border-color:var(--pb-shot,#a94c2d); box-shadow:0 0 0 2px color-mix(in srgb, var(--pb-shot,#a94c2d) 22%, transparent); }
 .builder-inspector :is(button, select, input):focus-visible { outline:3px solid #cf743b; outline-offset:2px; }
 @media (max-width:700px) {
   .builder-inspector:not(.builder-inspector-collapsed) {
