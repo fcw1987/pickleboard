@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   DraftStore,
+  DRAFT_CONFLICT_CODE,
   EditHistory,
   MAX_DRAFTS,
   MAX_JSON_BYTES,
@@ -81,6 +82,102 @@ test('quota failure cannot overwrite the previously committed library', () => {
   storage.setItem = () => { throw new Error('QuotaExceededError'); };
   assert.throws(() => store.save(document('new')), /previous saved library was kept/);
   assert.equal(storage.getItem(STORAGE_KEY), prior);
+});
+
+test('detects a same-draft overwrite from another store and identifies the conflict', () => {
+  const storage = new MemoryStorage();
+  const first = new DraftStore({ storage, validate });
+  const second = new DraftStore({ storage, validate });
+  first.save(document('shared', { title: 'Original' }));
+  assert.equal(first.loadLast().title, 'Original');
+  assert.equal(second.loadLast().title, 'Original');
+  second.save(document('shared', { title: 'From second tab' }));
+
+  const prior = storage.getItem(STORAGE_KEY);
+  assert.throws(
+    () => first.save(document('shared', { title: 'From first tab' })),
+    error => error.code === DRAFT_CONFLICT_CODE && error.draftId === 'shared'
+  );
+  assert.equal(storage.getItem(STORAGE_KEY), prior);
+  assert.equal(second.open('shared').title, 'From second tab');
+});
+
+test('does not conflict when another store saves an unrelated draft', () => {
+  const storage = new MemoryStorage();
+  const first = new DraftStore({ storage, validate });
+  const second = new DraftStore({ storage, validate });
+  first.save(document('one'));
+  first.open('one');
+  second.save(document('two'));
+
+  first.save(document('one', { title: 'Updated one' }));
+  assert.equal(first.open('one').title, 'Updated one');
+  assert.equal(first.open('two').title, 'Play two');
+});
+
+test('detects deletion or creation after a draft identity was observed', () => {
+  const storage = new MemoryStorage();
+  const first = new DraftStore({ storage, validate });
+  const second = new DraftStore({ storage, validate });
+  first.save(document('deleted'));
+  first.open('deleted');
+  second.remove('deleted');
+  assert.throws(() => first.save(document('deleted')), error => error.code === DRAFT_CONFLICT_CODE);
+
+  assert.equal(first.open('appeared'), null);
+  second.save(document('appeared', { title: 'Created elsewhere' }));
+  assert.throws(() => first.save(document('appeared')), error => error.code === DRAFT_CONFLICT_CODE);
+});
+
+test('failed writes retain the observation so a quota retry can succeed', () => {
+  const storage = new MemoryStorage();
+  const store = new DraftStore({ storage, validate });
+  store.save(document('retry', { title: 'Before' }));
+  store.open('retry');
+  const setItem = storage.setItem.bind(storage);
+  storage.setItem = () => { throw new Error('QuotaExceededError'); };
+  assert.throws(() => store.save(document('retry', { title: 'After' })), /previous saved library was kept/);
+  storage.setItem = setItem;
+  assert.equal(store.save(document('retry', { title: 'After' })).title, 'After');
+});
+
+test('preserves schema-one extension data including intermediate waypoints', () => {
+  const storage = new MemoryStorage();
+  const store = new DraftStore({ storage, validate });
+  const legacy = document('legacy', {
+    assistance: { coverageGuides: false, autoShading: true },
+    shots: [{
+      id: 'shot-1',
+      target: { x: 4, y: 11 },
+      waypoints: [{ x: 1, y: 2 }, { x: 3, y: 5 }],
+      legacyExtension: { exact: ['keep', 7] }
+    }]
+  });
+  const envelope = { schemaVersion: 1, drafts: [legacy], lastId: legacy.id };
+  storage.setItem(STORAGE_KEY, JSON.stringify(envelope));
+
+  const opened = store.loadLast();
+  opened.title = 'Renamed';
+  store.save(opened);
+  assert.deepEqual(store.open('legacy').shots[0], legacy.shots[0]);
+  assert.deepEqual(store.open('legacy').assistance, legacy.assistance);
+});
+
+test('a save without a prior observation retains legacy overwrite behavior', () => {
+  const storage = new MemoryStorage();
+  new DraftStore({ storage, validate }).save(document('legacy-caller', { title: 'Before' }));
+  const fresh = new DraftStore({ storage, validate });
+  assert.equal(fresh.save(document('legacy-caller', { title: 'After' })).title, 'After');
+});
+
+test('reports unavailable default storage as a constructor contract error', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  try {
+    delete globalThis.localStorage;
+    assert.throws(() => new DraftStore({ validate }), /localStorage-compatible storage object/);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor);
+  }
 });
 
 test('enforces the library bound without changing saved data', () => {

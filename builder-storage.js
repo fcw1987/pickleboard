@@ -2,12 +2,20 @@ export const STORAGE_KEY = 'pickleballpark-builder-v1';
 export const STORAGE_SCHEMA_VERSION = 1;
 export const MAX_JSON_BYTES = 512 * 1024;
 export const MAX_DRAFTS = 50;
+export const DRAFT_CONFLICT_CODE = 'DRAFT_CONFLICT';
 
 const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function fail(message, cause) {
   const error = new Error(`Builder storage: ${message}`);
   if (cause !== undefined) error.cause = cause;
+  return error;
+}
+
+function conflict(id) {
+  const error = fail(`draft "${id}" changed in another tab; save it as a copy or reopen the newer version`);
+  error.code = DRAFT_CONFLICT_CODE;
+  error.draftId = id;
   return error;
 }
 
@@ -73,13 +81,17 @@ function parseJSON(text, label) {
 }
 
 export class DraftStore {
-  constructor({ storage = localStorage, validate } = {}) {
-    if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
+  constructor({ storage, validate } = {}) {
+    const resolvedStorage = storage === undefined ? globalThis.localStorage : storage;
+    if (!resolvedStorage || typeof resolvedStorage.getItem !== 'function' || typeof resolvedStorage.setItem !== 'function') {
       throw new TypeError('DraftStore requires a localStorage-compatible storage object');
     }
     if (typeof validate !== 'function') throw new TypeError('DraftStore requires a document validator');
-    this.storage = storage;
+    this.storage = resolvedStorage;
     this.validate = validate;
+    // Values are tracked per document so another tab changing a different
+    // draft does not prevent this store from saving the document it opened.
+    this.observedDrafts = new Map();
   }
 
   _validatedDocument(value) {
@@ -128,9 +140,24 @@ export class DraftStore {
     }
   }
 
+  _serializedDraft(envelope, id) {
+    const document = envelope.drafts.find(saved => saved.id === id);
+    return document ? JSON.stringify(document) : null;
+  }
+
+  _observe(envelope, id) {
+    this.observedDrafts.set(id, this._serializedDraft(envelope, id));
+  }
+
+  _assertObservedDraftUnchanged(envelope, id) {
+    if (!this.observedDrafts.has(id)) return;
+    if (this.observedDrafts.get(id) !== this._serializedDraft(envelope, id)) throw conflict(id);
+  }
+
   loadLast() {
     const envelope = this._readEnvelope();
     if (envelope.lastId === null) return null;
+    this._observe(envelope, envelope.lastId);
     return clone(envelope.drafts.find(doc => doc.id === envelope.lastId));
   }
 
@@ -141,6 +168,7 @@ export class DraftStore {
   save(value) {
     const doc = this._validatedDocument(value);
     const envelope = this._readEnvelope();
+    this._assertObservedDraftUnchanged(envelope, doc.id);
     const index = envelope.drafts.findIndex(saved => saved.id === doc.id);
     if (index < 0) {
       if (envelope.drafts.length >= MAX_DRAFTS) throw fail(`library is limited to ${MAX_DRAFTS} drafts`);
@@ -150,6 +178,7 @@ export class DraftStore {
     }
     envelope.lastId = doc.id;
     this._writeEnvelope(envelope);
+    this._observe(envelope, doc.id);
     return clone(doc);
   }
 
@@ -157,11 +186,15 @@ export class DraftStore {
     if (typeof id !== 'string') throw fail('draft id must be a string');
     const envelope = this._readEnvelope();
     const doc = envelope.drafts.find(saved => saved.id === id);
-    if (!doc) return null;
+    if (!doc) {
+      this._observe(envelope, id);
+      return null;
+    }
     if (envelope.lastId !== id) {
       envelope.lastId = id;
       this._writeEnvelope(envelope);
     }
+    this._observe(envelope, id);
     return clone(doc);
   }
 
@@ -173,6 +206,7 @@ export class DraftStore {
     envelope.drafts.splice(index, 1);
     if (envelope.lastId === id) envelope.lastId = envelope.drafts.at(-1)?.id ?? null;
     this._writeEnvelope(envelope);
+    this._observe(envelope, id);
     return true;
   }
 
