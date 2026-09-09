@@ -3,8 +3,8 @@ import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const APPROVED_SOURCE = '634bc6b20fe87730f0abc3503af6eedcfb42ba16';
-const APPROVED_MANIFEST_SHA256 = '52ac96eaf909e9558f8e7ff1a4a92d469d783fb6997a9e14c7f15ad82a9e0d95';
+const APPROVED_SOURCE = 'c92bd7b63ebc936c0fe5d18ac091f8e2927ced98';
+const APPROVED_MANIFEST_SHA256 = '755d8db41a48426230a6d42720d0cf6aded97f562bc98c9c39c8192276274681';
 const METADATA_FILES = ['build-info.json', 'runtime-manifest.json'];
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const safePath = (file) => typeof file === 'string' && file.length > 0 && !path.posix.isAbsolute(file) && !file.split('/').includes('..') && !file.includes('\\');

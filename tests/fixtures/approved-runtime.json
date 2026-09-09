@@ -1,5 +1,5 @@
 {
-  "source": "634bc6b20fe87730f0abc3503af6eedcfb42ba16",
+  "source": "c92bd7b63ebc936c0fe5d18ac091f8e2927ced98",
   "files": [
     {
       "path": "assets/park/banner.png",
@@ -233,8 +233,8 @@
     },
     {
       "path": "builder-court-tools.js",
-      "bytes": 7624,
-      "sha256": "b6e3c1d38fe84823ec912433ec0f211039180b3ef8b5ca16620a373cd9a95728"
+      "bytes": 9984,
+      "sha256": "b9c3095e6918caf5485aa38468e3dafe16550de0108e6cb5c6161b581e668838"
     },
     {
       "path": "builder-framing.js",
@@ -243,28 +243,28 @@
     },
     {
       "path": "builder-integration.css",
-      "bytes": 17250,
-      "sha256": "587ab480fe289e3fbfc83a78902028fc8f1d1f9e2b97c20faff8376c5922a053"
+      "bytes": 21049,
+      "sha256": "dfa07a0296dbfdfb43f4a446600432bfc10b7157d81eba164ef635320d9c92c0"
     },
     {
       "path": "builder-storage.js",
-      "bytes": 7983,
-      "sha256": "25aeb6c140969d267d219c116d4b6c927b734a573f9e170ed1960e0aad61632d"
+      "bytes": 9257,
+      "sha256": "1c29dc00fcd5e7b2546adf29eaad8a65dfbbdd962275a74f0149004bd2485b9e"
     },
     {
       "path": "builder-ui.css",
-      "bytes": 16563,
-      "sha256": "343332acc2e8eb4ae9760ac004052523626c963923fa619179bd7cc990a4c824"
+      "bytes": 19929,
+      "sha256": "501c45edfbb50dd7cb91bf5c2e97b12a5c02de2f663e1778aea9cafa904e5562"
     },
     {
       "path": "builder-ui.js",
-      "bytes": 34776,
-      "sha256": "20449c84f5608630292bb8a85c40a248ded114ec170cea95002d091f3cb04c3d"
+      "bytes": 42401,
+      "sha256": "39d3dd7105cde9f84848056ca7ebb8705b6d3420d8c8e8438c3745c2eb9f13ee"
     },
     {
       "path": "builder-waypoint-policy.js",
-      "bytes": 2737,
-      "sha256": "8026a66d27c13d881aca8f852d8819728cd1a10a16c5d0f807b138edcf328f8b"
+      "bytes": 2845,
+      "sha256": "19f644878813b1813081bca325ddb328a24db065958a2341692705f8b677dcea"
     },
     {
       "path": "coaching-session.js",
@@ -283,8 +283,8 @@
     },
     {
       "path": "coverage-assistance.js",
-      "bytes": 5747,
-      "sha256": "eea9ebd5dc7d57e4ba3a2c9f92591ef17272f5cd922b6ca26cb6101cfb34ae97"
+      "bytes": 5602,
+      "sha256": "22e8aabccddab71d2b3c04e5d52351e21fd37cd42ca9e1e04d954ae2cf25ef3c"
     },
     {
       "path": "guided-pixel-actors.js",
@@ -353,8 +353,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 19574,
-      "sha256": "8752c0cb10450bdcbe581cb898fc22e72be2f5bdc87aa370eb3cda2583402599"
+      "bytes": 19809,
+      "sha256": "79eaaf79916907af664d48e2ca01860db3b9043f44fea0fffb435c09b41ee858"
     },
     {
       "path": "manifest.json",
@@ -378,8 +378,8 @@
     },
     {
       "path": "play-builder.js",
-      "bytes": 21224,
-      "sha256": "d952f227b36aa2863e8251c7daacfe1ec07da16ef74c22ed2d06c4a17cc37489"
+      "bytes": 26885,
+      "sha256": "4cdbf29eb810aa89e95557c208c6839c56cec894e1544ee5db36a93be8e40c53"
     },
     {
       "path": "play-catalog.js",
@@ -388,13 +388,13 @@
     },
     {
       "path": "play-compiler.js",
-      "bytes": 19144,
-      "sha256": "2d1342b6ea09c91399526a0df421cc84dbc02a989650b4dc58bf6e6f498a8d12"
+      "bytes": 20119,
+      "sha256": "2bbe051570d29c1beae41f21a7cc646b3785f0529e2be15d6f21deac16ade328"
     },
     {
       "path": "play-document.js",
-      "bytes": 14331,
-      "sha256": "6ed9aef615c61c59f00066a8bcc5b0799e18b1f4f9b4a2962f573f47a72ae5ae"
+      "bytes": 15435,
+      "sha256": "2259569e1a6ce2af7894f9f0b8004c7d9bf53f4e14bc6f6603ff95f15131e571"
     },
     {
       "path": "rally-rules.js",
@@ -414,7 +414,7 @@
     {
       "path": "sw.js",
       "bytes": 6561,
-      "sha256": "f2fbef0f369b5e32656a4fb4fa59246eba87c435e9dcdcebba846cf9e17d72c7"
+      "sha256": "42f5382490e338888c9b037812d7c85e21be89d6aa3a51ff64a8d123b6a4b10b"
     },
     {
       "path": "three-d-animation.js",
@@ -429,7 +429,7 @@
     {
       "path": "three-d-core.js",
       "bytes": 23364,
-      "sha256": "1c7af6c52d3eb5b88ff6f32178eb74f878aacb6a586f5b9c01f9fa455b8fcc48"
+      "sha256": "8d3519e0327f35dd7b138b9e178a28209c76274b3339bc6eaa4659329cd8155e"
     },
     {
       "path": "three-d-loader.js",
