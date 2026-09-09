@@ -41,7 +41,7 @@ const labelled = (label, control) => {
   wrap.appendChild(el('span', 'builder-field-label', label)); wrap.appendChild(control); return wrap;
 };
 const numberField = (label, action, value, min, max) => {
-  const input = document.createElement('input'); input.type = 'number'; input.value = Number(Number(value).toFixed(6)); input.min = min; input.max = max; input.step = '0.1'; input.dataset.action = action; input.setAttribute('aria-label', label);
+  const input = document.createElement('input'); input.type = 'number'; input.value = Number(Number(value).toFixed(3)); input.min = min; input.max = max; input.step = '0.1'; input.dataset.action = action; input.setAttribute('aria-label', label);
   return labelled(label, input);
 };
 
