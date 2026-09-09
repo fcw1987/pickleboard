@@ -1,5 +1,5 @@
 {
-  "source": "c92bd7b63ebc936c0fe5d18ac091f8e2927ced98",
+  "source": "30c8a362073d0b0857e3741aa9bae33b2e257d97",
   "files": [
     {
       "path": "assets/park/banner.png",
@@ -258,8 +258,8 @@
     },
     {
       "path": "builder-ui.js",
-      "bytes": 42401,
-      "sha256": "39d3dd7105cde9f84848056ca7ebb8705b6d3420d8c8e8438c3745c2eb9f13ee"
+      "bytes": 42456,
+      "sha256": "6733492315d39b8bfa5aa064ee23b1eb7d4d7b2a0080433468813d22e090a592"
     },
     {
       "path": "builder-waypoint-policy.js",
@@ -378,8 +378,8 @@
     },
     {
       "path": "play-builder.js",
-      "bytes": 26885,
-      "sha256": "4cdbf29eb810aa89e95557c208c6839c56cec894e1544ee5db36a93be8e40c53"
+      "bytes": 26964,
+      "sha256": "86b7911c08b8c7765fde4425dd2803377c3de8949373008413a36527a72921e9"
     },
     {
       "path": "play-catalog.js",
