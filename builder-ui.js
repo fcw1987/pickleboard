@@ -41,7 +41,7 @@ const labelled = (label, control) => {
   wrap.appendChild(el('span', 'builder-field-label', label)); wrap.appendChild(control); return wrap;
 };
 const numberField = (label, action, value, min, max) => {
-  const input = document.createElement('input'); input.type = 'number'; input.value = Number(value); input.min = min; input.max = max; input.step = '0.1'; input.dataset.action = action; input.setAttribute('aria-label', label);
+  const input = document.createElement('input'); input.type = 'number'; input.value = Number(Number(value).toFixed(6)); input.min = min; input.max = max; input.step = '0.1'; input.dataset.action = action; input.setAttribute('aria-label', label);
   return labelled(label, input);
 };
 
@@ -240,7 +240,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const movement = select('Movement intent', 'edit-movement.intent', [['hold', 'Hold'], ['advance', 'Advance'], ['recover', 'Recover'], ['manual', 'Manual']]); movement.querySelector('select').value = movementState.intent || 'recover'; details.appendChild(movement);
       const initialTarget = doc.initialLayout?.[movementPlayer]?.target || doc.initialLayout?.[movementPlayer] || {};
       const movementTarget = movementState.target || initialTarget;
-      const manual = el('div', 'builder-grid-fields'); manual.appendChild(numberField('Manual X', 'edit-movement.target.x', movementTarget.x ?? 10, 0, 20)); manual.appendChild(numberField('Manual Y', 'edit-movement.target.y', movementTarget.y ?? 20, -8, 52)); details.appendChild(manual);
+      const manual = el('div', 'builder-grid-fields'); manual.appendChild(numberField('Manual X', 'edit-movement.target.x', movementTarget.x ?? 10, -8, 28)); manual.appendChild(numberField('Manual Y', 'edit-movement.target.y', movementTarget.y ?? 20, -8, 52)); details.appendChild(manual);
       details.append(button('Place movement on court', 'place-movement', 'builder-button builder-button-accent'));
       const pinned = el('label', 'builder-switch'); const pin = el('input'); pin.type = 'checkbox'; pin.checked = Boolean(movementState.pinned); pin.dataset.action = 'edit-movement.pinned'; pinned.append(pin, el('span', '', 'Pin movement target')); details.appendChild(pinned); inspector.appendChild(details);
       const actions = el('div', 'builder-shot-actions'); actions.append(button('Duplicate', 'duplicate-shot', 'builder-button')); actions.append(button('Delete', 'delete-shot', 'builder-button builder-button-danger')); actions.append(button('Move earlier', 'move-earlier', 'builder-button')); actions.append(button('Move later', 'move-later', 'builder-button')); details.appendChild(actions);

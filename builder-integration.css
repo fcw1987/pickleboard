@@ -244,3 +244,7 @@ body.builder-workspace .modal {z-index:6000}
 }
 /* A closed menu must not float above the nonmodal editing sheet. */
 .builder-menu:not([open]){z-index:auto}
+
+@media(max-width:700px){.builder-transport [data-action=restart]{padding-inline:0;font-size:.68rem}}
+
+@media(min-width:701px) and (max-height:500px){.builder-meta{max-height:64px;overflow:auto}.builder-inspector-collapsed .builder-inspector-header>div{display:none}}
