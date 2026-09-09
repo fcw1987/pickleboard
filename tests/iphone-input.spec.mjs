@@ -36,7 +36,9 @@ test('native emulated touch places one bounded target and remains undoable', asy
     playBuilder.courtTools.surface.addEventListener('pointerup', event => { window.actualTouchPoint = playBuilder.courtTools.unproject(event); }, { capture: true, once: true });
   });
   const point = await page.evaluate(() => playBuilder.courtTools.project({ x: 2.75, y: 39.25 }));
-  await page.touchscreen.tap(point.x, point.y);
+  // Native touch dispatch may quantize CSS coordinates differently by platform.
+  // Send explicit whole-pixel coordinates; retain both exact input mapping and court accuracy.
+  await page.touchscreen.tap(Math.round(point.x), Math.round(point.y));
   const { target, actual } = await page.evaluate(() => ({ target: playBuilder.selectedShot.target, actual: window.actualTouchPoint }));
   expect(target.x).toBeCloseTo(actual.x, 6);
   expect(target.y).toBeCloseTo(actual.y, 6);
