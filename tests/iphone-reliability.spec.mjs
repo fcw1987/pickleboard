@@ -29,8 +29,8 @@ test('completed background field edits save and playback does not read the libra
  expect(await page.evaluate(()=>window.libraryReads)).toBeLessThanOrEqual(1);
 });
 test('save failure preserves the unsaved draft across new/open attempts and retries honestly',async({page})=>{
- await open(page);await page.evaluate(()=>{const write=playBuilder.store.storage.setItem.bind(playBuilder.store.storage);window.restoreWrites=()=>playBuilder.store.storage.setItem=write;playBuilder.store.storage.setItem=()=>{throw Error('QuotaExceededError');};});
- await title(page,'Unsaved work');expect(await page.evaluate(()=>Boolean(playBuilder.saveError))).toBe(true);const source=await page.evaluate(()=>JSON.stringify(playBuilder.document));
+ await open(page);await page.evaluate(()=>{const storage=playBuilder.store.storage;window.failedWrites=0;window.restoreWrites=()=>{playBuilder.store.storage=storage;};playBuilder.store.storage={getItem:storage.getItem.bind(storage),removeItem:storage.removeItem.bind(storage),setItem:()=>{window.failedWrites++;throw new DOMException('Storage quota reached','QuotaExceededError');}};});
+ await title(page,'Unsaved work');expect(await page.evaluate(()=>window.failedWrites)).toBeGreaterThan(0);expect(await page.evaluate(()=>Boolean(playBuilder.saveError))).toBe(true);const source=await page.evaluate(()=>JSON.stringify(playBuilder.document));
  await page.evaluate(()=>playBuilder.action('new'));expect(await page.evaluate(()=>JSON.stringify(playBuilder.document))).toBe(source);
  await page.evaluate(()=>{window.restoreWrites();return playBuilder.action('retrySave');});expect(await page.evaluate(()=>playBuilder.saveError)).toBe(null);
  expect(await page.evaluate(()=>playBuilder.store.loadLast().title)).toBe('Unsaved work');

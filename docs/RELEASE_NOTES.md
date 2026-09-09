@@ -1,3 +1,11 @@
+# Unified iPhone builder candidate — draft review
+
+This successor candidate retains the complete court-centered builder at `4816210` and the earlier pushed builder at `d9b75d7`. It adds a shallow phone shot editor with full details, per-player movement placement, safer touch cancellation and local save conflict recovery. File/Plays, direct paused target editing, explicit waypoint acknowledgement, eight lessons, shared 2D/3D time, planner and original artwork remain.
+
+The existing Pages preview is still published from `feature/visual-play-builder`. This candidate uses a separate branch and draft PR; it must not update that preview, main or deployment settings. Runtime checkpoint: `7bfb7dd`. See [verification](UNIFIED_IPHONE_VERIFICATION.md) for changes, browser evidence, package identity and device limitations.
+
+---
+
 # Local visual play builder candidate — not published
 
 The local builder candidate follows the court-first `e4e23a9` baseline. Build a Play is now the paused 3D front door, with one shared 2D/3D session, genuine parameterized rallies, named local drafts and JSON backups, independent shading/guides, and the retained planner. The approved pixel art and eight lessons remain. This is a local product expansion for owner review; the public site is unchanged. See [builder verification](BUILDER_VERIFICATION.md) for exact tests, model limits, screenshots, recordings and offline evidence.

@@ -17,8 +17,8 @@ Pages currently uses **legacy branch publishing from feature/visual-play-builder
 | Camera | 634bc6b retained pending review | Compare net/team clarity, not maximize area |
 | Package/CI | 20c2c5b retained | Final runtime pin, v19 cache, real upgrades and actual candidate CI |
 
-Baseline local `npm run check`: 134 units plus syntax/assets/brand pass. Baseline browser and matching images in progress. Luna `gpt-5.6-luna` owns isolated UI files; Sol `gpt-5.6-sol` owns isolated storage and input scopes; Astra owns controller, compiler boundaries, integration and publication. No worker may push or deploy.
+## Integrated result
 
-## Next
+Baseline: 134 units and 168 Chromium passes at `4816210`. Runtime checkpoint `7bfb7dd`; exact package pins this reviewed runtime. UI, partner movement, save recovery and input ownership are complete. Independent Luna and Sol review findings corrected and combined tests run; see [verification](UNIFIED_IPHONE_VERIFICATION.md) for actual evidence, measurements, limitations and package digest.
 
-Integrate phone UI, movement and conflict recovery; run complete phone workflows and independent critique, then final package, privacy audit and one successor draft PR. Physical iPhone/Safari/VoiceOver acceptance is not yet performed. No remote preview is claimed for the successor.
+All worker writes are finished. One authoritative candidate branch remains `integration/unified-iphone-builder`. A successor draft PR preserves PR #16 and the owner-used legacy Pages source; no merge/deployment/settings changes. Final CI result belongs to the exact pushed candidate and is linked from its PR, not inferred from local results. Physical iPhone/Safari/VoiceOver acceptance remains unperformed.

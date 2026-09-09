@@ -6,6 +6,8 @@ Pickleball Park remains a lightweight static application built with HTML, CSS, v
 
 Formerly Pickleboard. The public snapshot preserves the accepted coaching behavior under the Pickleball Park name. See [rebrand verification](docs/REBRAND_VERIFICATION.md), [release notes](docs/RELEASE_NOTES.md), and [rename handoff](docs/RENAME_HANDOFF.md).
 
+Phone authoring now includes a shallow shot editor, full movement/contact details, direct placement with cancellation, and recoverable local saving. See the [unified iPhone candidate report](docs/UNIFIED_IPHONE_VERIFICATION.md) for the preserved baseline, screenshots, limitations, and verification.
+
 ## Features
 
 - Custom rallies up to 64 shots, validated targets, valid-prefix preview, movement pins, Undo/Redo, and a shared playhead
