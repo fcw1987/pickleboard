@@ -298,7 +298,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (action === 'move-earlier') rerenderAction('moveShot', { id: current.selectedShotId, delta: -1 });
     else if (action === 'move-later') rerenderAction('moveShot', { id: current.selectedShotId, delta: 1 });
     else if (action === 'collapse-inspector') { const inspector = root.querySelector('.builder-inspector'); inspectorManualCollapsed = !(inspector?.classList.contains('builder-inspector-collapsed')); userInspectorExpanded = !inspectorManualCollapsed; render({}); }
-    else if (action === 'play-pause') { inspectorManualCollapsed = true; userInspectorExpanded = null; rerenderAction('playPause'); }
+    else if (action === 'play-pause') { inspectorManualCollapsed = true; userInspectorExpanded = null; rerenderAction('playPause',{playing:target.getAttribute('aria-pressed')!=='true'}); }
     else if (action === 'restart' || action === 'previous' || action === 'next' || action === 'undo' || action === 'redo' || action === 'save-as' || action === 'use-planner') rerenderAction(({ 'save-as': 'saveAs', 'use-planner': 'usePlanner' }[action] || action));
     else if (action === 'open') openTemplateDialog();
     else if (action === 'import-export') openImportDialog();

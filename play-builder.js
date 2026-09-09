@@ -214,7 +214,7 @@ export class PlayBuilder {
             if(action==='view')return await this.switchView(value);
             if(action==='workspace')return await this.setWorkspace(value);
             if(action==='help'){this.courtTools.clear();this.pause();const trigger=this.ui.element.querySelector('.builder-menu summary');trigger?.focus({preventScroll:true});this.board.openInfoModal({returnFocus:trigger});return;}
-            if(action==='playPause'){this.session.clock.playing?this.pause():this.play();}
+            if(action==='playPause'){const playing=typeof value?.playing==='boolean'?value.playing:!this.session.clock.playing;if(playing)this.play();else this.pause();}
             else if(action==='restart')this.seek(0);
             else if(action==='seek')this.seek(Number(value));
             else if(action==='rate')this.board.plays.setPlaybackRate(Number(value));

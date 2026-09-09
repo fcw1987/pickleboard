@@ -18,7 +18,8 @@ test('complete portrait custom rally and detailed movement survive views, reload
  await page.getByRole('button',{name:'3. Drop',exact:true}).click();await page.getByLabel('Shot family',{exact:true}).selectOption('drive');
  await page.getByRole('button',{name:'+ Add shot',exact:true}).click();await page.getByLabel('Shot family',{exact:true}).selectOption('drop');
  expect(await page.evaluate(()=>playBuilder.compiled.validShotCount)).toBe(4);
- await finish(page);await page.getByRole('button',{name:'Play',exact:true}).click();await expect.poll(()=>page.evaluate(()=>playBuilder.session.clock.elapsed)).toBeGreaterThan(.7);await page.getByRole('button',{name:'Pause',exact:true}).click();
+ await finish(page);await page.getByRole('button',{name:'Restart',exact:true}).click();await page.getByRole('button',{name:'Play',exact:true}).click();await expect.poll(()=>page.evaluate(()=>playBuilder.session.clock.elapsed)).toBeGreaterThan(.7);await page.getByRole('button',{name:'Pause',exact:true}).click();
+ expect(await page.evaluate(()=>playBuilder.session.clock.playing)).toBe(false);
  const paused=await page.evaluate(()=>playBuilder.session.clock.elapsed);await page.getByRole('button',{name:'2D',exact:true}).click();expect(await page.evaluate(()=>playBuilder.session.clock.elapsed)).toBe(paused);
  await page.getByRole('button',{name:'3D',exact:true}).click();await page.waitForFunction(()=>!playBuilder.busy);
  await page.getByRole('button',{name:'1. Serve',exact:true}).click();await details(page);
@@ -49,4 +50,14 @@ test('invalid numeric edits and import remain recoverable inside the phone contr
 test('resizing, themes and keyboard-height simulation preserve detailed authored values',async({page})=>{
  await open(page);await page.evaluate(()=>playBuilder.action('editMovement',{player:'player2',field:'target',value:{x:7.25,y:4}}));const before=await page.evaluate(()=>JSON.stringify(playBuilder.document));
  for(const [width,height]of [[390,844],[390,470],[844,390],[768,1024],[1024,768],[680,900],[1440,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>{document.body.dataset.theme='dark';});await details(page);await field(page,'Target width',5);await finish(page);await page.getByRole('button',{name:'2D',exact:true}).click();await page.getByRole('button',{name:'3D',exact:true}).click();await page.waitForFunction(()=>!playBuilder.busy);expect(await page.evaluate(()=>JSON.stringify(playBuilder.document))).toBe(before);}
+});
+
+test('a displayed Pause cannot restart a rally that completed before click dispatch',async({page})=>{
+ await open(page);
+ const result=await page.evaluate(()=>{
+  const b=playBuilder;b.play();b.render();const button=document.querySelector('.builder-ui [data-action="play-pause"]');
+  const shown=button.textContent;b.session.clock.elapsed=b.session.duration;b.session.complete=true;b.session.clock.pause();
+  button.click();return{shown,playing:b.session.clock.playing,time:b.session.clock.elapsed,end:b.session.duration};
+ });
+ expect(result.shown).toBe('Pause');expect(result.playing).toBe(false);expect(result.time).toBe(result.end);
 });
