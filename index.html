@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#304762">
     <meta name="description" content="Pickleball Park is an interactive pickleball coaching and strategy app with an editable tactical board, guided lessons, and spatial replay in one original pixel art park.">
-    <title>Pickleball Park - Pickleball Court Planner</title>
+    <title>Pickleball Park - Build a Play</title>
     <script src="visual-theme.js"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" type="image/png" href="icons/icon-192x192.png">
@@ -14,24 +14,24 @@
     <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-icon-180.png">
     <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
-</head>
+<link rel="stylesheet" href="builder-ui.css"><link rel="stylesheet" href="builder-integration.css"></head>
 <body>
     <div class="app">
-        <div class="world-label" aria-label="Pickleball Park court planner"><strong>Pickleball Park</strong><span>Court planner</span></div>
-        <!-- Floating Action Button: Hamburger Menu -->
-        <button id="menuToggle" class="fab fab-menu" aria-label="Open menu" aria-controls="menuOverlay" aria-expanded="false">
+        <main class="court-container-fullscreen">
+        <div id="parkStage" class="park-stage">
+        <h1 class="park-banner"><img src="assets/park/banner.png" alt="Pickleball Park"></h1>
+        <button id="menuToggle" class="park-control park-menu" aria-label="Open menu" aria-controls="menuOverlay" aria-expanded="false">
             <span class="hamburger-icon">
                 <span></span>
                 <span></span>
                 <span></span>
-            </span>
+            </span><span class="control-label">Menu</span>
         </button>
 
         <!-- Floating Action Button: Info -->
-        <button id="infoToggle" class="fab fab-info" aria-label="Open help and information" aria-controls="infoModal">?</button>
+        <button id="infoToggle" class="park-control park-help" aria-label="Open help and information" aria-controls="infoModal"><span class="help-icon" aria-hidden="true">?</span><span class="control-label" aria-hidden="true">Help</span></button>
 
         <!-- Full-Screen Court Container -->
-        <main class="court-container-fullscreen">
             <svg id="court" class="court-svg" viewBox="-13 -11 47 60" preserveAspectRatio="xMidYMid meet">
                 <defs>
                     <linearGradient id="slabFace" x1="0" y1="0" x2="0" y2="1">
@@ -95,7 +95,7 @@
                 <circle id="player4-touch" class="touch-target" cx="15" cy="45" r="2.0" data-type="player" data-target="player4"/>
                 <circle id="ball-touch" class="touch-target" cx="19" cy="45" r="1.5" data-type="ball" data-target="ball"/>
                 </g>
-            </svg>
+            </svg></div>
         </main>
 
         <!-- Compact Guided Play controls -->
@@ -215,6 +215,7 @@
                     <button id="infoClose" class="close-btn">×</button>
                 </div>
                 <div class="modal-body">
+<section><h2>Build a Play</h2><p>Choose a shot, hitter and landing target. Drag the paused target, choose Place target for a tap, or use Shot details for exact values and player movement. Undo/Redo uses the toolbar or Command/Control-Z outside text fields. Arc and pace are illustrative preferences; Review explains rule or movement limits. Play previews the valid portion of your rally.</p><p>2D and 3D share one draft and playhead. Planner keeps a separate arrangement; Use as starting layout explicitly copies it. Completed edits save on this device. If another tab changed the same play, use Save As to keep both versions. Export JSON for a backup: local storage can be cleared by the browser and is not cloud storage.</p><p>Auto Shading adjusts eligible generated movement. Coverage Guides only explain suggested positions. These are coaching approximations, not optimal-strategy predictions.</p></section>
                     <!-- Instructions -->
                     <section class="info-section">
                         <h3>How to Use</h3>
@@ -284,5 +285,5 @@
     <script type="module" src="script.js"></script>
     <script type="module" src="coaching-ui.js"></script>
     <script src="three-d-loader.js"></script>
-</body>
+<script type="module" src="play-builder.js"></script></body>
 </html>

@@ -15,7 +15,7 @@ async function command(page, name) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/index.html?resume-regression=1');
+  await page.goto('/index.html?workspace=planner&resume-regression=1');
   await page.waitForFunction(() => window.pickleboard?.plays);
   await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   // Freeze wall time between commands; runFor alone resumes real ticking.

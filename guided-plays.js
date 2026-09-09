@@ -65,12 +65,12 @@ class GuidedPlayEngine {
         this.elements.loop?.addEventListener('click', () => this.setLoop(!this.session.loop));
         this.elements.rate?.addEventListener('change', event => this.setPlaybackRate(Number(event.target.value)));
     }
-    load(playId) {
-        const play = this.plays.get(playId);
+    load(playId) { return this.loadDefinition(this.plays.get(playId)); }
+    loadDefinition(play, suppliedTimeline = null) {
         if (!play) return false;
         if (this.activePlay) this.exit();
         this.validatePlay(play);
-        const timeline = compilePlayTimeline(play);
+        const timeline = suppliedTimeline || compilePlayTimeline(play);
         this.snapshot = this.board.captureBoardState();
         this.board.prepareForPlay(); this.board.setPlayInteractionLocked(true);
         this.board.setGameMode(play.mode, { source: 'playback' });
@@ -85,6 +85,17 @@ class GuidedPlayEngine {
             if(this.activePlay===play)this.elements.announcement.textContent='Animated athletes could not load. The lesson and controls remain available.';
         });
         return true;
+    }
+    // Replace derived content without recapturing the planner snapshot or owning a new clock.
+    replaceDefinition(play, seconds = 0, suppliedTimeline = null) {
+        this.validatePlay(play);
+        this.pause();
+        const timeline = suppliedTimeline || compilePlayTimeline(play);
+        this.activePlay = play; this.timeline = timeline;
+        this.session.reset(timeline.duration); this.session.seek(seconds);
+        this.status = 'paused'; this.lastRenderedStep = null;
+        this.applyAtTime(this.clock.elapsed); this.updateUI(true);
+        return timeline;
     }
     validatePlay(play) {
         if (!play.id || !play.name || play.mode !== 'doubles' || !Array.isArray(play.steps) || !play.steps.length) {
@@ -171,7 +182,7 @@ class GuidedPlayEngine {
     exit() {
         if (!this.activePlay) return false;
         this.board.threeD?.cancelLoading?.();
-        if (this.board.threeD?.active) this.board.threeD.exit();
+        if (this.board.threeD?.active || this.board.threeD?.scene) this.board.threeD.exit();
         this.cancelScheduledWork(); this.session.reset(0); this.session.owner = 'guided';
         this.pixelActors.dispose();
         this.clearShotPath(); const snapshot = this.snapshot;
@@ -274,6 +285,7 @@ class GuidedPlayEngine {
         this.elements.next.disabled = !active || this.stepIndex === this.activePlay?.steps.length - 1 || this.clock.playing;
         this.elements.restart.disabled = !active; this.elements.exit.disabled = !active;
         if (this.elements.rate) this.elements.rate.value = String(this.clock.playbackRate);
+        this.board.onCoachingState?.();
         if (manual && active && this.elements.announcement) this.elements.announcement.textContent = `${this.activePlay.name}. Step ${this.stepIndex + 1}. ${step.label}. ${step.description}`;
     }
 }

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 async function openApp(page, suffix='session') {
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(`/index.html?park-${suffix}=1`);
+  await page.goto(`/index.html?workspace=planner&park-${suffix}=1`);
   await page.waitForFunction(()=>Boolean(window.pickleboard?.plays&&window.pickleboard?.threeD));
   return errors;
 }

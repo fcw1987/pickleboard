@@ -50,7 +50,7 @@ export class ReadableBall {
         return Math.max(0.074,diameter*worldPerPixel)*16/12;
     }
     update(camera,height,time,samplePast,launched) {
-        const size=this.sizeAt(this.object.position,camera,height);
+        const size=this.sizeAt(this.object.position,camera,height,this.object.userData.minimumCSSDiameter);
         this.sprite.scale.set(size,size,1);
         // Render the near surface of the visual sphere on the same camera ray.
         // Its logical center and projected center remain exactly unchanged.

@@ -3,11 +3,11 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 export const REVIEW_EXPIRES = '2026-10-06';
 export const TEST_FILE_HASHES = Object.freeze({
-  'tests/coaching-workflow.spec.mjs': '81522ecf91bb3adb83ac25be364d6f5e84d9fd29c1496d2ee0b853c31f9c5d1b',
-  'tests/pixel-replay.spec.mjs': '1395b029d79c3eaef4dd99d57f1a72d4b557d5ebd58011d4ce2393d104bbff05',
-  'tests/plays.spec.mjs': 'ed5d8190e74cf869d986601d74a29c78d3d8e34fb22e8fd7a3971e17177537c9',
-  'tests/three-d.spec.mjs': '019b574ef03dfbfdb9f6d781713604beffbe7d7fb42a8d4a988f107f3faa6db4',
-  'tests/service-worker.spec.mjs': '779f3bc99b8085992b0beb3fb37f7c6e4d09984e40fa5cc0a158d1416f09fb3b',
+  'tests/coaching-workflow.spec.mjs': 'ae316fe1b1e8adaef3fbd2a49625bb1fd8fcf7f7215555b5452680a2cc85c029',
+  'tests/pixel-replay.spec.mjs': '11e47959d5a67ec9d22f78c3e8fd014e86142419ed11aef16442b9688c1b0808',
+  'tests/plays.spec.mjs': '022625b7c4e12b45b70b20976ac3034d594f1f35eb4ba4f0dc9b9f1fd77a601d',
+  'tests/three-d.spec.mjs': '2b537f7cdf131da967b56f1e0d3dde79734dc2e48fab552d76df9a3e062d7533',
+  'tests/service-worker.spec.mjs': '5b3aaa5a23b6c8757925cddee6956ad8713ea32dea97ab2d710c03a0bef20389',
 });
 
 export const ALLOWED_FAILURES = Object.freeze([
@@ -52,9 +52,9 @@ export function inspectWebKitReport(report, diagnostics, options = {}) {
 
   const specs = (report?.suites ?? []).flatMap(flattenSpecs);
   if ((report?.errors ?? []).length) failures.push('report contains errors outside tests');
-  if (specs.length !== 122) failures.push(`expected 122 tests, found ${specs.length}`);
+  if (specs.length !== 189) failures.push(`expected 189 tests, found ${specs.length}`);
   const stats = report?.stats ?? {};
-  for (const [name, expected] of Object.entries({ expected: 115, unexpected: 7, flaky: 0, skipped: 0 })) if (stats[name] !== expected) failures.push(`unexpected ${name} count: ${stats[name]}`);
+  for (const [name, expected] of Object.entries({ expected: 182, unexpected: 7, flaky: 0, skipped: 0 })) if (stats[name] !== expected) failures.push(`unexpected ${name} count: ${stats[name]}`);
 
   const allowed = new Map(ALLOWED_FAILURES.map((entry) => [key(entry), entry]));
   const observed = new Set();

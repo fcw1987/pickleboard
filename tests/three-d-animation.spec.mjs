@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 async function openPlay(page, playId = 'fifth-shot-drop') {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/index.html?animation-e2e=1');
+  await page.goto('/index.html?workspace=planner&animation-e2e=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   await page.evaluate(id => window.pickleboard.plays.load(id), playId);
   await page.locator('#play3dView').click();
@@ -59,7 +59,7 @@ test('serve, return, drive, block, and fifth drop resolve actors and synchronize
 });
 
 test('right and left handed forehands animate their dominant physical arm', async ({ page }) => {
-  await page.goto('/index.html?animation-hands=1');
+  await page.goto('/index.html?workspace=planner&animation-hands=1');
   await expect.poll(() => page.evaluate(() => Boolean(window.pickleboard?.threeD))).toBe(true);
   await page.evaluate(() => {
     window.pickleboard.tokens.player1.handedness = 'left';

@@ -1,6 +1,11 @@
 {
-  "source": "f89cdfd6b7a0a9cbf4e1662c192634d6b794460f",
+  "source": "7bfb7ddf49627aae29e326ff3342c4e0e2f8ca38",
   "files": [
+    {
+      "path": "assets/park/banner.png",
+      "bytes": 280,
+      "sha256": "769f4f576989b0f1637d55bd79c354d63f0c9074df6c4d5a368dace7b80ad66c"
+    },
     {
       "path": "assets/park/bench.png",
       "bytes": 200,
@@ -28,8 +33,8 @@
     },
     {
       "path": "assets/park/sign.png",
-      "bytes": 306,
-      "sha256": "2c240cb309280fa9dc786cc48f44c40d548cc988558238cd0d0728488fb443b2"
+      "bytes": 248,
+      "sha256": "3b210a502b6a0431e87f76ce7ed1e9c575924dd1ee992ec1120af1d8468ef12b"
     },
     {
       "path": "assets/park/tree.png",
@@ -223,8 +228,43 @@
     },
     {
       "path": "board-projection.js",
-      "bytes": 1529,
-      "sha256": "8a85a0ba9a1fd2d32c9b06a9eceb5c3a8664d55e1a82499437994ef2da874563"
+      "bytes": 2463,
+      "sha256": "ec1ae76b9241c4f570b58d167e26c6b6c67e65a0a327b5f1451905ad7b5cbd0a"
+    },
+    {
+      "path": "builder-court-tools.js",
+      "bytes": 9984,
+      "sha256": "b9c3095e6918caf5485aa38468e3dafe16550de0108e6cb5c6161b581e668838"
+    },
+    {
+      "path": "builder-framing.js",
+      "bytes": 1485,
+      "sha256": "e3dd3fe811e90d4e353be9bd96d7e02bb20df94c34c80c8cf97cc9fb9cc1e360"
+    },
+    {
+      "path": "builder-integration.css",
+      "bytes": 21049,
+      "sha256": "dfa07a0296dbfdfb43f4a446600432bfc10b7157d81eba164ef635320d9c92c0"
+    },
+    {
+      "path": "builder-storage.js",
+      "bytes": 9257,
+      "sha256": "1c29dc00fcd5e7b2546adf29eaad8a65dfbbdd962275a74f0149004bd2485b9e"
+    },
+    {
+      "path": "builder-ui.css",
+      "bytes": 19929,
+      "sha256": "501c45edfbb50dd7cb91bf5c2e97b12a5c02de2f663e1778aea9cafa904e5562"
+    },
+    {
+      "path": "builder-ui.js",
+      "bytes": 42456,
+      "sha256": "a265220108fb665de78551c67040e210227b97b3b330b999f87e951defcee9de"
+    },
+    {
+      "path": "builder-waypoint-policy.js",
+      "bytes": 2845,
+      "sha256": "19f644878813b1813081bca325ddb328a24db065958a2341692705f8b677dcea"
     },
     {
       "path": "coaching-session.js",
@@ -242,14 +282,19 @@
       "sha256": "b7db55f59459012441a1f30e9a92ee40514b67951ee7f7811ed8eeac2ca28149"
     },
     {
+      "path": "coverage-assistance.js",
+      "bytes": 5602,
+      "sha256": "22e8aabccddab71d2b3c04e5d52351e21fd37cd42ca9e1e04d954ae2cf25ef3c"
+    },
+    {
       "path": "guided-pixel-actors.js",
       "bytes": 9819,
       "sha256": "adb0d4625f1a0433a02901f9208aabcba3fe46bb6a4c9df67a22cef0bdcafb38"
     },
     {
       "path": "guided-plays.js",
-      "bytes": 16954,
-      "sha256": "67e897e4679d5da9ddb9245b8fea705e672e548a91cd9a8d7e3c09834f7664d0"
+      "bytes": 17686,
+      "sha256": "341f98e63c9cb1d1852de7f756b45e702b1a5bfb6b74cd7bbc0254575acb26d0"
     },
     {
       "path": "icons/apple-icon-180.png",
@@ -308,8 +353,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 18619,
-      "sha256": "0e2a033522a53b70e3e9bf639f929d9d7e2dafa5a1077861f6c6de64ca975abb"
+      "bytes": 19809,
+      "sha256": "79eaaf79916907af664d48e2ca01860db3b9043f44fea0fffb435c09b41ee858"
     },
     {
       "path": "manifest.json",
@@ -318,13 +363,13 @@
     },
     {
       "path": "park-layout.js",
-      "bytes": 2289,
-      "sha256": "de6e5ed38a81bd80457d00aab77e890cd916bf82a461fcce69f0ed9bd66fec5d"
+      "bytes": 2488,
+      "sha256": "9007dfd5b3bc98ff23d0e0444f982999eff0148b314002a18c12531ae48ee460"
     },
     {
       "path": "park-scene.js",
-      "bytes": 10497,
-      "sha256": "f9c607a09f387d2f982d5d69d457cb88780d7842435985ae2c857d48d7441c10"
+      "bytes": 10989,
+      "sha256": "87b8a7cf230683cfadb802a6790cf447acac5f83bdaab37890edacde36d897d8"
     },
     {
       "path": "pixel-actor-assets.js",
@@ -332,9 +377,24 @@
       "sha256": "78b2ca63f5fb0dd44f6fe1ab0a104f3afca6840fa02a8eef85953ed35cd1d8d8"
     },
     {
+      "path": "play-builder.js",
+      "bytes": 26964,
+      "sha256": "86b7911c08b8c7765fde4425dd2803377c3de8949373008413a36527a72921e9"
+    },
+    {
       "path": "play-catalog.js",
       "bytes": 11399,
       "sha256": "62e5897fc1652c8dbf76afb17ec434dcf6e3e3ab6aa007f756db185d4a947f98"
+    },
+    {
+      "path": "play-compiler.js",
+      "bytes": 20119,
+      "sha256": "2bbe051570d29c1beae41f21a7cc646b3785f0529e2be15d6f21deac16ade328"
+    },
+    {
+      "path": "play-document.js",
+      "bytes": 15435,
+      "sha256": "2259569e1a6ce2af7894f9f0b8004c7d9bf53f4e14bc6f6603ff95f15131e571"
     },
     {
       "path": "rally-rules.js",
@@ -343,18 +403,18 @@
     },
     {
       "path": "script.js",
-      "bytes": 53794,
-      "sha256": "6a426cc21a2a125c1c29d34f978823f19e00da06562c177838c032f5d2fec6e3"
+      "bytes": 59603,
+      "sha256": "daaf75c96a1cd8a3b81c711183c55218003aaa92e0aea9ab8acd03965965557e"
     },
     {
       "path": "styles.css",
-      "bytes": 24085,
-      "sha256": "c0ea3beb82762ce8c0ed2c757c32662e58bcff8cd45940fc1c7184e757f311d8"
+      "bytes": 23644,
+      "sha256": "9c30fcf37e090812b23c89885964120e94099a664623e2f3e567e5b3360ad19d"
     },
     {
       "path": "sw.js",
-      "bytes": 6218,
-      "sha256": "d68c0a64cf32a691309b5f43e0c277e014176155d37d8d1c9d801e53975046b0"
+      "bytes": 6561,
+      "sha256": "42f5382490e338888c9b037812d7c85e21be89d6aa3a51ff64a8d123b6a4b10b"
     },
     {
       "path": "three-d-animation.js",
@@ -363,13 +423,13 @@
     },
     {
       "path": "three-d-ball.js",
-      "bytes": 4919,
-      "sha256": "641468c5470c0d03edee3f3e4002715f757f8562ffcd286a6c6cd7ea38e6de9a"
+      "bytes": 4959,
+      "sha256": "06ad393ca68e6b7093b1cceb56323d850f78e6743be80e2ed4de96ae60be33ad"
     },
     {
       "path": "three-d-core.js",
-      "bytes": 20349,
-      "sha256": "800b76975c4aea6ead331f947bae3cd0113405dda29778a1997b4feebb751144"
+      "bytes": 23364,
+      "sha256": "8d3519e0327f35dd7b138b9e178a28209c76274b3339bc6eaa4659329cd8155e"
     },
     {
       "path": "three-d-loader.js",
@@ -383,8 +443,8 @@
     },
     {
       "path": "three-d-playback.js",
-      "bytes": 29729,
-      "sha256": "1563f3ca6c1b251eb0bae8a7ed143c6725a5a1dc0bec56e998a6b296b8b2fe4d"
+      "bytes": 31235,
+      "sha256": "36a07020109b30e77efbe52ff9fc50dc90fddad33fffea238e02ed9269a8c255"
     },
     {
       "path": "three-d-presentation.js",

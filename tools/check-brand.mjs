@@ -126,10 +126,10 @@ export function validateBrandFiles(files) {
     if (!pkg.description?.includes('Pickleball Park')) errors.push('package.json: description must name Pickleball Park');
     if (lock.name !== 'pickleballpark' || lock.packages?.['']?.name !== 'pickleballpark') errors.push('package-lock.json: root names must be pickleballpark');
   } catch (error) { errors.push(`package metadata: invalid JSON (${error.message})`); }
-  if (!/<title>Pickleball Park - Pickleball Court Planner<\/title>/.test(index)) errors.push('index.html: canonical title is missing');
+  if (!/<title>Pickleball Park - Build a Play<\/title>/.test(index)) errors.push('index.html: canonical title is missing');
   if (!/^# Pickleball Park\b/m.test(readme)) errors.push('README.md: canonical heading is missing');
   if (!/const CACHE_PREFIX = 'pickleboard-';/.test(worker)) errors.push('sw.js: compatibility cache prefix changed');
-  if (!/const STATIC_CACHE = `\$\{CACHE_PREFIX\}static-v15`;/.test(worker)) errors.push('sw.js: v15 cache identity is missing');
+  if (!/const STATIC_CACHE = `\$\{CACHE_PREFIX\}static-v19`;/.test(worker)) errors.push('sw.js: v19 cache identity is missing');
   if (!/Pickleball Park static cache/.test(worker)) errors.push('sw.js: current cache diagnostic name is missing');
   if (!/text\(c,\s*'PICKLEBALL'\s*,/.test(generator) || !/text\(c,\s*'PARK'\s*,/.test(generator)) errors.push('tools/generate-park-art.mjs: sign must emit full PICKLEBALL and PARK lettering');
   for (const letter of new Set('PICKLEBALLPARK')) {
