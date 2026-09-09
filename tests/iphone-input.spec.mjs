@@ -119,3 +119,20 @@ test('playing court remains protected from hidden target capture', async ({ page
   expect(await page.evaluate(() => JSON.stringify(playBuilder.document))).toBe(before);
   expect(await page.evaluate(() => playBuilder.courtTools.drag)).toBeNull();
 });
+
+test('changing shots or starting playback cancels the previous placement owner',async({page})=>{
+ await open(page);const source=await page.evaluate(()=>JSON.stringify(playBuilder.document));
+ await page.evaluate(()=>{playBuilder.courtTools.beginPlacement();return playBuilder.action('selectShot',playBuilder.document.shots[1].id);});
+ expect(await page.evaluate(()=>playBuilder.courtTools.placing)).toBe(false);
+ expect(await page.evaluate(()=>JSON.stringify(playBuilder.document))).toBe(source);
+ await page.evaluate(()=>{playBuilder.courtTools.beginPlacement();playBuilder.play();});
+ expect(await page.evaluate(()=>playBuilder.courtTools.placing)).toBe(false);
+ const point=await page.evaluate(()=>playBuilder.courtTools.project(playBuilder.selectedShot.target));await page.mouse.click(point.x,point.y);
+ expect(await page.evaluate(()=>playBuilder.session.clock.playing)).toBe(true);expect(await page.evaluate(()=>JSON.stringify(playBuilder.document))).toBe(source);
+});
+
+test('adding a shot cancels the earlier placement without another edit on pointer release',async({page})=>{
+ await open(page);await page.evaluate(()=>{playBuilder.courtTools.beginPlacement();return playBuilder.action('addShot');});
+ expect(await page.evaluate(()=>playBuilder.courtTools.placing)).toBe(false);const source=await page.evaluate(()=>JSON.stringify(playBuilder.document));
+ const point=await page.evaluate(()=>playBuilder.courtTools.project({x:10,y:22}));await page.mouse.click(point.x,point.y);expect(await page.evaluate(()=>JSON.stringify(playBuilder.document))).toBe(source);
+});

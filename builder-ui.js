@@ -12,6 +12,7 @@ const FAMILIES = [
   ['lob', 'Lob'], ['overhead', 'Overhead']
 ];
 const PLAYERS = [['player1', 'Green 1'], ['player2', 'Green 2'], ['player3', 'Orange 1'], ['player4', 'Orange 2']];
+const FLIGHTS=[['high/medium','High / steady'],['high/soft','High / soft'],['low/firm','Low / firm'],['medium/medium','Medium / steady']];
 const MAX_IMPORT_BYTES = 512 * 1024;
 
 const text = (element, value) => { element.textContent = value == null ? '' : String(value); return element; };
@@ -94,6 +95,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   let shotDetailsOpen = false;
   let handednessOpen = false;
   let importFileGeneration = 0;
+  let pendingField = false;
   let exportedBackup = '';
   const templateDialog = el('dialog', 'builder-dialog');
   const importDialog = el('dialog', 'builder-dialog');
@@ -123,6 +125,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   function render(state = {}) {
     if (destroyed) return;
     current = { ...current, ...state, document: state.document || current.document };
+    root.classList.toggle('builder-placing',Boolean(current.targetPlacement||current.movementPlacement));
     const doc = current.document || { title: 'Build a Play', shots: [], players: {}, assistance: {} };
     const shots = Array.isArray(doc.shots) ? doc.shots : [];
     const selected = shots.find(shot => shot.id === current.selectedShotId) || shots[0];
@@ -133,13 +136,13 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     if (!structureChanged && root.childElementCount) {
       const range = root.querySelector('input[data-action="seek"]');
       if (range && document.activeElement !== range) range.value = String(current.time || 0);
-      const save = root.querySelector('.builder-save-status'); if (save) save.textContent = current.saveStatus || 'Draft';
+      const save = root.querySelector('.builder-save-status'); if (save) save.textContent = pendingField?'Editing · not saved yet':current.saveStatus || 'Draft';
       const message = root.querySelector('.builder-message'); if (message) message.textContent = current.message || '';
       const cueNode = root.querySelector('.builder-cue'); const fastCue = current.cue; if (cueNode && fastCue) { cueNode.querySelector('strong').textContent = fastCue.title || 'Current shot'; cueNode.querySelector('span').textContent = cueDescription(current, shots, selected); }
       const play = root.querySelector('[data-action="play-pause"]'); if (play) { play.textContent = current.playing ? 'Pause' : 'Play'; play.setAttribute('aria-pressed', String(Boolean(current.playing))); }
       root.classList.toggle('builder-busy', Boolean(current.busy));
       const loop = root.querySelector('[data-action="loop"]'); if (loop) { loop.textContent = current.loop ? 'Loop on' : 'Loop'; loop.setAttribute('aria-pressed', String(Boolean(current.loop))); }
-      const inspector = root.querySelector('.builder-inspector'); const collapsed = Boolean(inspectorManualCollapsed ?? true); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"],[data-action="cancel-target"],[data-action="cancel-movement"]'); if (collapseButton) { const placement = current.targetPlacement ? 'target' : current.movementPlacement ? 'movement' : ''; if (placement === 'target' || placement === 'movement' || collapsed) collapseButton.textContent = placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : 'Edit shot'; else collapseButton.replaceChildren(el('span', 'builder-collapse-label-collapse', 'Collapse'), el('span', 'builder-collapse-label-done', 'Done')); collapseButton.dataset.action=placement==='target'?'cancel-target':placement==='movement'?'cancel-movement':'collapse-inspector'; collapseButton.setAttribute('aria-label', placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : collapsed ? 'Edit shot' : 'Done'); collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
+      const inspector = root.querySelector('.builder-inspector'); const collapsed = current.workspace==='planner'?false:Boolean(inspectorManualCollapsed ?? true); if (inspector) inspector.classList.toggle('builder-inspector-collapsed', collapsed); const collapseButton = root.querySelector('[data-action="collapse-inspector"],[data-action="cancel-target"],[data-action="cancel-movement"]'); if (collapseButton) { const placement = current.targetPlacement ? 'target' : current.movementPlacement ? 'movement' : ''; if (placement === 'target' || placement === 'movement' || collapsed) collapseButton.textContent = placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : 'Edit shot'; else collapseButton.replaceChildren(el('span', 'builder-collapse-label-collapse', 'Collapse'), el('span', 'builder-collapse-label-done', 'Done')); collapseButton.dataset.action=placement==='target'?'cancel-target':placement==='movement'?'cancel-movement':'collapse-inspector'; collapseButton.setAttribute('aria-label', placement === 'target' ? 'Cancel target' : placement === 'movement' ? 'Cancel movement' : collapsed ? 'Edit shot' : (innerWidth<=700?'Done':'Collapse')); collapseButton.setAttribute('aria-expanded', String(!collapsed)); }
       root.appendChild(templateDialog); root.appendChild(importDialog);
       return;
     }
@@ -166,7 +169,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     const fileMenu = el('details', 'builder-menu'); fileMenu.append(el('summary', '', 'File'));
     fileMenu.append(button('Open', 'open', 'builder-menu-item builder-button'), button('Save As', 'save-as', 'builder-menu-item builder-button'), button('Import / Export', 'import-export', 'builder-menu-item builder-button'));
     topActions.append(playsMenu, fileMenu);
-    status.textContent = current.saveStatus || 'Draft'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); topActions.appendChild(status);
+    status.textContent = pendingField?'Editing · not saved yet':current.saveStatus || 'Draft'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); topActions.appendChild(status);
     top.appendChild(topActions); root.appendChild(top);
 
     const meta = el('div', 'builder-meta');
@@ -217,11 +220,13 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       inspector.append(button('Use as starting layout', 'use-planner', 'builder-button builder-button-accent'));
       inspector.append(el('p', 'builder-selected-summary', 'Planner arrows and markup stay in the planner. They are not interpreted as rally shots.'));
     } else if (selected) {
-      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1} details` : 'No shot selected')); const inPlacement = current.targetPlacement || current.movementPlacement; const collapse = button(current.targetPlacement ? 'Cancel target' : current.movementPlacement ? 'Cancel movement' : inspectorAutoCollapsed ? 'Edit shot' : 'Collapse', current.targetPlacement?'cancel-target':current.movementPlacement?'cancel-movement':'collapse-inspector', 'builder-button builder-collapse'); collapse.setAttribute('aria-label', current.targetPlacement ? 'Cancel target' : current.movementPlacement ? 'Cancel movement' : inspectorAutoCollapsed ? 'Edit shot' : 'Collapse'); collapse.setAttribute('aria-expanded', String(!inspectorAutoCollapsed)); if (!inPlacement && !inspectorAutoCollapsed) { collapse.replaceChildren(el('span', 'builder-collapse-label-collapse', 'Collapse'), el('span', 'builder-collapse-label-done', 'Done')); } inspectorHeader.append(collapse); inspector.appendChild(inspectorHeader);
+      const inspectorHeader = el('div', 'builder-inspector-header'); inspectorHeader.append(el('div', '', selected ? `Shot ${shots.indexOf(selected) + 1} details` : 'No shot selected')); const inPlacement = current.targetPlacement || current.movementPlacement; const collapse = button(current.targetPlacement ? 'Cancel target' : current.movementPlacement ? 'Cancel movement' : inspectorAutoCollapsed ? 'Edit shot' : 'Collapse', current.targetPlacement?'cancel-target':current.movementPlacement?'cancel-movement':'collapse-inspector', 'builder-button builder-collapse'); collapse.setAttribute('aria-label', current.targetPlacement ? 'Cancel target' : current.movementPlacement ? 'Cancel movement' : inspectorAutoCollapsed ? 'Edit shot' : (innerWidth<=700?'Done':'Collapse')); collapse.setAttribute('aria-expanded', String(!inspectorAutoCollapsed)); if (!inPlacement && !inspectorAutoCollapsed) { collapse.replaceChildren(el('span', 'builder-collapse-label-collapse', 'Collapse'), el('span', 'builder-collapse-label-done', 'Done')); } inspectorHeader.append(collapse); inspector.appendChild(inspectorHeader);
       const summary = el('p', 'builder-selected-summary', recipeSummary(selected)); inspector.appendChild(summary);
-      const familySelect = select('Shot family', 'edit-family', FAMILIES); familySelect.querySelector('select').value = selected.family; inspector.appendChild(familySelect);
-      const hitterSelect = select('Hitter', 'edit-hitter', PLAYERS); hitterSelect.querySelector('select').value = selected.hitter; inspector.appendChild(hitterSelect);
+      const familySelect = select('Shot family', 'edit-family', FAMILIES); familySelect.querySelector('select').value = selected.family; const basics=el('div','builder-grid-fields builder-basics');basics.appendChild(familySelect);inspector.appendChild(basics);
+      const hitterSelect = select('Hitter', 'edit-hitter', PLAYERS); hitterSelect.querySelector('select').value = selected.hitter; basics.appendChild(hitterSelect);
       const targetRow = el('div', 'builder-target-row'); targetRow.append(el('div', 'builder-target-readout', 'Drag the target ring to adjust')); targetRow.append(button('Place target on court', 'place-target', 'builder-button builder-button-accent')); inspector.appendChild(targetRow);
+      const flightValue=`${selected.arc}/${selected.pace}`;
+      const flight=select('Flight','flight-preset', [...FLIGHTS,...(FLIGHTS.some(([v])=>v===flightValue)?[]:[[flightValue,`Custom · ${selected.arc} / ${selected.pace}`]])]);flight.querySelector('select').value=flightValue;inspector.appendChild(flight);
       const details = el('details', 'builder-shot-details'); details.open=shotDetailsOpen;details.append(el('summary', '', 'Details · coordinates, contact, movement'));
       const coords = el('div', 'builder-grid-fields'); coords.appendChild(numberField('Target width', 'edit-target.x', selected.target?.x ?? 10, 0, 20)); coords.appendChild(numberField('Target depth', 'edit-target.y', selected.target?.y ?? 20, 0, 44)); details.appendChild(coords);
       const presets = el('div', 'builder-presets'); presets.append(el('span', 'builder-field-label', 'Target presets · green side')); [['wide', 3], ['middle', 10], ['centerline', 10]].forEach(([label, x]) => { const b = button(label, 'target-preset', 'builder-chip'); b.dataset.x = x; b.dataset.y = selected.target?.y || 20; b.dataset.direction = label; presets.appendChild(b); }); details.appendChild(presets);
@@ -238,13 +243,13 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       const manual = el('div', 'builder-grid-fields'); manual.appendChild(numberField('Manual X', 'edit-movement.target.x', movementTarget.x ?? 10, 0, 20)); manual.appendChild(numberField('Manual Y', 'edit-movement.target.y', movementTarget.y ?? 20, -8, 52)); details.appendChild(manual);
       details.append(button('Place movement on court', 'place-movement', 'builder-button builder-button-accent'));
       const pinned = el('label', 'builder-switch'); const pin = el('input'); pin.type = 'checkbox'; pin.checked = Boolean(movementState.pinned); pin.dataset.action = 'edit-movement.pinned'; pinned.append(pin, el('span', '', 'Pin movement target')); details.appendChild(pinned); inspector.appendChild(details);
-      const actions = el('div', 'builder-shot-actions'); actions.append(button('Duplicate', 'duplicate-shot', 'builder-button')); actions.append(button('Delete', 'delete-shot', 'builder-button builder-button-danger')); actions.append(button('Move earlier', 'move-earlier', 'builder-button')); actions.append(button('Move later', 'move-later', 'builder-button')); inspector.appendChild(actions);
+      const actions = el('div', 'builder-shot-actions'); actions.append(button('Duplicate', 'duplicate-shot', 'builder-button')); actions.append(button('Delete', 'delete-shot', 'builder-button builder-button-danger')); actions.append(button('Move earlier', 'move-earlier', 'builder-button')); actions.append(button('Move later', 'move-later', 'builder-button')); details.appendChild(actions);
       const advanced = el('details', 'builder-advanced'); advanced.open = advancedOpen; advanced.append(el('summary', '', 'Rally details'));
       const opening = select('Starting condition', 'opening', [['serve', 'Opening serve'], ['midrally', 'Mid-rally']]); opening.querySelector('select').value = doc.opening || 'serve'; advanced.append(opening);
       const ending = select('Ending intent', 'ending', [['stop', 'Stop at authored end'], ['winner', 'Declared winner'], ['fault', 'Declared fault']]); ending.querySelector('select').value = doc.ending || 'stop'; advanced.append(ending);
       const fault = el('label', 'builder-switch'); const faultInput = el('input'); faultInput.type = 'checkbox'; faultInput.checked = Boolean(doc.intentionalFault); faultInput.dataset.action = 'intentionalFault'; fault.append(faultInput, el('span', '', 'Intentional coaching mistake'), el('small', '', 'Keep the rule warning visible at the terminal fault.')); advanced.append(fault);
-      const scope = select('Shade team', 'shade-team', [['both', 'Both teams'], ['green', 'Green'], ['orange', 'Orange']]); scope.querySelector('select').value = doc.assistance?.team || 'both'; advanced.append(scope); inspector.appendChild(advanced);
-      const handed = el('details', 'builder-handedness'); handed.open = handednessOpen; handed.append(el('summary', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); inspector.appendChild(handed);
+      const scope = select('Shade team', 'shade-team', [['both', 'Both teams'], ['green', 'Green'], ['orange', 'Orange']]); scope.querySelector('select').value = doc.assistance?.team || 'both'; advanced.append(scope); details.appendChild(advanced);
+      const handed = el('details', 'builder-handedness'); handed.open = handednessOpen; handed.append(el('summary', '', 'Player handedness')); PLAYERS.forEach(([id, name]) => { const value = doc.players?.[id]?.handedness || 'right'; const field = select(name, 'handedness', [['right', 'Right-handed'], ['left', 'Left-handed']]); const control = field.querySelector('select'); control.value = value; control.dataset.playerId = id; handed.append(field); }); details.appendChild(handed);
       if (current.findings?.length) { const find = el('div', 'builder-findings'); find.append(el('strong', '', 'Review')); current.findings.forEach(f => { const item = typeof f === 'string' ? { message: f } : f; find.append(el('p', '', findingText(item, shots))); }); inspector.appendChild(find); }
     } else {
       const header=el('div','builder-inspector-header');header.append(el('span','','Play settings'),button(inspectorAutoCollapsed?'Edit play':'Collapse','collapse-inspector','builder-button builder-collapse'));inspector.append(header,el('p','builder-empty','Add a shot to start authoring.'));
@@ -267,7 +272,7 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
       if(next?.getClientRects().length)next.focus({preventScroll:true});
     }
   }
-  function rerenderAction(type, payload) { fire(type, payload); }
+  function rerenderAction(type, payload) { return fire(type, payload); }
   async function handleClick(event) {
     const target = event.target.closest('[data-action]'); if (!target || !root.contains(target)) return;
     const action = target.dataset.action;
@@ -308,9 +313,10 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     const target = event.target; if (!target.dataset.action && !target.dataset.assistance) return;
     if (target.dataset.assistance) fire('assistance', { field: target.dataset.assistance, value: target.checked });
     else if (target.dataset.action === 'title') { if (!target.value.trim()) { markInvalidField(target, 'Enter a play title.'); fire('message', 'Enter a play title before saving.'); return; } clearInvalidField(target); fire('title', target.value); }
+    else if (target.dataset.action === 'flight-preset') {const [arc,pace]=target.value.split('/');fire('flight',{arc,pace});}
     else if (target.dataset.action === 'movement-player') { current.movementPlayer = target.value; renderedDocument = null; render({}); }
     else if (target.dataset.action.startsWith('edit-')) {
-      const field = target.dataset.action.slice(5); if (target.type === 'number' && (target.value === '' || !target.validity.valid)) { markInvalidField(target, 'Enter a value in range.'); return; } clearInvalidField(target); const value = target.type === 'checkbox' ? target.checked : (target.type === 'number' ? Number(target.value) : target.value);
+      const field = target.dataset.action.slice(5); if (target.type === 'number' && (target.value === '' || (target.validity.badInput||target.validity.rangeUnderflow||target.validity.rangeOverflow))) { markInvalidField(target, 'Enter a value in range.'); return; } clearInvalidField(target); const value = target.type === 'checkbox' ? target.checked : (target.type === 'number' ? Number(target.value) : target.value);
       if (field.startsWith('movement.')) fire('editMovement', { player: current.movementPlayer || current.document?.shots?.find(shot => shot.id === current.selectedShotId)?.hitter, field: field.slice(9), value });
       else fire('editShot', { field, value });
     }
@@ -325,15 +331,18 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
     else if (target.dataset.action === 'intentionalFault') fire('intentionalFault', target.checked);
     else if (target.dataset.action === 'seek') fire('seek', Number(target.value));
   }
-  function handleInput(event) { if (event.target.dataset.action === 'seek') fire('seek', Number(event.target.value)); }
+  function handleInput(event) {
+    if (event.target.dataset.action === 'seek') fire('seek', Number(event.target.value));
+    else if(event.target.matches('input[type=number],input[type=text]')){pendingField=true;const status=root.querySelector('.builder-save-status');if(status)status.textContent='Editing · not saved yet';}
+  }
   root.addEventListener('pointerdown',event=>{if(event.target.closest('button,summary')&&root.contains(document.activeElement)&&document.activeElement.matches('input:not([type=range]),textarea'))event.preventDefault();});
   root.addEventListener('keydown', event => { if (event.key !== 'Escape') return; const menu = event.target.closest('.builder-menu[open]'); if (menu) { menu.open = false; menu.querySelector('summary')?.focus(); event.preventDefault(); } });
   root.addEventListener('click', handleClick); root.addEventListener('change', handleChange); root.addEventListener('input', handleInput);
   root.addEventListener('keydown', event => {
     if (!event.target.matches('input[type="number"], input[type="text"]')) return;
-    if (event.key === 'Escape') { renderedDocument = null; render({}); event.preventDefault(); return; }
+    if (event.key === 'Escape') { pendingField=false; renderedDocument = null; render({}); event.preventDefault(); return; }
     if (event.key !== 'Enter') return;
-    if (event.target.type === 'number' && (event.target.value === '' || !event.target.validity.valid)) { markInvalidField(event.target, 'Enter a value in range.'); event.preventDefault(); return; }
+    if (event.target.type === 'number' && (event.target.value === '' || (event.target.validity.badInput||event.target.validity.rangeUnderflow||event.target.validity.rangeOverflow))) { markInvalidField(event.target, 'Enter a value in range.'); event.preventDefault(); return; }
     event.target.blur();
   });
   function showExport(raw) {
@@ -345,10 +354,11 @@ export function mountBuilderUI({ onAction = () => {} } = {}) {
   function markInvalidField(target, message) {
     target.setAttribute('aria-invalid', 'true');
     const field = target.closest('.builder-field') || target.parentElement;
-    if (field && !field.querySelector('.builder-field-error')) field.appendChild(el('span', 'builder-field-error', message));
+    if (field && !field.querySelector('.builder-field-error')) {const error=el('span','builder-field-error',message);error.id=`builder-error-${target.dataset.action.replace(/[^a-z0-9]/gi,'-')}`;error.setAttribute('role','alert');field.appendChild(error);target.setAttribute('aria-describedby',error.id);}
   }
   function clearInvalidField(target) {
-    target.removeAttribute('aria-invalid');
+    pendingField=false;
+    target.removeAttribute('aria-invalid');target.removeAttribute('aria-describedby');
     target.closest('.builder-field')?.querySelector('.builder-field-error')?.remove();
   }
   render();

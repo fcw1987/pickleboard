@@ -26,3 +26,12 @@ test('old documents stay valid; duplicate hitter commands and malformed partner 
  doc.shots[0].playerMovement={player2:{intent:'manual',pinned:true,target:{x:Infinity,y:4}}};assert.throws(()=>validateDocument(doc),/finite/);
  doc.shots[0].playerMovement={player5:{intent:'hold',pinned:false}};assert.throws(()=>validateDocument(doc),/one of/);
 });
+
+test('future pins do not suppress earlier coverage and persist only after their event',()=>{
+ const doc=createStarterDocument();doc.assistance.autoShading=true;
+ const base=compileDocument(doc),a=applyCoverageAssistance(base.play,doc,base.timeline);
+ doc.shots[2].playerMovement={player2:{intent:'manual',pinned:true,target:{x:6,y:8}}};
+ const changed=compileDocument(doc),b=applyCoverageAssistance(changed.play,doc,changed.timeline);
+ assert.deepEqual(b.play.steps[2].positions.player2,a.play.steps[2].positions.player2);
+ assert.deepEqual(b.play.steps[3].positions.player2,{x:6,y:8});
+});

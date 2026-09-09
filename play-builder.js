@@ -30,7 +30,7 @@ export class PlayBuilder {
             const viewport=window.visualViewport;
             // Pinch zoom remains browser-owned. Avoid resizing the scene under it.
             if(viewport&&Math.abs(viewport.scale-1)>.01)return;
-            if(this.courtTools.drag)this.courtTools.clear();
+            if(this.courtTools.drag){this.courtTools.abort('Placement cancelled after the visible area changed.',false);this.scheduleRender();}
             this.ui.element.style.setProperty('--builder-visible-height',`${viewport?.height || innerHeight}px`);
             this.ui.element.style.setProperty('--builder-visible-top',`${viewport?.offsetTop || 0}px`);
             this.fitCourt();this.courtTools.render();
@@ -86,8 +86,11 @@ export class PlayBuilder {
         if(region!==this.observedRegion){this.regionObserver?.disconnect();this.observedRegion=region;if(region){this.regionObserver=new ResizeObserver(()=>this.fitCourt());this.regionObserver.observe(region);}}
         const surfaces=[document.querySelector(".court-container-fullscreen"),document.getElementById("threeDViewer")];
         if(this.workspace!=="builder"){for(const surface of surfaces)surface?.style.removeProperty("css-text");for(const surface of surfaces)if(surface)surface.style.cssText="";return;}
-        if(!region)return;const rect=region.getBoundingClientRect();const controls=[...region.querySelectorAll('.builder-camera,.builder-view-toggle')].map(node=>Math.max(0,rect.bottom-node.getBoundingClientRect().top+4));const collapsed=this.ui.element.querySelector('.builder-inspector-collapsed');if(innerWidth<=700&&collapsed)controls.push(collapsed.getBoundingClientRect().height+12);const reserve=innerWidth>700&&innerHeight<=500?0:Math.max(48,...controls);const sceneHeight=Math.max(80,rect.height-reserve);const key=[rect.x,rect.y,rect.width,sceneHeight].join(":");
-        if(key!==this.courtRect&&this.courtTools?.drag)this.courtTools.clear();
+        if(!region)return;const rect=region.getBoundingClientRect();
+        this.ui.element.style.setProperty('--builder-sheet-max-height',`${Math.max(100,rect.bottom-58-(window.visualViewport?.offsetTop||0))}px`);
+        if(innerWidth>700&&innerHeight<=500){const meta=this.ui.element.querySelector('.builder-meta');if(meta)this.ui.element.style.setProperty('--builder-rail-sequence-top',`${meta.getBoundingClientRect().bottom-this.ui.element.getBoundingClientRect().top+4}px`);}
+        const controls=[...region.querySelectorAll('.builder-camera,.builder-view-toggle')].map(node=>Math.max(0,rect.bottom-node.getBoundingClientRect().top+4));const collapsed=this.ui.element.querySelector('.builder-inspector-collapsed');if(innerWidth<=700&&collapsed)controls.push(collapsed.getBoundingClientRect().height+12);const reserve=innerWidth>700&&innerHeight<=500?0:Math.max(48,...controls);const sceneHeight=Math.max(80,rect.height-reserve);const key=[rect.x,rect.y,rect.width,sceneHeight].join(":");
+        if(key!==this.courtRect&&this.courtTools?.drag){this.courtTools.abort('Placement cancelled after the court resized.',false);this.scheduleRender();}
         for(const surface of surfaces)if(surface)Object.assign(surface.style,{position:"fixed",inset:"auto",left:`${rect.x}px`,top:`${rect.y}px`,width:`${rect.width}px`,height:`${sceneHeight}px`,padding:"0"});
         const projection=this.board.projection;
         const projectionChanged=projection.configureViewport(rect.width,sceneHeight);
@@ -129,11 +132,12 @@ export class PlayBuilder {
         catch(error) { this.saveError={conflict:error.code==='DRAFT_CONFLICT',message:error.message};this.saveStatus=this.saveError.conflict?'Not saved · changed in another tab':'Not saved · retry or export';return false; }
     }
     edit(change, {review = true} = {}) {
+        this.courtTools.clear();
         this.pause(); this.cancelPendingView();
         const draft=copy(this.document); change(draft); validateDocument(draft);
         this.history.commit(draft); this.document=this.history.current;
         if(!this.document.shots.some(s=>s.id===this.selectedShotId))this.selectedShotId=this.document.shots[0]?.id || null;
-        this.message=review?'Updated your play. Check later shots for any rules or movement warnings.':'';
+        this.message=review?'Updated. Review later shots if flagged.':'';
         const index=this.document.shots.findIndex(s=>s.id===this.selectedShotId);
         this.installPlay(false,0);
         if(index>=0)this.seek(this.compiled.timeline.segments[index]?.startTime || 0);
@@ -164,6 +168,7 @@ export class PlayBuilder {
         if(wasPlaying) this.play(); this.courtTools.bind(); this.render();
     }
     play() {
+        this.courtTools.clear();this.message='';
         if(this.waypointPolicy.requiresConfirmation){this.message=this.waypointPolicy.message;this.render();return;}
         if(!this.compiled.validShotCount){this.message='Add or correct the first shot before playback.';this.render();return;}
         if(this.view==='3d'&&this.board.threeD.active) {
@@ -171,6 +176,7 @@ export class PlayBuilder {
         } else this.board.plays.play();
     }
     seek(seconds) {
+        this.courtTools.clear();
         if(this.waypointPolicy.requiresConfirmation&&seconds>0){this.pause();this.message=this.waypointPolicy.message;this.render();return;}
         this.pause(); this.session.seek(seconds);
         this.board.plays.applyAtTime(this.session.clock.elapsed);
@@ -200,6 +206,7 @@ export class PlayBuilder {
     }
     async action(action,value) {
         try {
+            if(value?.shotId&&['editShot','editMovement'].includes(action)&&value.shotId!==this.selectedShotId)return {ok:false,error:'The selected shot changed; placement was cancelled.'};
             if(['new','open','template','import'].includes(action)&&this.saveError){this.message='Keep this unsaved work first: Retry save, Save As a copy, or export a backup before opening another play.';this.render();return {ok:false,error:this.message};}
             if(action==='retrySave'){this.save();this.render();return;}
             if(action==='acknowledgeWaypoints'){this.waypointAcknowledgement=this.waypointPolicy.key;this.message='Destination-only preview enabled. Original path points remain saved. Press Play when ready.';this.render();return;}
@@ -212,7 +219,7 @@ export class PlayBuilder {
             else if(action==='seek')this.seek(Number(value));
             else if(action==='rate')this.board.plays.setPlaybackRate(Number(value));
             else if(action==='loop')this.board.plays.setLoop(Boolean(value));
-            else if(action==='camera')this.board.threeD?.setCamera?.(value);
+            else if(action==='camera'){this.courtTools.clear();this.board.threeD?.setCamera?.(value);}
             else if(action==='previous'||action==='next') {
                 const shots=this.document.shots,index=shots.findIndex(s=>s.id===this.selectedShotId);
                 this.selectedShotId=shots[Math.max(0,Math.min(shots.length-1,index+(action==='next'?1:-1)))]?.id || null;
@@ -220,11 +227,11 @@ export class PlayBuilder {
             }
             else if(action==='selectShot'){this.selectedShotId=value;this.seek(this.compiled.timeline.segments[this.document.shots.findIndex(s=>s.id===value)]?.startTime || 0);}
             else if(action==='cancelTarget'||action==='cancelMovement'){this.courtTools.clear();this.message='Target placement cancelled.';}
-            else if(action==='placeTarget'){this.pause();if(this.courtTools.beginPlacement)this.courtTools.beginPlacement();else this.courtTools.placing=true;this.message='Tap the court to place this target, or drag it. Choose Cancel target or press Escape to stop.';}
+            else if(action==='placeTarget'){this.pause();if(this.courtTools.beginPlacement)this.courtTools.beginPlacement();else this.courtTools.placing=true;this.message=`Tap to place Shot ${this.document.shots.indexOf(this.selectedShot)+1}'s target. Cancel keeps the current target.`;}
             else if(action==='placeMovement'){
                 const player=value.player;if(!this.document.players[player])throw Error('Choose a player for movement.');
                 this.pause();this.courtTools.beginPlacement({field:player===this.selectedShot.hitter?'movement.target':`playerMovement.${player}.target`,player});
-                this.message='Tap a movement destination. The player will be pinned there; Cancel target keeps the current plan.';
+                this.message='Tap a movement destination to pin this player. Cancel keeps the current plan.';
             }
             else if(action==='editMovement')this.edit(doc=>{
                 const shot=doc.shots.find(s=>s.id===this.selectedShotId);if(!shot||!doc.players[value.player])throw Error('Choose a player.');
@@ -234,6 +241,7 @@ export class PlayBuilder {
                 else movement[value.field]=value.value;
                 if(movement.intent==='manual'&&!movement.target)movement.target=copy(doc.initialLayout[value.player]);
             });
+            else if(action==='flight')this.edit(doc=>{const shot=doc.shots.find(s=>s.id===this.selectedShotId);shot.arc=value.arc;shot.pace=value.pace;});
             else if(action==='title')this.edit(doc=>{doc.title=String(value).slice(0,120);},{review:false});
             else if(action==='editShot')this.edit(doc=>{const shot=doc.shots.find(s=>s.id===this.selectedShotId);if(!shot)return;const parts=value.field.split('.');let cursor=shot;for(const part of parts.slice(0,-1)){if(['__proto__','constructor','prototype'].includes(part))throw Error('Invalid field');cursor=cursor[part]??={};}const key=parts.at(-1);if(value.field==='hitter'&&shot.hitter!==value.value){shot.playerMovement??={};shot.playerMovement[shot.hitter]=copy(shot.movement);shot.movement=shot.playerMovement[value.value]||{intent:'hold',pinned:false};delete shot.playerMovement[value.value];}if(['__proto__','constructor','prototype'].includes(key))throw Error('Invalid field');cursor[key]=value.value;if(value.field==='family'){if(shot.family==='serve')shot.serveMethod='volley';else delete shot.serveMethod;}if(value.field==='movement.intent'&&value.value==='manual'&&!shot.movement.target)shot.movement.target=copy(doc.initialLayout[shot.hitter]);});
             else if(action==='addShot')this.edit(doc=>{if(doc.shots.length>=MAX_SHOTS)throw Error(`A draft supports at most ${MAX_SHOTS} shots.`);const last=doc.shots.at(-1),hitter=last?(Number(last.hitter.at(-1))<=2?'player3':'player1'):'player1',near=Number(hitter.at(-1))>2;const shot={id:id(),family:last?'drive':'serve',hitter,receiver:'auto',contactStyle:'auto',target:{x:near?15:5,y:near?8:36},arc:'medium',pace:'medium',movement:{intent:'hold',pinned:false},...(last?{}:{serveMethod:'volley'})};doc.shots.push(shot);this.selectedShotId=shot.id;});

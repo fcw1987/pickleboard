@@ -249,3 +249,18 @@ export const PLAY_DOCUMENT_ENUMS = Object.freeze({
   players: PLAYER_IDS, families: FAMILIES, contactStyles: CONTACT_STYLES,
   arcs: ARCS, paces: PACES, movementIntents: MOVEMENT_INTENTS
 });
+
+// Movement commands take effect in sequence, never before their authored shot.
+export function movementProtection(document) {
+  const active = new Set(), byShot = new Map();
+  for (const shot of document.shots || []) {
+    const commands = [[shot.hitter, shot.movement], ...Object.entries(shot.playerMovement || {})];
+    const protectedPlayers = new Set(active);
+    for (const [player, movement] of commands) if (movement?.pinned || movement?.intent === 'manual') protectedPlayers.add(player);
+    byShot.set(shot.id, protectedPlayers);
+    for (const [player, movement] of commands) {
+      if (movement?.pinned) active.add(player); else active.delete(player);
+    }
+  }
+  return byShot;
+}

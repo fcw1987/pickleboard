@@ -24,7 +24,7 @@ export class BuilderCourtTools {
         let start=field==='target'?shot.target:field==='movement.target'?shot.movement?.target:shot.playerMovement?.[player]?.target;
         if(!start&&player)start=this.builder.document.initialLayout?.[player];
         if(!start||!Number.isFinite(start.x)||!Number.isFinite(start.y))throw new TypeError('Court placement requires a finite starting position.');
-        this.builder.pause();this.clear();this.placement={field,player,start:{x:start.x,y:start.y}};this.placing=true;this.render();return true;
+        this.builder.pause();this.clear();this.placement={field,player,shotId:shot.id,start:{x:start.x,y:start.y}};this.placing=true;this.render();return true;
     }
     project(position,height=0){
         const viewer=this.builder.board.threeD;
@@ -54,11 +54,11 @@ export class BuilderCourtTools {
         if(!this.placing&&!near)return;
         const point=this.unproject(event);if(!point)return;
         this.builder.pause();event.preventDefault();event.stopPropagation();this.surface.setPointerCapture(event.pointerId);
-        this.drag={pointer:event.pointerId,pointerType:event.pointerType,field:this.placement?.field||'target',player:this.placement?.player||null,offset:near&&!this.placing?{x:point.x-source.x,y:point.y-source.y}:{x:0,y:0},target:{...source}};
+        this.drag={shotId:this.placement?.shotId || shot.id,pointer:event.pointerId,pointerType:event.pointerType,field:this.placement?.field||'target',player:this.placement?.player||null,offset:near&&!this.placing?{x:point.x-source.x,y:point.y-source.y}:{x:0,y:0},target:{...source}};
         this.move(event);
     }
-    move(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;const p=this.unproject(event);if(!p)return;this.drag.target={x:Math.max(0,Math.min(20,p.x-this.drag.offset.x)),y:Math.max(0,Math.min(44,p.y-this.drag.offset.y))};this.render();}
-    up(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;this.move(event);const {target,field,player}=this.drag;this.drag=null;this.placing=false;this.placement=null;if(this.surface.hasPointerCapture(event.pointerId))this.surface.releasePointerCapture(event.pointerId);if(player)this.builder.action('editMovement',{player,field:'target',value:target});else this.builder.action('editShot',{field,value:target});}
+    move(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;const p=this.unproject(event);if(!p)return;const margin=this.drag.player?8:0;this.drag.target={x:Math.max(-margin,Math.min(20+margin,p.x-this.drag.offset.x)),y:Math.max(-margin,Math.min(44+margin,p.y-this.drag.offset.y))};this.render();}
+    up(event){if(!this.drag||event.pointerId!==this.drag.pointer)return;this.move(event);const {target,field,player,shotId}=this.drag;this.drag=null;this.placing=false;this.placement=null;if(this.surface.hasPointerCapture(event.pointerId))this.surface.releasePointerCapture(event.pointerId);if(player)this.builder.action('editMovement',{player,field:'target',value:target,shotId});else this.builder.action('editShot',{field,value:target,shotId});}
     cancel(event){if(this.drag&&event.pointerId===this.drag.pointer)this.abort('Target placement cancelled.');}
     lostCapture(event){if(this.drag&&event.pointerId===this.drag.pointer)this.abort('Target placement cancelled because pointer contact was lost.');}
     abort(message,rerender=true){this.clear();this.builder.message=message;if(rerender)this.builder.render();}
@@ -67,7 +67,7 @@ export class BuilderCourtTools {
         const b=this.builder;if(b.workspace!=='builder'){this.clear();return;}this.bind();
                 this.layer.replaceChildren();const shot=b.selectedShot;if(!shot)return;
         const point=this.project(this.drag?.target || this.placement?.start || shot.target);
-        if(point&&!b.session.clock.playing){const group=element('g');group.append(element('circle',{cx:point.x,cy:point.y,r:13,fill:'none',stroke:'#fff6db','stroke-width':5}),element('circle',{cx:point.x,cy:point.y,r:13,fill:'none',stroke:'#6f365f','stroke-width':3}),element('path',{d:`M${point.x-20} ${point.y}h40 M${point.x} ${point.y-20}v40`,stroke:'#6f365f','stroke-width':2}));const label=element('text',{x:point.x+17,y:point.y-17,fill:'#203449',stroke:'#fff6db','stroke-width':3,'paint-order':'stroke','font-size':13,'font-family':'system-ui','font-weight':700});label.textContent='Target';group.append(label);this.layer.append(group);}
+        if(point&&!b.session.clock.playing){const group=element('g');group.append(element('circle',{cx:point.x,cy:point.y,r:13,fill:'none',stroke:'#fff6db','stroke-width':5}),element('circle',{cx:point.x,cy:point.y,r:13,fill:'none',stroke:'#6f365f','stroke-width':3}),element('path',{d:`M${point.x-20} ${point.y}h40 M${point.x} ${point.y-20}v40`,stroke:'#6f365f','stroke-width':2}));const label=element('text',{x:point.x+17,y:point.y-17,fill:'#203449',stroke:'#fff6db','stroke-width':3,'paint-order':'stroke','font-size':13,'font-family':'system-ui','font-weight':700});label.textContent=this.placement?.player?`${Number(this.placement.player.at(-1))<=2?'Green':'Orange'} ${['player1','player3'].includes(this.placement.player)?1:2} pin`:'Target';group.append(label);this.layer.append(group);}
         for(const annotation of b.document.annotations){
             if(annotation.type!=='path'||typeof annotation.d!=='string')continue;
             const pairs=[...annotation.d.matchAll(/[ML]\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s+(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi)].slice(0,2000);

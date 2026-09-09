@@ -2,7 +2,7 @@
 import { compilePlayTimeline } from './three-d-core.js';
 import { isInServiceBox, serviceBoxForServer, isInNonVolleyZone } from './court-geometry.js';
 import { validateRallyRules } from './rally-rules.js';
-import { documentCompatibilitySignature, validateDocument } from './play-document.js';
+import { documentCompatibilitySignature, validateDocument, movementProtection } from './play-document.js';
 
 const copy = value => globalThis.structuredClone ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 const PLAYER_IDS = ['player1', 'player2', 'player3', 'player4'];
@@ -267,14 +267,14 @@ export function recompileAssistedDocument(document, compiled, assistedPlay, cove
     throw new TypeError('Coverage assistance may change derived player positions only.');
   }
   const findings = [...compiled.findings];
-  const pinned = new Set(document.shots.flatMap(shot => [...(shot.movement.pinned ? [shot.hitter] : []), ...Object.entries(shot.playerMovement || {}).filter(([,m]) => m.pinned || m.intent === 'manual').map(([player]) => player)]));
+  const protection = movementProtection(document);
   for (let index = 0; index < assistedPlay.steps.length; index++) {
     const sourceStep = compiled.play.steps[index], assistedStep = assistedPlay.steps[index];
     if (!sourceStep || !assistedStep?.positions) throw new TypeError('Coverage assistance must preserve the compiled step structure.');
     for (const id of [...PLAYER_IDS, 'ball']) {
       const source = sourceStep.positions[id], assisted = assistedStep.positions[id];
       if (!source || !assisted || !Number.isFinite(assisted.x) || !Number.isFinite(assisted.y)) throw new TypeError(`Coverage assistance produced invalid ${id} coordinates at step ${index}.`);
-      if ((id === 'ball' || pinned.has(id)) && distance(source, assisted) > 1e-9) throw new TypeError(`Coverage assistance may not change ${id} at step ${index}.`);
+      if ((id === 'ball' || protection.get(sourceStep.id)?.has(id)) && distance(source, assisted) > 1e-9) throw new TypeError(`Coverage assistance may not change ${id} at step ${index}.`);
     }
   }
   let assistedTimeline;

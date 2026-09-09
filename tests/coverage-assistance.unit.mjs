@@ -17,10 +17,9 @@ const makeInputs = ({ auto = true, guides = true, team = 'both', pin = null } = 
     { id: 's3', positions: positions(), shot: { playerId: 'player1', from: { x: 5, y: 9 }, to: { x: 17, y: 37 } } }
   ] };
   const document = { players, assistance: { autoShading: auto, showGuides: guides, team }, shots: [
-    { id: 's1', hitter: 'player1', movement: { intent: 'hold', pinned: pin === 'player1' } },
+    { id: 's1', hitter: 'player1', movement: { intent: 'hold', pinned: pin === 'player1' }, ...(pin === 'player4' ? {playerMovement:{player4:{intent:'manual',pinned:true,target:{x:17,y:34}}}} : {}) },
     { id: 's2', hitter: 'player3', movement: { intent: 'hold', pinned: pin === 'player3' } },
-    { id: 's3', hitter: 'player1', movement: { intent: 'hold', pinned: false } },
-    ...(pin === 'player4' ? [{ id: 'pin-player4', hitter: 'player4', movement: { intent: 'manual', pinned: true, target: { x: 12, y: 34 } } }] : [])
+    { id: 's3', hitter: 'player1', movement: { intent: 'hold', pinned: false } }
   ] };
   const timeline = { segments: play.steps.map((step, index) => ({ index, step: { id: step.id }, duration: 0.25 })) };
   return { play, document, timeline };
@@ -43,7 +42,7 @@ test('coverage guides never enable movement and identify guide-only suggestions'
   assert(result.coverage.every(item => item.explanation.includes('Guide only')));
 });
 
-test('uses the canonical document assistance and pinned-hitter shape', () => {
+test('uses a current-leg partner pin without changing the canonical assistance setting', () => {
   const inputs = makeInputs({ auto: true, guides: true, pin: 'player4' });
   const result = applyCoverageAssistance(inputs.play, inputs.document, inputs.timeline);
   assert(result.coverage.length > 0);
